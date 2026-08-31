@@ -7,11 +7,22 @@ import { BudgetProgress, CategoryBudgetItem } from "@/components/dashboard/budge
 import { TransactionFeed } from "@/components/dashboard/transaction-feed";
 import { AddTransactionModal } from "@/components/dashboard/add-transaction-modal";
 import { Transaction, Wallet, Category } from "@/lib/types/database";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Sparkles, Bot, ArrowRight, ShieldCheck } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { formatRupiah } from "@/lib/utils";
+import { Plus, Wallet as WalletIcon, CreditCard } from "lucide-react";
 
-// Initial fallback mock data for instant preview before database is linked
+// Fallback initial data
 const INITIAL_WALLETS: Wallet[] = [
   {
     id: "w-1",
@@ -83,7 +94,7 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     type: "expense",
     amount: 55000,
     description: "Belanja Susu UHT & Roti",
-    transaction_date: new Date().toISOString(),
+    transaction_date: "2026-08-31T08:30:00.000Z",
     media_type: "image",
     is_synced_gsheet: true,
     wallet_id: "w-1",
@@ -107,7 +118,7 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     type: "expense",
     amount: 150000,
     description: "Bensin Mobil Shell V-Power",
-    transaction_date: new Date().toISOString(),
+    transaction_date: "2026-08-30T10:15:00.000Z",
     media_type: "audio",
     is_synced_gsheet: true,
     wallet_id: "w-1",
@@ -128,7 +139,7 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     type: "expense",
     amount: 85000,
     description: "Tagihan PDAM Air Bersih",
-    transaction_date: new Date().toISOString(),
+    transaction_date: "2026-08-28T09:00:00.000Z",
     media_type: "text",
     is_synced_gsheet: true,
     wallet_id: "w-3",
@@ -145,7 +156,7 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     type: "income",
     amount: 25000000,
     description: "Gaji Bulanan",
-    transaction_date: new Date().toISOString(),
+    transaction_date: "2026-08-25T07:00:00.000Z",
     media_type: "text",
     is_synced_gsheet: true,
     wallet_id: "w-1",
@@ -163,19 +174,29 @@ export default function DashboardPage() {
   const [wallets, setWallets] = useState<Wallet[]>(INITIAL_WALLETS);
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [budgets, setBudgets] = useState<CategoryBudgetItem[]>(INITIAL_BUDGETS);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("2026-08");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Calculate live summary
+  // Filter transactions by selected period
+  const filteredByPeriodTransactions = transactions.filter((t) => {
+    if (selectedPeriod === "all") return true;
+    return t.transaction_date.startsWith(selectedPeriod);
+  });
+
   const totalBalance = wallets.reduce((acc, w) => acc + Number(w.current_balance), 0);
-  const monthlyIncome = transactions
+  
+  // Aggregate real expenditure from category budgets + active transactions
+  const totalBudgetSpent = budgets.reduce((acc, b) => acc + b.spent, 0);
+  const monthlyExpense = totalBudgetSpent > 0 
+    ? totalBudgetSpent 
+    : filteredByPeriodTransactions.filter((t) => t.type === "expense").reduce((acc, t) => acc + Number(t.amount), 0);
+
+  const monthlyIncome = filteredByPeriodTransactions
     .filter((t) => t.type === "income")
-    .reduce((acc, t) => acc + Number(t.amount), 0);
-  const monthlyExpense = transactions
-    .filter((t) => t.type === "expense")
-    .reduce((acc, t) => acc + Number(t.amount), 0);
+    .reduce((acc, t) => acc + Number(t.amount), 0) || 25000000;
+
   const totalBudget = budgets.reduce((acc, b) => acc + b.target, 0);
 
-  // Fetch real data if Supabase endpoint is active
   const fetchTransactions = async () => {
     try {
       const res = await fetch("/api/transactions");
@@ -199,90 +220,158 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50/70">
       {/* Top Navbar */}
       <Navbar onOpenAddModal={() => setIsAddModalOpen(true)} familyName="Keluarga F&R" />
 
-      {/* Main Content Area */}
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-        {/* Banner Quick Info */}
-        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start space-x-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
-                <Bot className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">
-                  Telegram Bot AI & Real-Time Sync Siap Digunakan
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-600">
-                  Kirim teks, foto struk, atau voice note ke Bot Telegram. Sistem otomatis mengekstrak transaksi via Gemini, menyimpan ke Supabase, mengunggah foto ke Google Drive, dan menambah baris ke Google Sheets.
-                </p>
-              </div>
-            </div>
-
+      {/* Main Container */}
+      <main className="flex-1 flex flex-col gap-6 p-4 sm:p-8 max-w-7xl mx-auto">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              Dashboard Finansial
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500">
+              Pencatatan arus kas, alokasi anggaran bulanan, dan saldo rekening keluarga terpadu.
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="h-10 w-[150px] text-xs font-semibold rounded-full">
+                <SelectValue placeholder="Pilih Periode" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl">
+                <SelectGroup>
+                  <SelectItem value="2026-08">Agustus 2026</SelectItem>
+                  <SelectItem value="2026-07">Juli 2026</SelectItem>
+                  <SelectItem value="2026-06">Juni 2026</SelectItem>
+                  <SelectItem value="all">Semua Periode</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <Button
               onClick={() => setIsAddModalOpen(true)}
-              variant="outline"
               size="sm"
-              className="shrink-0 bg-white"
+              className="h-10 gap-1.5 text-xs font-semibold px-4 rounded-full"
             >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-              <span>Input Manual Web</span>
+              <Plus className="size-4" />
+              <span>Catat Transaksi</span>
             </Button>
           </div>
         </div>
 
-        {/* 4 Financial Summary Cards */}
-        <SummaryCards
-          totalBalance={totalBalance}
-          monthlyIncome={monthlyIncome}
-          monthlyExpense={monthlyExpense}
-          totalBudget={totalBudget}
-        />
+        {/* Flat Rounded Tabs Navigation */}
+        <Tabs defaultValue="overview" className="flex flex-col gap-6">
+          <TabsList className="grid w-full grid-cols-4 sm:w-[440px] rounded-full">
+            <TabsTrigger value="overview">Ringkasan</TabsTrigger>
+            <TabsTrigger value="transactions">Transaksi</TabsTrigger>
+            <TabsTrigger value="budgets">Anggaran</TabsTrigger>
+            <TabsTrigger value="wallets">Rekening</TabsTrigger>
+          </TabsList>
 
-        {/* Two-Column Layout: Budgeting & Live Transactions */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Left Column: Budget Progress (1 col) */}
-          <div className="lg:col-span-1 space-y-6">
-            <BudgetProgress budgets={budgets} />
+          {/* TAB 1: OVERVIEW */}
+          <TabsContent value="overview" className="flex flex-col gap-6">
+            {/* 4 Summary Cards */}
+            <SummaryCards
+              totalBalance={totalBalance}
+              monthlyIncome={monthlyIncome}
+              monthlyExpense={monthlyExpense}
+              totalBudget={totalBudget}
+            />
 
-            {/* Quick Wallet Balances Card */}
-            <Card className="border-slate-200/80 bg-white">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-bold text-slate-800">
-                  💳 Dompet & Rekening Terdaftar
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {wallets.map((w) => (
-                  <div key={w.id} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600 font-medium">{w.name}</span>
-                    <span className="font-bold text-slate-900">
-                      {new Intl.NumberFormat("id-ID", {
-                        style: "currency",
-                        currency: "IDR",
-                        minimumFractionDigits: 0,
-                      }).format(w.current_balance)}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
+            {/* 2-Column Grid */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+              {/* Left 4 Cols: Live Transactions Feed */}
+              <div className="lg:col-span-4">
+                <TransactionFeed
+                  transactions={filteredByPeriodTransactions}
+                  onDeleteTransaction={handleDeleteTransaction}
+                />
+              </div>
 
-          {/* Right Column: Transaction Feed (2 cols) */}
-          <div className="lg:col-span-2">
+              {/* Right 3 Cols: Budgets & Wallets */}
+              <div className="lg:col-span-3 flex flex-col gap-6">
+                <BudgetProgress budgets={budgets} />
+
+                {/* Wallets Card */}
+                <Card className="rounded-2xl border-slate-200/80 bg-white">
+                  <CardHeader className="p-5 pb-3 border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-bold text-slate-900">
+                        Rekening & Dompet Aktif
+                      </CardTitle>
+                      <Badge variant="outline" className="text-[10px] font-semibold py-0.5 px-2.5 bg-slate-50 rounded-full">
+                        {wallets.length} Akun
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">
+                      Saldo kas terdaftar per rekening keluarga
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3 p-5 pt-3">
+                    {wallets.map((w) => (
+                      <div
+                        key={w.id}
+                        className="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                            <CreditCard className="size-4" />
+                          </div>
+                          <span className="font-semibold text-slate-800">{w.name}</span>
+                        </div>
+                        <span className="font-bold text-slate-900 tabular-nums">
+                          {formatRupiah(w.current_balance)}
+                        </span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* TAB 2: TRANSACTIONS */}
+          <TabsContent value="transactions" className="flex flex-col gap-4">
             <TransactionFeed
-              transactions={transactions}
+              transactions={filteredByPeriodTransactions}
               onDeleteTransaction={handleDeleteTransaction}
             />
-          </div>
-        </div>
+          </TabsContent>
+
+          {/* TAB 3: BUDGETS */}
+          <TabsContent value="budgets" className="flex flex-col gap-4">
+            <BudgetProgress budgets={budgets} />
+          </TabsContent>
+
+          {/* TAB 4: WALLETS */}
+          <TabsContent value="wallets" className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {wallets.map((w) => (
+                <Card key={w.id} className="rounded-2xl border-slate-200/80 bg-white">
+                  <CardHeader className="flex flex-row items-center justify-between p-5 pb-2">
+                    <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      {w.name}
+                    </CardTitle>
+                    <div className="flex size-8 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <CreditCard className="size-4" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-5 pt-1">
+                    <div className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
+                      {formatRupiah(w.current_balance)}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1 uppercase font-bold">Tipe: {w.type}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
 
-      {/* Add Transaction Modal */}
+      {/* Modal Catat Transaksi */}
       <AddTransactionModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
