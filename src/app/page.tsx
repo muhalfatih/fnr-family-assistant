@@ -5,7 +5,10 @@ import { Navbar } from "@/components/dashboard/navbar";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { BudgetProgress, CategoryBudgetItem } from "@/components/dashboard/budget-progress";
 import { TransactionFeed } from "@/components/dashboard/transaction-feed";
+import { FinancialCharts } from "@/components/dashboard/financial-charts";
 import { AddTransactionModal } from "@/components/dashboard/add-transaction-modal";
+import { ManageWalletModal } from "@/components/dashboard/manage-wallet-modal";
+import { ManageBudgetModal } from "@/components/dashboard/manage-budget-modal";
 import { Transaction, Wallet, Category } from "@/lib/types/database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -20,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/lib/utils";
-import { Plus, Wallet as WalletIcon, CreditCard } from "lucide-react";
+import { Plus, CreditCard, PlusCircle } from "lucide-react";
 
 // Fallback initial data
 const INITIAL_WALLETS: Wallet[] = [
@@ -80,11 +83,11 @@ const INITIAL_CATEGORIES: Category[] = [
 ];
 
 const INITIAL_BUDGETS: CategoryBudgetItem[] = [
-  { id: "b-1", name: "Makanan & Minuman", spent: 4850000, target: 6000000 },
-  { id: "b-2", name: "Belanja Bulanan", spent: 5120000, target: 6500000 },
-  { id: "b-3", name: "Tagihan & Utilitas", spent: 2850000, target: 3500000 },
-  { id: "b-4", name: "Transport & Bensin", spent: 1500000, target: 2000000 },
-  { id: "b-5", name: "Kesehatan & Anak", spent: 450000, target: 1500000 },
+  { id: "b-1", name: "Makanan & Minuman", spent: 4850000, target: 6000000, color: "#3b82f6" },
+  { id: "b-2", name: "Belanja Bulanan", spent: 5120000, target: 6500000, color: "#10b981" },
+  { id: "b-3", name: "Tagihan & Utilitas", spent: 2850000, target: 3500000, color: "#f59e0b" },
+  { id: "b-4", name: "Transport & Bensin", spent: 1500000, target: 2000000, color: "#8b5cf6" },
+  { id: "b-5", name: "Kesehatan & Anak", spent: 450000, target: 1500000, color: "#ec4899" },
 ];
 
 const INITIAL_TRANSACTIONS: Transaction[] = [
@@ -176,6 +179,8 @@ export default function DashboardPage() {
   const [budgets, setBudgets] = useState<CategoryBudgetItem[]>(INITIAL_BUDGETS);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("2026-08");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
 
   // Filter transactions by selected period
   const filteredByPeriodTransactions = transactions.filter((t) => {
@@ -197,11 +202,17 @@ export default function DashboardPage() {
 
   const totalBudget = budgets.reduce((acc, b) => acc + b.target, 0);
 
+  const categoryPieData = budgets.map((b) => ({
+    name: b.name,
+    value: b.spent,
+    color: b.color || "#3b82f6",
+  }));
+
   const fetchTransactions = async () => {
     try {
       const res = await fetch("/api/transactions");
       if (res.ok) {
-        const data = await res.json();
+        const data = await jsonResponse(res);
         if (data.transactions && data.transactions.length > 0) {
           setTransactions(data.transactions);
         }
@@ -209,6 +220,10 @@ export default function DashboardPage() {
     } catch (e) {
       console.log("Using preview transactions.");
     }
+  };
+
+  const jsonResponse = async (res: Response) => {
+    return await res.json();
   };
 
   useEffect(() => {
@@ -219,29 +234,37 @@ export default function DashboardPage() {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50/70">
-      {/* Top Navbar */}
-      <Navbar onOpenAddModal={() => setIsAddModalOpen(true)} familyName="Keluarga F&R" />
+  const handleAddWallet = (newWallet: Wallet) => {
+    setWallets((prev) => [...prev, newWallet]);
+  };
 
-      {/* Main Container */}
-      <main className="flex-1 flex flex-col gap-6 p-4 sm:p-8 max-w-7xl mx-auto">
+  const handleSaveBudgets = (updatedBudgets: CategoryBudgetItem[]) => {
+    setBudgets(updatedBudgets);
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Top Navbar */}
+      <Navbar familyName="Keluarga F&R" />
+
+      {/* Main Container with Standard Shadcn Dashboard Layout */}
+      <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Dashboard Finansial
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Dashboard
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Pencatatan arus kas, alokasi anggaran bulanan, dan saldo rekening keluarga terpadu.
+            <p className="text-sm text-muted-foreground">
+              Pusat kendali keuangan, analitik arus kas, dan saldo rekening keluarga.
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="h-10 w-[150px] text-xs font-semibold rounded-full">
+              <SelectTrigger className="w-[145px]" aria-label="Filter Periode Bulan">
                 <SelectValue placeholder="Pilih Periode" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl">
+              <SelectContent>
                 <SelectGroup>
                   <SelectItem value="2026-08">Agustus 2026</SelectItem>
                   <SelectItem value="2026-07">Juli 2026</SelectItem>
@@ -252,26 +275,25 @@ export default function DashboardPage() {
             </Select>
             <Button
               onClick={() => setIsAddModalOpen(true)}
-              size="sm"
-              className="h-10 gap-1.5 text-xs font-semibold px-4 rounded-full"
+              className="gap-1.5"
             >
-              <Plus className="size-4" />
+              <Plus className="size-4" aria-hidden="true" />
               <span>Catat Transaksi</span>
             </Button>
           </div>
         </div>
 
-        {/* Flat Rounded Tabs Navigation */}
-        <Tabs defaultValue="overview" className="flex flex-col gap-6">
-          <TabsList className="grid w-full grid-cols-4 sm:w-[440px] rounded-full">
+        {/* Canonical Shadcn Tabs Navigation */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
             <TabsTrigger value="overview">Ringkasan</TabsTrigger>
             <TabsTrigger value="transactions">Transaksi</TabsTrigger>
-            <TabsTrigger value="budgets">Anggaran</TabsTrigger>
+            <TabsTrigger value="budgets">Anggaran & Analisis</TabsTrigger>
             <TabsTrigger value="wallets">Rekening</TabsTrigger>
           </TabsList>
 
           {/* TAB 1: OVERVIEW */}
-          <TabsContent value="overview" className="flex flex-col gap-6">
+          <TabsContent value="overview" className="space-y-6">
             {/* 4 Summary Cards */}
             <SummaryCards
               totalBalance={totalBalance}
@@ -280,10 +302,13 @@ export default function DashboardPage() {
               totalBudget={totalBudget}
             />
 
-            {/* 2-Column Grid */}
+            {/* Financial Visual Charts */}
+            <FinancialCharts categoryData={categoryPieData} />
+
+            {/* Standard Shadcn 7-Column Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
               {/* Left 4 Cols: Live Transactions Feed */}
-              <div className="lg:col-span-4">
+              <div className="col-span-4">
                 <TransactionFeed
                   transactions={filteredByPeriodTransactions}
                   onDeleteTransaction={handleDeleteTransaction}
@@ -291,37 +316,49 @@ export default function DashboardPage() {
               </div>
 
               {/* Right 3 Cols: Budgets & Wallets */}
-              <div className="lg:col-span-3 flex flex-col gap-6">
-                <BudgetProgress budgets={budgets} />
+              <div className="col-span-3 space-y-6">
+                <BudgetProgress
+                  budgets={budgets}
+                  onOpenManageBudget={() => setIsBudgetModalOpen(true)}
+                />
 
                 {/* Wallets Card */}
-                <Card className="rounded-2xl border-slate-200/80 bg-white">
-                  <CardHeader className="p-5 pb-3 border-b border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-bold text-slate-900">
-                        Rekening & Dompet Aktif
-                      </CardTitle>
-                      <Badge variant="outline" className="text-[10px] font-semibold py-0.5 px-2.5 bg-slate-50 rounded-full">
-                        {wallets.length} Akun
-                      </Badge>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CardTitle>Rekening & Dompet</CardTitle>
+                        <Badge variant="outline" className="text-xs font-normal">
+                          {wallets.length} Akun
+                        </Badge>
+                      </div>
+                      <CardDescription>
+                        Saldo kas terdaftar per rekening keluarga
+                      </CardDescription>
                     </div>
-                    <CardDescription className="text-xs text-slate-500 mt-0.5">
-                      Saldo kas terdaftar per rekening keluarga
-                    </CardDescription>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsWalletModalOpen(true)}
+                      className="h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <PlusCircle className="size-3.5" aria-hidden="true" />
+                      <span>Tambah</span>
+                    </Button>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-3 p-5 pt-3">
+                  <CardContent className="grid gap-2.5">
                     {wallets.map((w) => (
                       <div
                         key={w.id}
-                        className="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0"
+                        className="p-3 rounded-lg border bg-muted/40 hover:bg-muted/70 transition-colors flex items-center justify-between gap-3 text-sm"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-8 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                            <CreditCard className="size-4" />
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background border text-foreground">
+                            <CreditCard className="size-4" aria-hidden="true" />
                           </div>
-                          <span className="font-semibold text-slate-800">{w.name}</span>
+                          <span className="font-medium truncate">{w.name}</span>
                         </div>
-                        <span className="font-bold text-slate-900 tabular-nums">
+                        <span className="font-medium tabular-nums shrink-0">
                           {formatRupiah(w.current_balance)}
                         </span>
                       </div>
@@ -333,36 +370,52 @@ export default function DashboardPage() {
           </TabsContent>
 
           {/* TAB 2: TRANSACTIONS */}
-          <TabsContent value="transactions" className="flex flex-col gap-4">
-            <TransactionFeed
-              transactions={filteredByPeriodTransactions}
-              onDeleteTransaction={handleDeleteTransaction}
-            />
+          <TabsContent value="transactions" className="space-y-6">
+            <div className="max-w-4xl w-full">
+              <TransactionFeed
+                transactions={filteredByPeriodTransactions}
+                onDeleteTransaction={handleDeleteTransaction}
+              />
+            </div>
           </TabsContent>
 
-          {/* TAB 3: BUDGETS */}
-          <TabsContent value="budgets" className="flex flex-col gap-4">
-            <BudgetProgress budgets={budgets} />
+          {/* TAB 3: BUDGETS & ANALYTICS */}
+          <TabsContent value="budgets" className="space-y-6">
+            <FinancialCharts categoryData={categoryPieData} />
+            <div className="max-w-4xl w-full">
+              <BudgetProgress
+                budgets={budgets}
+                onOpenManageBudget={() => setIsBudgetModalOpen(true)}
+              />
+            </div>
           </TabsContent>
 
           {/* TAB 4: WALLETS */}
-          <TabsContent value="wallets" className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <TabsContent value="wallets" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Daftar Rekening & Dompet</h2>
+                <p className="text-xs text-muted-foreground">Kelola rekening bank, e-wallet, dan instrumen saldo kas keluarga.</p>
+              </div>
+              <Button onClick={() => setIsWalletModalOpen(true)} size="sm" className="gap-1.5">
+                <Plus className="size-4" aria-hidden="true" />
+                <span>Tambah Rekening</span>
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {wallets.map((w) => (
-                <Card key={w.id} className="rounded-2xl border-slate-200/80 bg-white">
-                  <CardHeader className="flex flex-row items-center justify-between p-5 pb-2">
-                    <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                <Card key={w.id}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium truncate">
                       {w.name}
                     </CardTitle>
-                    <div className="flex size-8 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                      <CreditCard className="size-4" />
-                    </div>
+                    <CreditCard className="size-4 text-muted-foreground" aria-hidden="true" />
                   </CardHeader>
-                  <CardContent className="p-5 pt-1">
-                    <div className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
+                  <CardContent>
+                    <div className="text-2xl font-bold tabular-nums truncate">
                       {formatRupiah(w.current_balance)}
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-1 uppercase font-bold">Tipe: {w.type}</p>
+                    <p className="text-xs text-muted-foreground mt-1 uppercase font-medium">Tipe: {w.type}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -378,6 +431,21 @@ export default function DashboardPage() {
         wallets={wallets}
         categories={categories}
         onSuccess={fetchTransactions}
+      />
+
+      {/* Modal Tambah Rekening */}
+      <ManageWalletModal
+        isOpen={isWalletModalOpen}
+        onClose={() => setIsWalletModalOpen(false)}
+        onAddWallet={handleAddWallet}
+      />
+
+      {/* Modal Atur Pagu Anggaran */}
+      <ManageBudgetModal
+        isOpen={isBudgetModalOpen}
+        onClose={() => setIsBudgetModalOpen(false)}
+        budgets={budgets}
+        onSaveBudgets={handleSaveBudgets}
       />
     </div>
   );

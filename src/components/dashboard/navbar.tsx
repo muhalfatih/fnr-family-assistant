@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,84 +14,91 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Plus, Bot, Shield, FileText, Wallet } from "lucide-react";
+import { Bot } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface NavbarProps {
-  onOpenAddModal: () => void;
   familyName?: string;
 }
 
-export function Navbar({ onOpenAddModal, familyName = "Keluarga F&R" }: NavbarProps) {
+export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
+  const pathname = usePathname();
+
+  const navLinks = [
+    { href: "/", label: "Keuangan" },
+    { href: "/assets", label: "Aset & Hutang" },
+    { href: "/vault", label: "Brankas Dokumen" },
+  ];
+
   return (
-    <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-sm sticky top-0 z-40">
-      <div className="flex h-16 items-center px-4 sm:px-8 max-w-7xl mx-auto justify-between">
+    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-14 items-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto justify-between gap-4">
         {/* Left: Brand Switcher & Main Nav */}
-        <div className="flex items-center gap-6">
-          {/* Family Switcher */}
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-2xl bg-slate-900 text-white font-bold text-xs tracking-tight shadow-none">
+        <div className="flex items-center gap-6 min-w-0">
+          <Link href="/" className="flex items-center gap-2.5 shrink-0 hover:opacity-90 transition-opacity">
+            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-xs">
               FR
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-sm text-slate-900 leading-tight">{familyName}</span>
-              <span className="text-[11px] font-medium text-slate-500 leading-tight">Family Financial Hub</span>
-            </div>
-          </div>
+            <span className="font-semibold text-sm leading-tight text-foreground truncate">
+              {familyName}
+            </span>
+          </Link>
 
-          <Separator orientation="vertical" className="hidden md:block h-5 bg-slate-200" />
+          <div className="hidden md:block h-4 w-px bg-border" />
 
           {/* Nav Links */}
-          <nav className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-            <span className="px-3.5 py-1.5 rounded-full bg-slate-100 text-slate-900 cursor-pointer">
-              Keuangan
-            </span>
-            <span className="px-3.5 py-1.5 rounded-full hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer transition-colors">
-              Aset & Hutang
-            </span>
-            <span className="px-3.5 py-1.5 rounded-full hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer transition-colors">
-              Brankas Dokumen
-            </span>
+          <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "transition-colors",
+                    isActive
+                      ? "text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
-        {/* Right: Actions & User Avatar */}
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 bg-slate-50/80 text-[11px] font-medium text-slate-600">
-            <Bot className="size-3.5 text-emerald-600" />
+        {/* Right: Status & Profile */}
+        <div className="flex items-center gap-3 shrink-0">
+          <Badge
+            variant="outline"
+            className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground font-normal"
+          >
+            <Bot className="size-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
             <span>Telegram Bot: Aktif</span>
           </Badge>
 
-          <Button
-            onClick={onOpenAddModal}
-            size="sm"
-            className="h-9 px-4 rounded-full text-xs font-semibold gap-1.5"
-          >
-            <Plus className="size-4" />
-            <span>Catat Transaksi</span>
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative size-9 rounded-full p-0 border border-slate-200/80">
-                <Avatar className="size-9 rounded-full">
-                  <AvatarFallback className="text-xs font-bold bg-slate-900 text-white rounded-full">
+              <Button variant="ghost" className="relative size-8 rounded-full p-0">
+                <Avatar className="size-8">
+                  <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground">
                     AY
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
-              <DropdownMenuLabel className="px-3 py-2">
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-xs font-bold leading-none text-slate-900">Ayah (Admin)</p>
-                  <p className="text-[11px] text-slate-500">ayah@keluarga.hub</p>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">Ayah (Admin)</p>
+                  <p className="text-xs leading-none text-muted-foreground">ayah@keluarga.hub</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator className="my-1" />
-              <DropdownMenuItem className="rounded-xl px-3 py-2">Profil Keluarga</DropdownMenuItem>
-              <DropdownMenuItem className="rounded-xl px-3 py-2">Pengaturan Bot & Webhook</DropdownMenuItem>
-              <DropdownMenuItem className="rounded-xl px-3 py-2">Integrasi Google Drive & Sheets</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Profil Keluarga</DropdownMenuItem>
+              <DropdownMenuItem>Pengaturan Bot & Webhook</DropdownMenuItem>
+              <DropdownMenuItem>Integrasi Google Drive & Sheets</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

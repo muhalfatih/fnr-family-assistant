@@ -16,7 +16,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight } from "lucide-react";
 
@@ -57,58 +56,60 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
 
   return (
     <>
-      <Card className="rounded-2xl border-slate-200/80 bg-white">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 pb-4 border-b border-slate-100">
-          <div>
-            <CardTitle className="text-sm font-bold text-slate-900">
-              Riwayat Mutasi & Transaksi
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-0.5">
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle>Riwayat Transaksi</CardTitle>
+            <CardDescription>
               {filteredTransactions.length} transaksi tercatat melalui Telegram & Web
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Search Box */}
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 type="text"
-                placeholder="Cari catatan..."
+                placeholder="Cari transaksi…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-36 sm:w-44 pl-9 pr-3 text-xs rounded-full"
+                className="h-9 w-32 sm:w-44 pl-8"
+                aria-label="Cari transaksi"
               />
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex rounded-full border border-slate-200/80 bg-slate-100/90 p-1 text-xs">
+            {/* Filter Buttons */}
+            <div className="flex items-center rounded-lg bg-muted p-1 text-muted-foreground text-xs">
               <button
+                type="button"
                 onClick={() => setFilterType("all")}
-                className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-all ${
+                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
                   filterType === "all"
-                    ? "bg-white text-slate-900 border border-slate-200/70"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-background text-foreground shadow-sm font-semibold"
+                    : "hover:text-foreground"
                 }`}
               >
                 Semua
               </button>
               <button
+                type="button"
                 onClick={() => setFilterType("expense")}
-                className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-all ${
+                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
                   filterType === "expense"
-                    ? "bg-white text-rose-700 border border-slate-200/70"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-background text-destructive shadow-sm font-semibold"
+                    : "hover:text-foreground"
                 }`}
               >
                 Pengeluaran
               </button>
               <button
+                type="button"
                 onClick={() => setFilterType("income")}
-                className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-all ${
+                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
                   filterType === "income"
-                    ? "bg-white text-emerald-700 border border-slate-200/70"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-background text-emerald-600 shadow-sm font-semibold"
+                    : "hover:text-foreground"
                 }`}
               >
                 Pemasukan
@@ -118,11 +119,11 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y">
             {filteredTransactions.length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-xs font-semibold text-slate-500">Tidak ada transaksi yang cocok.</p>
-                <p className="text-[11px] text-slate-400 mt-1">
+              <div className="py-12 px-4 text-center">
+                <p className="text-sm font-medium text-muted-foreground">Tidak ada transaksi yang cocok.</p>
+                <p className="text-xs text-muted-foreground mt-1">
                   Coba sesuaikan kata kunci pencarian atau ubah filter transaksi.
                 </p>
               </div>
@@ -134,62 +135,68 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
                 const hasItems = tx.parsed_metadata?.items && tx.parsed_metadata.items.length > 0;
 
                 return (
-                  <div key={tx.id} className="p-4 transition-colors hover:bg-slate-50/70 first:rounded-t-none last:rounded-b-2xl">
-                    <div className="flex items-center justify-between gap-3">
-                      {/* Left Details */}
-                      <div className="flex items-start gap-3.5">
+                  <div
+                    key={tx.id}
+                    className="p-4 sm:px-6 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      {/* Left: Icon & Info */}
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
                         <div
-                          className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${
+                          className={`flex size-9 shrink-0 items-center justify-center rounded-lg border ${
                             isIncome
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                               : isExpense
-                              ? "bg-rose-50 text-rose-700 border border-rose-200/60"
-                              : "bg-blue-50 text-blue-700 border border-blue-200/60"
+                              ? "bg-destructive/10 text-destructive border-destructive/20"
+                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                           }`}
                         >
                           {isIncome ? (
-                            <ArrowUpRight className="size-5" />
+                            <ArrowUpRight className="size-4" aria-hidden="true" />
                           ) : isExpense ? (
-                            <ArrowDownRight className="size-5" />
+                            <ArrowDownRight className="size-4" aria-hidden="true" />
                           ) : (
-                            <ArrowLeftRight className="size-5" />
+                            <ArrowLeftRight className="size-4" aria-hidden="true" />
                           )}
                         </div>
 
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-slate-900 text-sm">
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-medium text-sm truncate">
                               {tx.description || tx.category?.name || "Transaksi"}
                             </span>
                             {tx.wallet && (
-                              <Badge variant="outline" className="text-[10px] font-medium py-0.5 px-2 bg-slate-50 rounded-full">
+                              <Badge
+                                variant="outline"
+                                className="hidden sm:inline-flex text-xs font-normal"
+                              >
                                 {tx.wallet.name}
                               </Badge>
                             )}
                           </div>
 
-                          <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                            <span>{formatDateIndo(tx.transaction_date)}</span>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                            <span className="shrink-0">{formatDateIndo(tx.transaction_date)}</span>
                             <span>•</span>
-                            <span className="text-slate-600">{tx.category?.name || "Lain-lain"}</span>
+                            <span className="truncate">{tx.category?.name || "Lain-lain"}</span>
                             {tx.member && (
                               <>
                                 <span>•</span>
-                                <span className="font-medium text-slate-700">{tx.member.full_name}</span>
+                                <span className="font-medium text-foreground shrink-0">{tx.member.full_name}</span>
                               </>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Right Amount & Action */}
-                      <div className="flex flex-col items-end">
+                      {/* Right: Amount & Actions */}
+                      <div className="flex flex-col items-end shrink-0 pl-3">
                         <p
-                          className={`font-bold text-sm sm:text-base tabular-nums ${
+                          className={`font-semibold text-sm sm:text-base tabular-nums ${
                             isIncome
                               ? "text-emerald-600"
                               : isExpense
-                              ? "text-slate-900"
+                              ? "text-foreground"
                               : "text-blue-600"
                           }`}
                         >
@@ -197,43 +204,47 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
                           {formatRupiah(tx.amount)}
                         </p>
 
-                        <div className="mt-1 flex items-center gap-2">
+                        <div className="mt-1 flex items-center gap-1.5">
                           {tx.drive_view_url && (
                             <a
                               href={tx.drive_view_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] text-emerald-700 hover:text-emerald-800 font-bold border border-emerald-200/60"
+                              className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium border border-emerald-500/20"
                             >
-                              <FileText className="size-3" />
+                              <FileText className="size-3" aria-hidden="true" />
                               <span>Struk</span>
-                              <ExternalLink className="size-2.5" />
+                              <ExternalLink className="size-2.5" aria-hidden="true" />
                             </a>
                           )}
 
                           {hasItems && (
-                            <button
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               onClick={() => toggleExpand(tx.id)}
-                              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:text-slate-900"
+                              className="h-6 px-2 text-xs gap-1"
                             >
                               <span>{tx.parsed_metadata.items!.length} item</span>
                               {isExpanded ? (
-                                <ChevronUp className="size-3" />
+                                <ChevronUp className="size-3" aria-hidden="true" />
                               ) : (
-                                <ChevronDown className="size-3" />
+                                <ChevronDown className="size-3" aria-hidden="true" />
                               )}
-                            </button>
+                            </Button>
                           )}
 
                           {onDeleteTransaction && (
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => setTxToDelete(tx)}
-                              className="rounded-full p-1.5 text-slate-500 hover:text-rose-600 transition-colors"
+                              className="size-7 text-muted-foreground hover:text-destructive"
                               title="Hapus Transaksi"
                               aria-label={`Hapus transaksi ${tx.description || "ini"}`}
                             >
-                              <Trash2 className="size-4" />
-                            </button>
+                              <Trash2 className="size-3.5" aria-hidden="true" />
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -241,17 +252,17 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
 
                     {/* Expanded Item Breakdown */}
                     {isExpanded && hasItems && (
-                      <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/90 p-3.5 text-xs">
-                        <div className="font-bold text-slate-800 mb-2 text-xs">
+                      <div className="mt-3 rounded-lg border bg-muted/50 p-3 text-xs">
+                        <div className="font-semibold mb-2">
                           {tx.parsed_metadata.merchant || "Rincian Nota Belanja"}:
                         </div>
                         <div className="flex flex-col gap-1.5">
                           {tx.parsed_metadata.items!.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-slate-600 tabular-nums text-xs">
-                              <span>
+                            <div key={idx} className="flex justify-between text-muted-foreground tabular-nums text-xs">
+                              <span className="truncate pr-3">
                                 {item.name} ({item.qty}x)
                               </span>
-                              <span className="font-semibold text-slate-900">
+                              <span className="font-medium text-foreground shrink-0">
                                 {formatRupiah(item.price)}
                               </span>
                             </div>
@@ -271,14 +282,18 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
       <AlertDialog open={!!txToDelete} onOpenChange={(open) => !open && setTxToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Catatan Transaksi?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Hapus Catatan Transaksi?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Transaksi <strong className="text-slate-900">"{txToDelete?.description || "Tanpa Judul"}"</strong> senilai{" "}
-              <strong className="text-slate-900">{txToDelete ? formatRupiah(txToDelete.amount) : ""}</strong> akan dihapus permanen dari buku kas keluarga.
+              Transaksi <strong>"{txToDelete?.description || "Tanpa Judul"}"</strong> senilai{" "}
+              <strong>{txToDelete ? formatRupiah(txToDelete.amount) : ""}</strong> akan dihapus permanen dari buku kas keluarga.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel>
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete}>
               Ya, Hapus Transaksi
             </AlertDialogAction>

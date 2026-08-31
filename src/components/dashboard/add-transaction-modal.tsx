@@ -3,13 +3,14 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -29,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Wallet, Category } from "@/lib/types/database";
-import { cn, formatRupiah } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -120,78 +121,78 @@ export function AddTransactionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden sm:rounded-3xl border border-slate-200 shadow-none">
+      <DialogContent className="sm:max-w-[480px]">
         <form onSubmit={handleSubmit}>
-          {/* Header */}
-          <div className="p-6 pb-4 border-b border-slate-100 bg-slate-50/70">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold text-slate-900">
-                Catat Transaksi Manual
-              </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500 mt-1">
-                Catat mutasi keuangan yang langsung disinkronkan ke database & Google Sheets.
-              </DialogDescription>
-            </DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              Catat Transaksi Manual
+            </DialogTitle>
+            <DialogDescription>
+              Catat mutasi keuangan yang otomatis disinkronkan ke database & Google Sheets.
+            </DialogDescription>
+          </DialogHeader>
 
-            {/* Segmented Rounded Type Toggle */}
-            <div className="mt-4 grid grid-cols-2 gap-1 rounded-full border border-slate-200/80 bg-slate-100/90 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setType("expense");
-                  const defaultCat = categories.find((c) => c.type === "expense");
-                  if (defaultCat) setCategoryId(defaultCat.id);
-                }}
-                className={`flex items-center justify-center rounded-full py-1.5 text-xs font-bold transition-all ${
-                  type === "expense"
-                    ? "bg-white text-rose-600 border border-slate-200/70 shadow-none"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Pengeluaran
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setType("income");
-                  const defaultCat = categories.find((c) => c.type === "income");
-                  if (defaultCat) setCategoryId(defaultCat.id);
-                }}
-                className={`flex items-center justify-center rounded-full py-1.5 text-xs font-bold transition-all ${
-                  type === "income"
-                    ? "bg-white text-emerald-600 border border-slate-200/70 shadow-none"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Pemasukan
-              </button>
-            </div>
+          {/* Type Toggle Tabs */}
+          <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setType("expense");
+                const defaultCat = categories.find((c) => c.type === "expense");
+                if (defaultCat) setCategoryId(defaultCat.id);
+              }}
+              className={`flex items-center justify-center rounded-md py-1.5 font-medium transition-colors ${
+                type === "expense"
+                  ? "bg-background text-destructive shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Pengeluaran
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setType("income");
+                const defaultCat = categories.find((c) => c.type === "income");
+                if (defaultCat) setCategoryId(defaultCat.id);
+              }}
+              className={`flex items-center justify-center rounded-md py-1.5 font-medium transition-colors ${
+                type === "income"
+                  ? "bg-background text-emerald-600 shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Pemasukan
+            </button>
           </div>
 
           {/* Form Body */}
-          <div className="flex flex-col gap-4 p-6">
+          <div className="grid gap-4 py-4">
             {errorMsg && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs font-medium text-destructive">
                 {errorMsg}
               </div>
             )}
 
-            {/* Amount Field with Live Currency Masking */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="displayAmount" className="text-xs font-semibold text-slate-700">
+            {/* Amount Field */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="displayAmount" className="text-xs font-medium">
                 Nominal Transaksi (Rp)
               </Label>
               <div className="relative flex items-center">
-                <span className="absolute left-4 font-bold text-slate-400 text-sm select-none">Rp</span>
+                <span className="absolute left-3 font-semibold text-muted-foreground text-sm select-none">Rp</span>
                 <Input
                   id="displayAmount"
+                  name="amount"
+                  inputMode="numeric"
+                  autoComplete="off"
                   type="text"
                   required
                   autoFocus
                   placeholder="0"
                   value={displayAmount}
                   onChange={handleAmountChange}
-                  className="h-12 text-xl font-bold tabular-nums pl-12 rounded-xl"
+                  className="h-10 text-lg font-bold tabular-nums pl-10"
                 />
               </div>
 
@@ -202,7 +203,7 @@ export function AddTransactionModal({
                     key={q}
                     type="button"
                     onClick={() => handleQuickAmount(q)}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="h-7 rounded-md border bg-muted/40 px-2.5 text-xs font-medium hover:bg-muted transition-colors"
                   >
                     {q >= 1000000 ? `${q / 1000000} jt` : `${q / 1000} rb`}
                   </button>
@@ -211,23 +212,20 @@ export function AddTransactionModal({
             </div>
 
             {/* 2-Column Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="walletSelect" className="text-xs font-semibold text-slate-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-1.5 min-w-0">
+                <Label htmlFor="walletSelect" className="text-xs font-medium">
                   Dompet / Rekening
                 </Label>
                 <Select value={walletId} onValueChange={setWalletId}>
-                  <SelectTrigger id="walletSelect" className="h-10 rounded-xl">
+                  <SelectTrigger id="walletSelect" aria-label="Pilih Dompet">
                     <SelectValue placeholder="Pilih rekening" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
+                  <SelectContent>
                     <SelectGroup>
                       {wallets.map((w) => (
-                        <SelectItem key={w.id} value={w.id} className="rounded-lg">
-                          <div className="flex items-center justify-between gap-2 w-full">
-                            <span>{w.name}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">({formatRupiah(w.current_balance)})</span>
-                          </div>
+                        <SelectItem key={w.id} value={w.id}>
+                          <span className="truncate">{w.name}</span>
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -235,19 +233,19 @@ export function AddTransactionModal({
                 </Select>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="categorySelect" className="text-xs font-semibold text-slate-700">
+              <div className="grid gap-1.5 min-w-0">
+                <Label htmlFor="categorySelect" className="text-xs font-medium">
                   Kategori
                 </Label>
                 <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger id="categorySelect" className="h-10 rounded-xl">
+                  <SelectTrigger id="categorySelect" aria-label="Pilih Kategori">
                     <SelectValue placeholder="Pilih kategori" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
+                  <SelectContent>
                     <SelectGroup>
                       {filteredCategories.map((c) => (
-                        <SelectItem key={c.id} value={c.id} className="rounded-lg">
-                          {c.name}
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="truncate">{c.name}</span>
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -257,23 +255,24 @@ export function AddTransactionModal({
             </div>
 
             {/* Description Field */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="description" className="text-xs font-semibold text-slate-700">
+            <div className="grid gap-1.5">
+              <Label htmlFor="description" className="text-xs font-medium">
                 Keterangan / Catatan
               </Label>
               <Input
                 id="description"
+                name="description"
+                autoComplete="off"
                 type="text"
                 placeholder="Contoh: Makan siang, Bensin Shell, Token PLN"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="h-10 rounded-xl"
               />
             </div>
 
-            {/* Date Field with Shadcn Calendar Popover */}
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-semibold text-slate-700">
+            {/* Date Field with Calendar Popover */}
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-medium">
                 Tanggal Transaksi
               </Label>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
@@ -281,19 +280,20 @@ export function AddTransactionModal({
                   <Button
                     variant="outline"
                     className={cn(
-                      "h-10 w-full justify-start text-left font-normal rounded-xl border border-slate-200 bg-white px-3.5 text-xs",
-                      !selectedDate && "text-slate-400"
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
                     )}
+                    aria-label="Pilih Tanggal Transaksi"
                   >
-                    <CalendarIcon className="mr-2 size-4 text-slate-500" />
-                    <span className="font-semibold text-slate-800">
+                    <CalendarIcon className="mr-2 size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                    <span className="font-medium truncate">
                       {selectedDate
                         ? format(selectedDate, "EEEE, dd MMMM yyyy", { locale: localeId })
                         : "Pilih tanggal"}
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 rounded-2xl border border-slate-200" align="start">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
@@ -309,24 +309,29 @@ export function AddTransactionModal({
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="h-9 px-5 rounded-full text-xs font-semibold"
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="h-9 px-5 rounded-full text-xs font-semibold"
+              className="gap-2"
             >
-              {isSubmitting ? "Menyimpan..." : "Simpan Transaksi"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  <span>Menyimpan…</span>
+                </>
+              ) : (
+                "Simpan Transaksi"
+              )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
