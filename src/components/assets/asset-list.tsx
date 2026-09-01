@@ -35,79 +35,76 @@ export function AssetList({ assets, onOpenAddModal, onDeleteAsset }: AssetListPr
   const getCategoryLabel = (category: string) => {
     switch (category) {
       case "gold":
-        return "Logam Mulia / Emas";
+        return "Logam Mulia";
       case "real_estate":
-        return "Properti & Tanah";
+        return "Properti";
       case "vehicle":
         return "Kendaraan";
       case "investment":
-        return "Investasi & Saham";
+        return "Investasi";
       case "electronics":
-        return "Elektronik & Gadget";
+        return "Elektronik";
       default:
         return "Lain-lain";
     }
   };
 
-  const totalAssetValue = assets.reduce((acc, curr) => acc + curr.estimated_value, 0);
-
   return (
-    <Card>
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <Card className="rounded-xl border border-border/80 bg-card">
+      <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <CardTitle>Daftar Aset Keluarga</CardTitle>
-            <Badge variant="outline" className="text-xs font-normal">
+            <CardTitle className="text-base font-semibold">Daftar Aset Keluarga</CardTitle>
+            <Badge variant="outline" className="text-[11px] font-normal">
               {assets.length} Item
             </Badge>
           </div>
-          <CardDescription>
-            Estimasi nilai pasar seluruh aset fisik dan instrumen investasi
+          <CardDescription className="text-xs text-muted-foreground">
+            Kepemilikan aset fisik, instrumen investasi, dan perkiraan nilai pasar.
           </CardDescription>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <p className="text-[11px] text-muted-foreground uppercase font-medium">Total Nilai</p>
-            <p className="text-sm font-bold tabular-nums text-foreground">{formatRupiah(totalAssetValue)}</p>
-          </div>
-          <Button onClick={onOpenAddModal} size="sm" className="gap-1.5">
-            <Plus className="size-4" aria-hidden="true" />
-            <span>Tambah Aset</span>
-          </Button>
         </div>
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="divide-y">
+        <div className="divide-y border-t">
           {assets.length === 0 ? (
             <div className="py-12 px-4 text-center">
-              <p className="text-sm font-medium text-muted-foreground">Belum ada aset terdaftar.</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm font-medium text-foreground">Belum ada aset terdaftar.</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                 Klik tombol "Tambah Aset" untuk mulai mencatat properti, emas, atau kendaraan keluarga.
               </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenAddModal}
+                className="mt-4 gap-1.5 h-9 text-xs"
+              >
+                <Plus className="size-3.5" aria-hidden="true" />
+                <span>Tambah Aset Sekarang</span>
+              </Button>
             </div>
           ) : (
             assets.map((asset) => (
               <div
                 key={asset.id}
-                className="p-4 sm:px-6 transition-colors hover:bg-muted/50 flex items-center justify-between gap-4"
+                className="p-4 sm:px-5 transition-colors hover:bg-muted/40 flex items-center justify-between gap-4"
               >
-                <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background text-foreground">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted/60 text-foreground">
                     {getCategoryIcon(asset.category)}
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-medium text-sm truncate">{asset.name}</span>
-                      <Badge variant="outline" className="hidden sm:inline-flex text-[11px] font-normal">
+                      <Badge variant="outline" className="hidden sm:inline-flex text-[10px] font-normal px-1.5 py-0">
                         {getCategoryLabel(asset.category)}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate mt-0.5">
                       {asset.acquisition_date && (
                         <span>Perolehan: {formatDateIndo(asset.acquisition_date)}</span>
                       )}
-                      {asset.notes && <span>• {asset.notes}</span>}
+                      {asset.notes && <span>{asset.acquisition_date ? "• " : ""}{asset.notes}</span>}
                     </div>
                   </div>
                 </div>
@@ -121,7 +118,7 @@ export function AssetList({ assets, onOpenAddModal, onDeleteAsset }: AssetListPr
                       variant="ghost"
                       size="icon"
                       onClick={() => onDeleteAsset(asset.id)}
-                      className="size-7 text-muted-foreground hover:text-destructive"
+                      className="size-7 text-muted-foreground hover:text-destructive rounded-md"
                       title="Hapus Aset"
                       aria-label={`Hapus aset ${asset.name}`}
                     >

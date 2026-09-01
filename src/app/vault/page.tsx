@@ -10,6 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Search,
   Send,
@@ -215,12 +223,12 @@ export default function VaultPage() {
           </div>
         )}
 
-        {/* Filters and Search Bar */}
-        <div className="space-y-3">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" aria-hidden="true" />
+        {/* Filters and Search Toolbar */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Search + Category Dropdown */}
+          <div className="flex items-center gap-2 flex-1 max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" aria-hidden="true" />
               <Input
                 placeholder="Cari nama atau nomor dokumen..."
                 value={searchQuery}
@@ -228,53 +236,50 @@ export default function VaultPage() {
                 className="pl-8 text-xs h-9 rounded-md"
               />
             </div>
-
-            {/* Status Filter Tabs with Integrated Badge Counters */}
-            <div className="flex items-center rounded-lg border p-1 bg-muted/40 text-xs gap-1 overflow-x-auto">
-              {[
-                { id: "all", label: "Semua", count: counts.total },
-                { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
-                { id: "expired", label: "Kedaluwarsa", count: counts.expired, danger: counts.expired > 0 },
-                { id: "active", label: "Aktif", count: counts.active },
-                { id: "permanent", label: "Permanen", count: counts.permanent },
-              ].map((st) => (
-                <button
-                  key={st.id}
-                  onClick={() => setSelectedStatus(st.id)}
-                  className={`px-3 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                    selectedStatus === st.id
-                      ? "bg-background text-foreground font-semibold shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span>{st.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full tabular-nums font-mono ${
-                    st.danger
-                      ? "bg-destructive text-destructive-foreground"
-                      : st.alert
-                      ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {st.count}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[145px] h-9 text-xs shrink-0 rounded-md">
+                <SelectValue placeholder="Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Category Chips Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-            {categories.map((c) => (
+          {/* Status Filter Tabs with Integrated Badge Counters */}
+          <div className="flex items-center rounded-md border p-0.5 bg-muted/40 text-xs gap-1 overflow-x-auto">
+            {[
+              { id: "all", label: "Semua", count: counts.total },
+              { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
+              { id: "expired", label: "Kedaluwarsa", count: counts.expired, danger: counts.expired > 0 },
+              { id: "active", label: "Aktif", count: counts.active },
+              { id: "permanent", label: "Permanen", count: counts.permanent },
+            ].map((st) => (
               <button
-                key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
-                className={`px-3 py-1 rounded-full border transition-colors whitespace-nowrap text-xs ${
-                  selectedCategory === c.id
-                    ? "bg-primary text-primary-foreground font-medium border-primary"
-                    : "bg-background text-muted-foreground hover:text-foreground border-border"
+                key={st.id}
+                onClick={() => setSelectedStatus(st.id)}
+                className={`px-3 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                  selectedStatus === st.id
+                    ? "bg-background text-foreground font-semibold shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {c.label}
+                <span>{st.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full tabular-nums font-mono ${
+                  st.danger
+                    ? "bg-destructive text-destructive-foreground"
+                    : st.alert
+                    ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {st.count}
+                </span>
               </button>
             ))}
           </div>

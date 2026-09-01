@@ -5,7 +5,7 @@ import { ActiveProcessInfo } from "@/lib/types/database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, StopCircle, Radio, CheckCircle2, MessageSquare, Image, Mic } from "lucide-react";
+import { Loader2, StopCircle, Radio, Image, Mic, MessageSquare } from "lucide-react";
 
 interface ActiveTasksBannerProps {
   onTaskCancelled?: () => void;
@@ -72,7 +72,7 @@ export function ActiveTasksBanner({ onTaskCancelled }: ActiveTasksBannerProps) {
 
   if (tasks.length === 0) {
     return (
-      <Card className="border-border/60 bg-muted/20">
+      <Card className="rounded-xl border border-border/80 bg-muted/20">
         <CardContent className="p-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="relative flex size-2">
@@ -84,7 +84,7 @@ export function ActiveTasksBanner({ onTaskCancelled }: ActiveTasksBannerProps) {
             <span>Tidak ada proses latar belakang chat yang sedang berjalan</span>
           </div>
           <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
-            Timeout Otomatis: 15s
+            Batas Timeout: 15 detik
           </Badge>
         </CardContent>
       </Card>
@@ -92,8 +92,8 @@ export function ActiveTasksBanner({ onTaskCancelled }: ActiveTasksBannerProps) {
   }
 
   return (
-    <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
-      <CardHeader className="pb-3">
+    <Card className="rounded-xl border border-destructive/40 bg-destructive/5">
+      <CardHeader className="p-5 pb-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Radio className="size-4 text-destructive animate-pulse" aria-hidden="true" />
@@ -102,11 +102,11 @@ export function ActiveTasksBanner({ onTaskCancelled }: ActiveTasksBannerProps) {
             </CardTitle>
           </div>
           <CardDescription className="text-xs text-destructive/80">
-            Anda dapat memantau dan mematikan paksa (*kill process*) jika respon memakan waktu terlalu lama.
+            Monitor dan hentikan paksa proses jika respon memakan waktu terlalu lama.
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-2.5">
+      <CardContent className="p-5 pt-0 grid gap-2.5">
         {tasks.map((task) => {
           const elapsedSec = Math.round((now - task.startTime) / 1000);
           const isCancelling = cancellingId === task.taskId || task.status === "cancelling";
@@ -126,7 +126,7 @@ export function ActiveTasksBanner({ onTaskCancelled }: ActiveTasksBannerProps) {
                       <span>{task.channel}</span>
                     </Badge>
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      (berjalan {elapsedSec}s / maks 15s)
+                      ({elapsedSec}s / 15s)
                     </span>
                   </div>
                   {task.rawPrompt && (
@@ -142,7 +142,7 @@ export function ActiveTasksBanner({ onTaskCancelled }: ActiveTasksBannerProps) {
                 size="sm"
                 onClick={() => handleCancelTask(task.taskId)}
                 disabled={isCancelling}
-                className="h-8 gap-1.5 text-xs shrink-0"
+                className="h-8 gap-1.5 text-xs shrink-0 rounded-md"
               >
                 {isCancelling ? (
                   <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />

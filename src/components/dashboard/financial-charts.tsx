@@ -44,14 +44,14 @@ export function FinancialCharts({
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
       {/* 1. Bar Chart: Arus Kas Bulanan (4 Cols) */}
-      <Card className="col-span-4 flex flex-col justify-between">
-        <CardHeader>
-          <CardTitle>Tren Arus Kas</CardTitle>
-          <CardDescription>
+      <Card className="col-span-4 flex flex-col justify-between rounded-xl border border-border/80 bg-card">
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-base font-semibold">Tren Arus Kas</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
             Perbandingan total pemasukan dan pengeluaran per bulan
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent className="p-5 pt-0">
           {!hasCashFlowData ? (
             <div className="h-[280px] flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
               <p className="text-sm font-medium">Belum ada data arus kas.</p>
@@ -115,15 +115,15 @@ export function FinancialCharts({
         </CardContent>
       </Card>
 
-      {/* 2. Donut Chart: Distribusi Pengeluaran (3 Cols) */}
-      <Card className="col-span-3 flex flex-col justify-between">
-        <CardHeader>
-          <CardTitle>Distribusi Belanja</CardTitle>
-          <CardDescription>
+      {/* 2. Donut Chart: Proporsi Belanja per Kategori (3 Cols) */}
+      <Card className="col-span-3 flex flex-col justify-between rounded-xl border border-border/80 bg-card">
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-base font-semibold">Distribusi Belanja</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
             Proporsi pengeluaran kategori bulan ini
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-2 flex flex-col items-center">
+        <CardContent className="p-5 pt-0 flex flex-col items-center">
           {filteredCategoryData.length === 0 ? (
             <div className="h-[280px] flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
               <p className="text-sm font-medium">Belum ada data pengeluaran kategori.</p>
@@ -181,11 +181,11 @@ export function FinancialCharts({
                           className="size-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <span className="truncate text-muted-foreground">{cat.name}</span>
+                        <span className="text-muted-foreground truncate">{cat.name}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 font-medium tabular-nums shrink-0">
-                        <span>{formatRupiah(cat.value)}</span>
-                        <span className="text-muted-foreground text-[10px]">({percent}%)</span>
+                      <div className="flex items-center gap-2 tabular-nums">
+                        <span className="font-semibold text-foreground">{formatRupiah(cat.value)}</span>
+                        <span className="text-muted-foreground text-[11px] w-7 text-right">{percent}%</span>
                       </div>
                     </div>
                   );

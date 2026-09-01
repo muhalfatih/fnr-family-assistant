@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/lib/utils";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { PieChart as PieChartIcon, ArrowRight } from "lucide-react";
+import { PieChart as PieChartIcon } from "lucide-react";
 
 interface ContributionItem {
   memberId: string;
@@ -26,7 +26,6 @@ interface ContributionChartsProps {
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4"];
 
 export function ContributionCharts({ contributions, unassigned, totalExpense }: ContributionChartsProps) {
-  // Filter members with spending > 0 for donut chart
   const activeMembers = contributions.filter((c) => c.spent > 0);
 
   const chartData = activeMembers.map((m, idx) => ({
@@ -62,24 +61,24 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {/* 1. Donut Chart Distribusi Pengeluaran */}
-      <Card>
-        <CardHeader className="pb-2">
+      <Card className="rounded-xl border border-border/80 bg-card">
+        <CardHeader className="p-5 pb-3">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <CardTitle className="text-base flex items-center gap-2">
+            <div className="space-y-1">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <PieChartIcon className="size-4 text-primary" aria-hidden="true" />
-                <span>Proporsi Belanja Antar-Anggota</span>
+                <span>Proporsi Belanja</span>
               </CardTitle>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs text-muted-foreground">
                 Persentase pengeluaran keluarga bulan ini
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-xs font-mono font-normal">
+            <Badge variant="outline" className="text-[11px] font-mono font-normal">
               Total: {formatRupiah(totalExpense)}
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 pt-0">
           {chartData.length === 0 ? (
             <div className="h-60 flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4">
               <p>Belum ada pengeluaran yang tercatat di bulan ini.</p>
@@ -110,12 +109,12 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
             </div>
           )}
 
-          {/* Legend Items */}
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t text-xs">
-            {chartData.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2 truncate">
+          {/* Legend Grid */}
+          <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t">
+            {chartData.map((item) => (
+              <div key={item.name} className="flex items-center gap-2 min-w-0">
                 <span
-                  className="size-2.5 rounded-full shrink-0"
+                  className="size-2 rounded-full shrink-0"
                   style={{ backgroundColor: item.color }}
                   aria-hidden="true"
                 />
@@ -130,25 +129,25 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
       </Card>
 
       {/* 2. Rincian Kategori Terbanyak per Anggota */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Rincian Kontribusi per Anggota</CardTitle>
-          <CardDescription className="text-xs">
+      <Card className="rounded-xl border border-border/80 bg-card">
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-base font-semibold">Rincian Kontribusi per Anggota</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
             Kategori pengeluaran terbesar & frekuensi belanja masing-masing anggota
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="p-5 pt-0 space-y-2.5">
           {contributions.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-xs">
               Belum ada profil anggota keluarga yang ditambahkan.
             </div>
           ) : (
-            contributions.map((c, idx) => (
+            contributions.map((c) => (
               <div
                 key={c.memberId}
                 className="p-3 rounded-lg border bg-muted/20 flex items-center justify-between gap-3 text-xs"
               >
-                <div className="min-w-0 space-y-1">
+                <div className="min-w-0 space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-foreground truncate">{c.name}</span>
                     <Badge variant="outline" className="text-[10px] px-1 py-0 capitalize">
@@ -161,7 +160,7 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
                 </div>
 
                 <div className="text-right shrink-0 space-y-0.5">
-                  <p className="font-semibold text-foreground">{formatRupiah(c.spent)}</p>
+                  <p className="font-semibold text-foreground tabular-nums">{formatRupiah(c.spent)}</p>
                   <p className="text-[11px] text-muted-foreground tabular-nums">
                     {c.transactionCount} transaksi ({c.percentage}%)
                   </p>
@@ -177,8 +176,8 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
                 <p className="text-[11px]">Dicatat sebelum anggota keluarga ditautkan</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-semibold text-foreground">{formatRupiah(unassigned.spent)}</p>
-                <p className="text-[11px]">{unassigned.count} transaksi ({unassigned.percentage}%)</p>
+                <p className="font-semibold text-foreground tabular-nums">{formatRupiah(unassigned.spent)}</p>
+                <p className="text-[11px] tabular-nums">{unassigned.count} transaksi ({unassigned.percentage}%)</p>
               </div>
             </div>
           )}

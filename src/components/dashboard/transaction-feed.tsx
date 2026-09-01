@@ -56,11 +56,11 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <Card className="rounded-xl border border-border/80 bg-card">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 pb-3">
           <div className="space-y-1">
-            <CardTitle>Riwayat Transaksi</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-base font-semibold">Riwayat Transaksi</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
               {filteredTransactions.length} transaksi tercatat melalui Telegram & Web
             </CardDescription>
           </div>
@@ -68,23 +68,23 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
           <div className="flex flex-wrap items-center gap-2">
             {/* Search Box */}
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" aria-hidden="true" />
+              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" aria-hidden="true" />
               <Input
                 type="text"
-                placeholder="Cari transaksi…"
+                placeholder="Cari transaksi..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-32 sm:w-44 pl-8"
+                className="h-8 text-xs w-32 sm:w-44 pl-8 rounded-md"
                 aria-label="Cari transaksi"
               />
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex items-center rounded-lg bg-muted p-1 text-muted-foreground text-xs">
+            <div className="flex items-center rounded-md bg-muted/60 p-0.5 text-muted-foreground text-xs">
               <button
                 type="button"
                 onClick={() => setFilterType("all")}
-                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
                   filterType === "all"
                     ? "bg-background text-foreground shadow-sm font-semibold"
                     : "hover:text-foreground"
@@ -95,7 +95,7 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
               <button
                 type="button"
                 onClick={() => setFilterType("expense")}
-                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
                   filterType === "expense"
                     ? "bg-background text-destructive shadow-sm font-semibold"
                     : "hover:text-foreground"
@@ -106,9 +106,9 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
               <button
                 type="button"
                 onClick={() => setFilterType("income")}
-                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
                   filterType === "income"
-                    ? "bg-background text-emerald-600 shadow-sm font-semibold"
+                    ? "bg-background text-emerald-600 dark:text-emerald-400 shadow-sm font-semibold"
                     : "hover:text-foreground"
                 }`}
               >
@@ -119,11 +119,11 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="divide-y">
+          <div className="divide-y border-t">
             {filteredTransactions.length === 0 ? (
               <div className="py-12 px-4 text-center">
-                <p className="text-sm font-medium text-muted-foreground">Tidak ada transaksi yang cocok.</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-sm font-medium text-foreground">Tidak ada transaksi yang cocok.</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                   Coba sesuaikan kata kunci pencarian atau ubah filter transaksi.
                 </p>
               </div>
@@ -137,18 +137,18 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
                 return (
                   <div
                     key={tx.id}
-                    className="p-4 sm:px-6 transition-colors hover:bg-muted/50"
+                    className="p-3.5 sm:px-5 transition-colors hover:bg-muted/40"
                   >
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center justify-between gap-3">
                       {/* Left: Icon & Info */}
-                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div
-                          className={`flex size-9 shrink-0 items-center justify-center rounded-lg border ${
+                          className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
                             isIncome
-                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                               : isExpense
-                              ? "bg-destructive/10 text-destructive border-destructive/20"
-                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-blue-500/10 text-blue-600"
                           }`}
                         >
                           {isIncome ? (
@@ -162,111 +162,116 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
 
                         <div className="flex flex-col min-w-0 flex-1">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-medium text-sm truncate">
+                            <span className="font-medium text-sm truncate text-foreground">
                               {tx.description || tx.category?.name || "Transaksi"}
                             </span>
                             {tx.wallet && (
                               <Badge
                                 variant="outline"
-                                className="hidden sm:inline-flex text-xs font-normal"
+                                className="hidden sm:inline-flex text-[10px] font-normal px-1.5 py-0"
                               >
                                 {tx.wallet.name}
                               </Badge>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate mt-0.5">
                             <span className="shrink-0">{formatDateIndo(tx.transaction_date)}</span>
                             <span>•</span>
-                            <span className="truncate">{tx.category?.name || "Lain-lain"}</span>
+                            <span className="truncate">{tx.category?.name || "Umum"}</span>
                             {tx.member && (
                               <>
                                 <span>•</span>
-                                <span className="font-medium text-foreground shrink-0">{tx.member.full_name}</span>
+                                <span className="truncate text-foreground font-medium">{tx.member.full_name}</span>
                               </>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Right: Amount & Actions */}
-                      <div className="flex flex-col items-end shrink-0 pl-3">
-                        <p
+                      {/* Right: Amount, Receipt Badge & Actions */}
+                      <div className="flex items-center gap-2 shrink-0 pl-2">
+                        {/* Receipt toggle / link */}
+                        {tx.parsed_metadata?.drive_view_url ? (
+                          <a
+                            href={tx.parsed_metadata.drive_view_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hidden sm:inline-flex items-center gap-1 text-[11px] text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded-full"
+                            title="Lihat Nota Asli di Google Drive"
+                          >
+                            <FileText className="size-3" aria-hidden="true" />
+                            <span>Nota</span>
+                            <ExternalLink className="size-2.5" aria-hidden="true" />
+                          </a>
+                        ) : null}
+
+                        {hasItems && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleExpand(tx.id)}
+                            className="h-7 text-[11px] px-2 text-muted-foreground gap-1"
+                          >
+                            <span>{tx.parsed_metadata?.items?.length || 0} item</span>
+                            {isExpanded ? (
+                              <ChevronUp className="size-3" aria-hidden="true" />
+                            ) : (
+                              <ChevronDown className="size-3" aria-hidden="true" />
+                            )}
+                          </Button>
+                        )}
+
+                        <span
                           className={`font-semibold text-sm sm:text-base tabular-nums ${
                             isIncome
-                              ? "text-emerald-600"
-                              : isExpense
-                              ? "text-foreground"
-                              : "text-blue-600"
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-foreground"
                           }`}
                         >
-                          {isIncome ? "+" : isExpense ? "-" : ""}
+                          {isIncome ? "+" : "-"}
                           {formatRupiah(tx.amount)}
-                        </p>
+                        </span>
 
-                        <div className="mt-1 flex items-center gap-1.5">
-                          {tx.drive_view_url && (
-                            <a
-                              href={tx.drive_view_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium border border-emerald-500/20"
-                            >
-                              <FileText className="size-3" aria-hidden="true" />
-                              <span>Struk</span>
-                              <ExternalLink className="size-2.5" aria-hidden="true" />
-                            </a>
-                          )}
-
-                          {hasItems && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => toggleExpand(tx.id)}
-                              className="h-6 px-2 text-xs gap-1"
-                            >
-                              <span>{tx.parsed_metadata.items!.length} item</span>
-                              {isExpanded ? (
-                                <ChevronUp className="size-3" aria-hidden="true" />
-                              ) : (
-                                <ChevronDown className="size-3" aria-hidden="true" />
-                              )}
-                            </Button>
-                          )}
-
-                          {onDeleteTransaction && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setTxToDelete(tx)}
-                              className="size-7 text-muted-foreground hover:text-destructive"
-                              title="Hapus Transaksi"
-                              aria-label={`Hapus transaksi ${tx.description || "ini"}`}
-                            >
-                              <Trash2 className="size-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                        </div>
+                        {onDeleteTransaction && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setTxToDelete(tx)}
+                            className="size-7 text-muted-foreground hover:text-destructive rounded-md"
+                            title="Hapus Transaksi"
+                            aria-label={`Hapus transaksi ${tx.description || "ini"}`}
+                          >
+                            <Trash2 className="size-3.5" aria-hidden="true" />
+                          </Button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Expanded Item Breakdown */}
-                    {isExpanded && hasItems && (
-                      <div className="mt-3 rounded-lg border bg-muted/50 p-3 text-xs">
-                        <div className="font-semibold mb-2">
-                          {tx.parsed_metadata.merchant || "Rincian Nota Belanja"}:
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          {tx.parsed_metadata.items!.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-muted-foreground tabular-nums text-xs">
-                              <span className="truncate pr-3">
-                                {item.name} ({item.qty}x)
+                    {/* Receipt Items Accordion */}
+                    {isExpanded && hasItems && tx.parsed_metadata?.items && (
+                      <div className="mt-3 pt-3 border-t pl-11 text-xs">
+                        <div className="rounded-lg bg-muted/40 p-3 space-y-2 border">
+                          <div className="flex items-center justify-between font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
+                            <span>Rincian Item Belanja</span>
+                            {tx.parsed_metadata?.merchant && (
+                              <span className="capitalize font-semibold text-foreground">
+                                Toko: {tx.parsed_metadata.merchant}
                               </span>
-                              <span className="font-medium text-foreground shrink-0">
-                                {formatRupiah(item.price)}
-                              </span>
-                            </div>
-                          ))}
+                            )}
+                          </div>
+                          <div className="divide-y divide-border/40">
+                            {tx.parsed_metadata.items.map((item: any, idx: number) => (
+                              <div key={idx} className="flex justify-between py-1 text-xs">
+                                <span className="text-foreground">
+                                  {item.name} {item.qty > 1 ? `(${item.qty}x)` : ""}
+                                </span>
+                                <span className="font-mono tabular-nums text-muted-foreground">
+                                  {formatRupiah(item.price)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -278,24 +283,22 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog for Deletion */}
+      {/* Delete Confirmation Alert Dialog */}
       <AlertDialog open={!!txToDelete} onOpenChange={(open) => !open && setTxToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-[420px]">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Hapus Catatan Transaksi?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Transaksi <strong>"{txToDelete?.description || "Tanpa Judul"}"</strong> senilai{" "}
-              <strong>{txToDelete ? formatRupiah(txToDelete.amount) : ""}</strong> akan dihapus permanen dari buku kas keluarga.
+            <AlertDialogTitle>Hapus Transaksi Ini?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              Transaksi senilai <strong className="text-foreground font-semibold">{txToDelete ? formatRupiah(txToDelete.amount) : ""}</strong> ({txToDelete?.description || "Tanpa Keterangan"}) akan dihapus secara permanen dari buku kas keluarga.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              Batal
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>
-              Ya, Hapus Transaksi
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="h-9 text-xs px-3">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="h-9 text-xs px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus Permanen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
