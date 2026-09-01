@@ -135,3 +135,59 @@ export async function downloadTelegramFile(fileId: string): Promise<{
     return null;
   }
 }
+
+/**
+ * Send chat action (e.g. 'typing', 'upload_photo', 'record_voice')
+ * Displays 'typing...' or loading status in the Telegram chat header
+ */
+export async function sendTelegramChatAction(
+  chatId: number | string,
+  action: "typing" | "upload_photo" | "record_voice" | "upload_document" = "typing"
+): Promise<any> {
+  try {
+    const token = getBotToken();
+    const url = `${TELEGRAM_API_BASE}/bot${token}/sendChatAction`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        action: action,
+      }),
+    });
+
+    return await res.json();
+  } catch (err) {
+    console.error("Error sending Telegram chat action:", err);
+    return null;
+  }
+}
+
+/**
+ * Delete message from chat
+ */
+export async function deleteTelegramMessage(
+  chatId: number | string,
+  messageId: number
+): Promise<any> {
+  try {
+    const token = getBotToken();
+    const url = `${TELEGRAM_API_BASE}/bot${token}/deleteMessage`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+      }),
+    });
+
+    return await res.json();
+  } catch (err) {
+    console.error("Error deleting Telegram message:", err);
+    return null;
+  }
+}
+

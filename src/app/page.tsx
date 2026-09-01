@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { BudgetProgress, CategoryBudgetItem } from "@/components/dashboard/budget-progress";
 import { TransactionFeed } from "@/components/dashboard/transaction-feed";
-import { FinancialCharts } from "@/components/dashboard/financial-charts";
+import { FinancialCharts, MonthlyFlowData } from "@/components/dashboard/financial-charts";
 import { AddTransactionModal } from "@/components/dashboard/add-transaction-modal";
 import { ManageWalletModal } from "@/components/dashboard/manage-wallet-modal";
 import { ManageBudgetModal } from "@/components/dashboard/manage-budget-modal";
@@ -25,158 +25,11 @@ import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/lib/utils";
 import { Plus, CreditCard, PlusCircle } from "lucide-react";
 
-// Fallback initial preview data
-const INITIAL_WALLETS: Wallet[] = [
-  {
-    id: "w-1",
-    family_id: "fam-1",
-    name: "BCA Utama (Ayah)",
-    type: "bank",
-    current_balance: 24500000,
-    currency: "IDR",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "w-2",
-    family_id: "fam-1",
-    name: "Mandiri Operasional (Ibu)",
-    type: "bank",
-    current_balance: 14850000,
-    currency: "IDR",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "w-3",
-    family_id: "fam-1",
-    name: "Gopay / QRIS",
-    type: "ewallet",
-    current_balance: 1250000,
-    currency: "IDR",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "w-4",
-    family_id: "fam-1",
-    name: "Dompet Tunai (Cash)",
-    type: "cash",
-    current_balance: 2250000,
-    currency: "IDR",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-const INITIAL_CATEGORIES: Category[] = [
-  { id: "c-1", family_id: "fam-1", name: "Makanan & Minuman", type: "expense", is_default: true, created_at: "" },
-  { id: "c-2", family_id: "fam-1", name: "Belanja Bulanan", type: "expense", is_default: true, created_at: "" },
-  { id: "c-3", family_id: "fam-1", name: "Transportasi & Bensin", type: "expense", is_default: true, created_at: "" },
-  { id: "c-4", family_id: "fam-1", name: "Tagihan & Utilitas", type: "expense", is_default: true, created_at: "" },
-  { id: "c-5", family_id: "fam-1", name: "Kesehatan & Anak", type: "expense", is_default: true, created_at: "" },
-  { id: "c-6", family_id: "fam-1", name: "Gaji & Pendapatan", type: "income", is_default: true, created_at: "" },
-];
-
-const INITIAL_BUDGETS: CategoryBudgetItem[] = [
-  { id: "b-1", name: "Makanan & Minuman", spent: 4850000, target: 6000000, color: "#3b82f6" },
-  { id: "b-2", name: "Belanja Bulanan", spent: 5120000, target: 6500000, color: "#10b981" },
-  { id: "b-3", name: "Tagihan & Utilitas", spent: 2850000, target: 3500000, color: "#f59e0b" },
-  { id: "b-4", name: "Transport & Bensin", spent: 1500000, target: 2000000, color: "#8b5cf6" },
-  { id: "b-5", name: "Kesehatan & Anak", spent: 450000, target: 1500000, color: "#ec4899" },
-];
-
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: "tx-1",
-    family_id: "fam-1",
-    type: "expense",
-    amount: 55000,
-    description: "Belanja Susu UHT & Roti",
-    transaction_date: "2026-08-31T08:30:00.000Z",
-    media_type: "image",
-    is_synced_gsheet: true,
-    wallet_id: "w-1",
-    wallet: INITIAL_WALLETS[0],
-    category_id: "c-2",
-    category: INITIAL_CATEGORIES[1],
-    member: { id: "m-1", family_id: "fam-1", full_name: "Ayah", role: "admin", created_at: "" },
-    parsed_metadata: {
-      merchant: "Indomaret Point",
-      confidence: 0.98,
-      items: [
-        { name: "Susu UHT 1L", qty: 2, price: 19500 },
-        { name: "Roti Tawar Gandum", qty: 1, price: 16000 },
-      ],
-    },
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "tx-2",
-    family_id: "fam-1",
-    type: "expense",
-    amount: 150000,
-    description: "Bensin Mobil Shell V-Power",
-    transaction_date: "2026-08-30T10:15:00.000Z",
-    media_type: "audio",
-    is_synced_gsheet: true,
-    wallet_id: "w-1",
-    wallet: INITIAL_WALLETS[0],
-    category_id: "c-3",
-    category: INITIAL_CATEGORIES[2],
-    member: { id: "m-1", family_id: "fam-1", full_name: "Ayah", role: "admin", created_at: "" },
-    parsed_metadata: {
-      transcription: "Tadi isi bensin shell seratus lima puluh ribu pakai BCA",
-      confidence: 0.95,
-      items: [],
-    },
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "tx-3",
-    family_id: "fam-1",
-    type: "expense",
-    amount: 85000,
-    description: "Tagihan PDAM Air Bersih",
-    transaction_date: "2026-08-28T09:00:00.000Z",
-    media_type: "text",
-    is_synced_gsheet: true,
-    wallet_id: "w-3",
-    wallet: INITIAL_WALLETS[2],
-    category_id: "c-4",
-    category: INITIAL_CATEGORIES[3],
-    member: { id: "m-2", family_id: "fam-1", full_name: "Ibu", role: "admin", created_at: "" },
-    parsed_metadata: { items: [] },
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "tx-4",
-    family_id: "fam-1",
-    type: "income",
-    amount: 25000000,
-    description: "Gaji Bulanan",
-    transaction_date: "2026-08-25T07:00:00.000Z",
-    media_type: "text",
-    is_synced_gsheet: true,
-    wallet_id: "w-1",
-    wallet: INITIAL_WALLETS[0],
-    category_id: "c-6",
-    category: INITIAL_CATEGORIES[5],
-    member: { id: "m-1", family_id: "fam-1", full_name: "Ayah", role: "admin", created_at: "" },
-    parsed_metadata: { items: [] },
-    created_at: new Date().toISOString(),
-  },
-];
-
 export default function DashboardPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [wallets, setWallets] = useState<Wallet[]>(INITIAL_WALLETS);
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
-  const [budgets, setBudgets] = useState<CategoryBudgetItem[]>(INITIAL_BUDGETS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [budgets, setBudgets] = useState<CategoryBudgetItem[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
@@ -189,30 +42,31 @@ export default function DashboardPage() {
       const txRes = await fetch("/api/transactions");
       if (txRes.ok) {
         const txData = await txRes.json();
-        if (txData.transactions && txData.transactions.length > 0) {
-          setTransactions(txData.transactions);
-        }
+        setTransactions(txData.transactions || []);
       }
 
       // 2. Fetch Wallets from Supabase
       const wRes = await fetch("/api/wallets");
       if (wRes.ok) {
         const wData = await wRes.json();
-        if (wData.wallets && wData.wallets.length > 0) {
-          setWallets(wData.wallets);
-        }
+        setWallets(wData.wallets || []);
       }
 
-      // 3. Fetch Budgets from Supabase
-      const bRes = await fetch(`/api/budgets?period=${selectedPeriod === "all" ? "2026-08" : selectedPeriod}`);
+      // 3. Fetch Categories from Supabase
+      const cRes = await fetch("/api/categories");
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        setCategories(cData.categories || []);
+      }
+
+      // 4. Fetch Budgets from Supabase
+      const bRes = await fetch(`/api/budgets?period=${selectedPeriod === "all" ? "2026-09" : selectedPeriod}`);
       if (bRes.ok) {
         const bData = await bRes.json();
-        if (bData.budgets && bData.budgets.length > 0) {
-          setBudgets(bData.budgets);
-        }
+        setBudgets(bData.budgets || []);
       }
     } catch (e) {
-      console.log("Using preview data.");
+      console.error("Error fetching live data:", e);
     }
   }, [selectedPeriod]);
 
@@ -221,30 +75,74 @@ export default function DashboardPage() {
   }, [fetchAllData]);
 
   // Filter transactions by selected period
-  const filteredByPeriodTransactions = transactions.filter((t) => {
-    if (selectedPeriod === "all") return true;
-    return t.transaction_date.startsWith(selectedPeriod);
-  });
+  const filteredByPeriodTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      if (selectedPeriod === "all") return true;
+      return t.transaction_date.startsWith(selectedPeriod);
+    });
+  }, [transactions, selectedPeriod]);
 
-  const totalBalance = wallets.reduce((acc, w) => acc + Number(w.current_balance), 0);
-  
-  // Aggregate real expenditure from category budgets + active transactions
-  const totalBudgetSpent = budgets.reduce((acc, b) => acc + b.spent, 0);
-  const monthlyExpense = totalBudgetSpent > 0 
-    ? totalBudgetSpent 
-    : filteredByPeriodTransactions.filter((t) => t.type === "expense").reduce((acc, t) => acc + Number(t.amount), 0);
+  // Purely computed live metrics from Supabase
+  const totalBalance = useMemo(() => {
+    return wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
+  }, [wallets]);
 
-  const monthlyIncome = filteredByPeriodTransactions
-    .filter((t) => t.type === "income")
-    .reduce((acc, t) => acc + Number(t.amount), 0) || 25000000;
+  const monthlyExpense = useMemo(() => {
+    return filteredByPeriodTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  }, [filteredByPeriodTransactions]);
 
-  const totalBudget = budgets.reduce((acc, b) => acc + b.target, 0);
+  const monthlyIncome = useMemo(() => {
+    return filteredByPeriodTransactions
+      .filter((t) => t.type === "income")
+      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+  }, [filteredByPeriodTransactions]);
 
-  const categoryPieData = budgets.map((b) => ({
-    name: b.name,
-    value: b.spent,
-    color: b.color || "#3b82f6",
-  }));
+  const totalBudget = useMemo(() => {
+    return budgets.reduce((acc, b) => acc + Number(b.target || 0), 0);
+  }, [budgets]);
+
+  // Compute live Donut Chart data strictly from budgets/transactions
+  const categoryPieData = useMemo(() => {
+    return budgets
+      .filter((b) => b.spent > 0)
+      .map((b) => ({
+        name: b.name,
+        value: Number(b.spent || 0),
+        color: b.color || "#3b82f6",
+      }));
+  }, [budgets]);
+
+  // Compute dynamic Cash Flow Bar Chart data from actual transactions
+  const cashFlowData = useMemo<MonthlyFlowData[]>(() => {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    const flowMap: Record<string, { income: number; expense: number }> = {};
+
+    transactions.forEach((tx) => {
+      const d = new Date(tx.transaction_date);
+      const key = `${monthNames[d.getMonth()]}`;
+      if (!flowMap[key]) {
+        flowMap[key] = { income: 0, expense: 0 };
+      }
+      if (tx.type === "income") {
+        flowMap[key].income += Number(tx.amount || 0);
+      } else if (tx.type === "expense") {
+        flowMap[key].expense += Number(tx.amount || 0);
+      }
+    });
+
+    const entries = Object.entries(flowMap);
+    if (entries.length === 0) {
+      return [];
+    }
+
+    return entries.map(([month, val]) => ({
+      month,
+      income: val.income,
+      expense: val.expense,
+    }));
+  }, [transactions]);
 
   const handleDeleteTransaction = async (id: string) => {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
@@ -272,7 +170,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: updatedBudgets,
-          monthYear: selectedPeriod === "all" ? "2026-08" : selectedPeriod,
+          monthYear: selectedPeriod === "all" ? "2026-09" : selectedPeriod,
         }),
       });
       fetchAllData();
@@ -300,7 +198,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-[145px]" aria-label="Filter Periode Bulan">
+              <SelectTrigger className="w-[155px]" aria-label="Filter Periode Bulan">
                 <SelectValue placeholder="Pilih Periode" />
               </SelectTrigger>
               <SelectContent>
@@ -309,7 +207,6 @@ export default function DashboardPage() {
                   <SelectItem value="2026-09">September 2026</SelectItem>
                   <SelectItem value="2026-08">Agustus 2026</SelectItem>
                   <SelectItem value="2026-07">Juli 2026</SelectItem>
-                  <SelectItem value="2026-06">Juni 2026</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -327,9 +224,9 @@ export default function DashboardPage() {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-            <TabsTrigger value="transactions">Transaksi</TabsTrigger>
+            <TabsTrigger value="transactions">Transaksi ({transactions.length})</TabsTrigger>
             <TabsTrigger value="budgets">Anggaran & Analisis</TabsTrigger>
-            <TabsTrigger value="wallets">Rekening</TabsTrigger>
+            <TabsTrigger value="wallets">Rekening ({wallets.length})</TabsTrigger>
           </TabsList>
 
           {/* TAB 1: OVERVIEW */}
@@ -343,7 +240,10 @@ export default function DashboardPage() {
             />
 
             {/* Financial Visual Charts */}
-            <FinancialCharts categoryData={categoryPieData} />
+            <FinancialCharts
+              cashFlowData={cashFlowData}
+              categoryData={categoryPieData}
+            />
 
             {/* Standard Shadcn 7-Column Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
@@ -387,22 +287,37 @@ export default function DashboardPage() {
                     </Button>
                   </CardHeader>
                   <CardContent className="grid gap-2.5">
-                    {wallets.map((w) => (
-                      <div
-                        key={w.id}
-                        className="p-3 rounded-lg border bg-muted/40 hover:bg-muted/70 transition-colors flex items-center justify-between gap-3 text-sm"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background border text-foreground">
-                            <CreditCard className="size-4" aria-hidden="true" />
-                          </div>
-                          <span className="font-medium truncate">{w.name}</span>
-                        </div>
-                        <span className="font-medium tabular-nums shrink-0">
-                          {formatRupiah(w.current_balance)}
-                        </span>
+                    {wallets.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-muted-foreground">
+                        <p>Belum ada rekening terdaftar di Supabase.</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsWalletModalOpen(true)}
+                          className="mt-2 text-xs h-7 gap-1"
+                        >
+                          <Plus className="size-3" aria-hidden="true" />
+                          <span>Daftarkan Rekening Pertama</span>
+                        </Button>
                       </div>
-                    ))}
+                    ) : (
+                      wallets.map((w) => (
+                        <div
+                          key={w.id}
+                          className="p-3 rounded-lg border bg-muted/40 hover:bg-muted/70 transition-colors flex items-center justify-between gap-3 text-sm"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background border text-foreground">
+                              <CreditCard className="size-4" aria-hidden="true" />
+                            </div>
+                            <span className="font-medium truncate">{w.name}</span>
+                          </div>
+                          <span className="font-medium tabular-nums shrink-0">
+                            {formatRupiah(w.current_balance)}
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -421,7 +336,10 @@ export default function DashboardPage() {
 
           {/* TAB 3: BUDGETS & ANALYTICS */}
           <TabsContent value="budgets" className="space-y-6">
-            <FinancialCharts categoryData={categoryPieData} />
+            <FinancialCharts
+              cashFlowData={cashFlowData}
+              categoryData={categoryPieData}
+            />
             <div className="max-w-4xl w-full">
               <BudgetProgress
                 budgets={budgets}
@@ -443,22 +361,30 @@ export default function DashboardPage() {
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {wallets.map((w) => (
-                <Card key={w.id}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium truncate">
-                      {w.name}
-                    </CardTitle>
-                    <CreditCard className="size-4 text-muted-foreground" aria-hidden="true" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold tabular-nums truncate">
-                      {formatRupiah(w.current_balance)}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 uppercase font-medium">Tipe: {w.type}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {wallets.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-sm text-muted-foreground border rounded-lg">
+                  <CreditCard className="size-8 mx-auto mb-2 text-muted-foreground/50" aria-hidden="true" />
+                  <p className="font-medium">Belum ada rekening kas.</p>
+                  <p className="text-xs mt-1">Tambahkan rekening bank, e-wallet, atau dompet tunai pertama Anda.</p>
+                </div>
+              ) : (
+                wallets.map((w) => (
+                  <Card key={w.id}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium truncate">
+                        {w.name}
+                      </CardTitle>
+                      <CreditCard className="size-4 text-muted-foreground" aria-hidden="true" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold tabular-nums truncate">
+                        {formatRupiah(w.current_balance)}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 uppercase font-medium">Tipe: {w.type}</p>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
         </Tabs>

@@ -11,6 +11,8 @@ import {
   editTelegramMessageText,
   answerTelegramCallbackQuery,
   downloadTelegramFile,
+  sendTelegramChatAction,
+  deleteTelegramMessage,
 } from "@/lib/telegram/bot";
 import { formatRupiah, formatDateIndo } from "@/lib/utils";
 
@@ -129,6 +131,10 @@ export async function POST(req: NextRequest) {
     const messageId = cq.message?.message_id;
     const data = cq.data as string;
 
+    if (chatId) {
+      sendTelegramChatAction(chatId, "typing").catch(() => {});
+    }
+
     if (data.startsWith("undo:")) {
       const transactionId = data.replace("undo:", "");
       const { error } = await supabaseAdmin.from("transactions").delete().eq("id", transactionId);
@@ -220,6 +226,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Show instant typing status header
+    sendTelegramChatAction(chatId, "typing").catch(() => {});
+
     // 2a. Resolve Family ID
     const { data: member } = await supabaseAdmin
       .from("family_members")
@@ -312,10 +321,14 @@ export async function POST(req: NextRequest) {
       const totalCash = data.wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
 
       let msg = `💳 *Daftar Saldo Rekening & Dompet:*\n━━━━━━━━━━━━━━━━━━━\n`;
-      data.wallets.forEach((w) => {
-        const icon = w.type === "bank" ? "🏦" : w.type === "ewallet" ? "📱" : w.type === "investment" ? "📈" : "💵";
-        msg += `${icon} *${w.name}*\n   └ Saldo: \`${formatRupiah(Number(w.current_balance || 0))}\`\n`;
-      });
+      if (data.wallets.length === 0) {
+        msg += `_Belum ada rekening yang terdaftar._\n`;
+      } else {
+        data.wallets.forEach((w) => {
+          const icon = w.type === "bank" ? "🏦" : w.type === "ewallet" ? "📱" : w.type === "investment" ? "📈" : "💵";
+          msg += `${icon} *${w.name}*\n   └ Saldo: \`${formatRupiah(Number(w.current_balance || 0))}\`\n`;
+        });
+      }
       msg += `━━━━━━━━━━━━━━━━━━━\n💰 *Total Kas Tersedia:* \`${formatRupiah(totalCash)}\``;
 
       await sendTelegramMessage(chatId, msg, MAIN_KEYBOARD);
@@ -418,14 +431,28 @@ export async function POST(req: NextRequest) {
     let driveFileId: string | null = null;
     let driveViewUrl: string | null = null;
     let rawPrompt: string = "";
+    let loadingMessageId: number | null = null;
 
     if (message.photo && message.photo.length > 0) {
       mediaType = "image";
       rawPrompt = message.caption || "[Foto Struk]";
+      
+      // Trigger header action and instant loading message
+      sendTelegramChatAction(chatId, "upload_photo").catch(() => {});
+      const tempMsg = await sendTelegramMessage(
+        chatId,
+        "📸 *Menerima foto struk...*\n⏳ _Sedang membaca data & rincian item dengan Gemini 3.7 Flash AI..._"
+      );
+      if (tempMsg?.result?.message_id) {
+        loadingMessageId = tempMsg.result.message_id;
+      }
+
       const photo = message.photo[message.photo.length - 1]; // highest res
       const downloaded = await downloadTelegramFile(photo.file_id);
 
       if (downloaded) {
+        sendTelegramChatAction(chatId, "typing").catch(() => {});
+
         // Upload to Google Drive if configured
         const driveResult = await uploadReceiptToDrive(
           downloaded.buffer,
@@ -446,10 +473,23 @@ export async function POST(req: NextRequest) {
       }
     } else if (message.voice || message.audio) {
       mediaType = "audio";
+
+      // Trigger header action and instant loading message
+      sendTelegramChatAction(chatId, "record_voice").catch(() => {});
+      const tempMsg = await sendTelegramMessage(
+        chatId,
+        "🎙️ *Menerima pesan suara...*\n⏳ _Sedang mentranskripsikan suara & memproses nominal dengan Gemini AI..._"
+      );
+      if (tempMsg?.result?.message_id) {
+        loadingMessageId = tempMsg.result.message_id;
+      }
+
       const audioFile = message.voice || message.audio;
       const downloaded = await downloadTelegramFile(audioFile.file_id);
 
       if (downloaded) {
+        sendTelegramChatAction(chatId, "typing").catch(() => {});
+
         parsed = await parseFinancialInputWithGemini({
           audioBuffer: downloaded.buffer,
           audioMimeType: downloaded.mimeType,
@@ -461,8 +501,19 @@ export async function POST(req: NextRequest) {
 
       // If it is a conversational financial question, handle with Gemini AI Q&A
       if (isQuestion) {
+        sendTelegramChatAction(chatId, "typing").catch(() => {});
+        const tempMsg = await sendTelegramMessage(
+          chatId,
+          "🤖 *Menganalisis data keuangan Anda...*\n⏳ _Menghitung saldo, anggaran & mutasi transaksi terkini..._"
+        );
+
         const finData = await getFamilyFinancialData(familyId);
         const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
+
+        if (tempMsg?.result?.message_id) {
+          await deleteTelegramMessage(chatId, tempMsg.result.message_id);
+        }
+
         await sendTelegramMessage(
           chatId,
           `🤖 *Jawaban F&R Assistant:*\n\n${aiAnswer}`,
@@ -471,13 +522,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // Otherwise parse as financial transaction entry
+      // Fast typing feedback for transaction text
+      sendTelegramChatAction(chatId, "typing").catch(() => {});
       parsed = await parseFinancialInputWithGemini({ text: message.text });
+    }
+
+    // Clean up loading message if one was shown
+    if (loadingMessageId) {
+      await deleteTelegramMessage(chatId, loadingMessageId);
     }
 
     if (!parsed || !parsed.amount || parsed.amount <= 0) {
       // If unable to parse transaction, try answering as conversational prompt
       if (message.text) {
+        sendTelegramChatAction(chatId, "typing").catch(() => {});
         const finData = await getFamilyFinancialData(familyId);
         const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
         await sendTelegramMessage(chatId, `🤖 *F&R Assistant:*\n\n${aiAnswer}`, MAIN_KEYBOARD);
