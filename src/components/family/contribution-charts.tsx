@@ -48,10 +48,10 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="rounded-lg border bg-background p-2.5 shadow-md text-xs space-y-1">
+        <div className="rounded-lg border border-border bg-popover p-2.5 text-xs space-y-1">
           <p className="font-semibold text-foreground">{data.name}</p>
-          <p className="text-primary font-mono">{formatRupiah(data.value)}</p>
-          <p className="text-muted-foreground">{data.percentage}% dari total pengeluaran</p>
+          <p className="text-primary font-mono tabular-nums">{formatRupiah(data.value)}</p>
+          <p className="text-muted-foreground tabular-nums">{data.percentage}% dari total pengeluaran</p>
         </div>
       );
     }
