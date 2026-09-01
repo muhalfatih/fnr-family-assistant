@@ -363,6 +363,7 @@ export default function DashboardPage() {
                 <TransactionFeed
                   transactions={transactions.slice(0, 5)}
                   onDeleteTransaction={handleDeleteTransaction}
+                  enableTooltip={true}
                 />
               </div>
             </div>
@@ -376,6 +377,7 @@ export default function DashboardPage() {
               <TransactionFeed
                 transactions={transactions}
                 onDeleteTransaction={handleDeleteTransaction}
+                enableTooltip={false}
               />
             )}
           </TabsContent>

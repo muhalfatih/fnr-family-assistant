@@ -17,14 +17,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag } from "lucide-react";
 
 interface TransactionFeedProps {
   transactions: Transaction[];
   onDeleteTransaction?: (id: string) => void;
+  enableTooltip?: boolean;
 }
 
-export function TransactionFeed({ transactions, onDeleteTransaction }: TransactionFeedProps) {
+export function TransactionFeed({
+  transactions,
+  onDeleteTransaction,
+  enableTooltip = false,
+}: TransactionFeedProps) {
   const [filterType, setFilterType] = useState<"all" | "expense" | "income">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
@@ -56,139 +67,163 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
 
   return (
     <>
-      <Card className="rounded-xl border border-border/80 bg-card">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 pb-3">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-semibold">Riwayat Transaksi</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              {filteredTransactions.length} transaksi tercatat melalui Telegram & Web
-            </CardDescription>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Search Box */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" aria-hidden="true" />
-              <Input
-                type="text"
-                placeholder="Cari transaksi..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 text-xs w-32 sm:w-44 pl-8 rounded-md"
-                aria-label="Cari transaksi"
-              />
+      <Card className="rounded-xl border border-border/80 bg-card overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Riwayat Transaksi</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Aktivitas pemasukan dan pengeluaran kas keluarga.
+              </CardDescription>
             </div>
 
-            {/* Filter Buttons */}
-            <div className="flex items-center rounded-md bg-muted/60 p-0.5 text-muted-foreground text-xs">
-              <button
-                type="button"
-                onClick={() => setFilterType("all")}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                  filterType === "all"
-                    ? "bg-background text-foreground shadow-sm font-semibold"
-                    : "hover:text-foreground"
-                }`}
-              >
-                Semua
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType("expense")}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                  filterType === "expense"
-                    ? "bg-background text-destructive shadow-sm font-semibold"
-                    : "hover:text-foreground"
-                }`}
-              >
-                Pengeluaran
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType("income")}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                  filterType === "income"
-                    ? "bg-background text-emerald-600 dark:text-emerald-400 shadow-sm font-semibold"
-                    : "hover:text-foreground"
-                }`}
-              >
-                Pemasukan
-              </button>
+            {/* Filter Controls */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:w-48">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  placeholder="Cari transaksi..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-background"
+                />
+              </div>
+
+              <div className="flex items-center rounded-lg bg-muted/60 p-0.5 border border-border/60">
+                <Button
+                  variant={filterType === "all" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setFilterType("all")}
+                  className="h-7 text-xs px-2.5 rounded-md"
+                >
+                  Semua
+                </Button>
+                <Button
+                  variant={filterType === "expense" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setFilterType("expense")}
+                  className="h-7 text-xs px-2.5 rounded-md"
+                >
+                  Keluar
+                </Button>
+                <Button
+                  variant={filterType === "income" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setFilterType("income")}
+                  className="h-7 text-xs px-2.5 rounded-md"
+                >
+                  Masuk
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="divide-y border-t">
-            {filteredTransactions.length === 0 ? (
-              <div className="py-12 px-4 text-center">
-                <p className="text-sm font-medium text-foreground">Tidak ada transaksi yang cocok.</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                  Coba sesuaikan kata kunci pencarian atau ubah filter transaksi.
-                </p>
-              </div>
-            ) : (
-              filteredTransactions.map((tx) => {
-                const isExpense = tx.type === "expense";
-                const isIncome = tx.type === "income";
-                const isExpanded = expandedTxId === tx.id;
-                const hasItems = tx.parsed_metadata?.items && tx.parsed_metadata.items.length > 0;
+          <TooltipProvider delayDuration={150}>
+            <div className="divide-y border-t">
+              {filteredTransactions.length === 0 ? (
+                <div className="py-12 px-4 text-center">
+                  <p className="text-sm font-medium text-foreground">Tidak ada transaksi yang cocok.</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                    Coba sesuaikan kata kunci pencarian atau ubah filter transaksi.
+                  </p>
+                </div>
+              ) : (
+                filteredTransactions.map((tx) => {
+                  const isExpense = tx.type === "expense";
+                  const isIncome = tx.type === "income";
+                  const isExpanded = expandedTxId === tx.id;
+                  const hasItems = tx.parsed_metadata?.items && tx.parsed_metadata.items.length > 0;
+                  const fullTitle = tx.description || tx.category?.name || "Transaksi";
 
-                return (
-                  <div
-                    key={tx.id}
-                    className="p-3.5 sm:px-5 transition-colors hover:bg-muted/40"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      {/* Left: Icon & Info */}
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div
-                          className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
-                            isIncome
-                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                              : isExpense
-                              ? "bg-destructive/10 text-destructive"
-                              : "bg-blue-500/10 text-blue-600"
-                          }`}
-                        >
-                          {isIncome ? (
-                            <ArrowUpRight className="size-4" aria-hidden="true" />
-                          ) : isExpense ? (
-                            <ArrowDownRight className="size-4" aria-hidden="true" />
-                          ) : (
-                            <ArrowLeftRight className="size-4" aria-hidden="true" />
-                          )}
-                        </div>
-
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-medium text-sm truncate text-foreground">
-                              {tx.description || tx.category?.name || "Transaksi"}
-                            </span>
-                            {tx.wallet && (
-                              <Badge
-                                variant="outline"
-                                className="inline-flex shrink-0 whitespace-nowrap text-nowrap max-w-[130px] truncate text-[10px] font-medium px-1.5 py-0 border-border/80 bg-muted/30 text-muted-foreground"
-                                title={tx.wallet.name}
-                              >
-                                {tx.wallet.name}
-                              </Badge>
+                  return (
+                    <div
+                      key={tx.id}
+                      className="p-3.5 sm:px-5 transition-colors hover:bg-muted/40"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        {/* Left: Icon & Info */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div
+                            className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
+                              isIncome
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : isExpense
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-blue-500/10 text-blue-600"
+                            }`}
+                          >
+                            {isIncome ? (
+                              <ArrowUpRight className="size-4" aria-hidden="true" />
+                            ) : isExpense ? (
+                              <ArrowDownRight className="size-4" aria-hidden="true" />
+                            ) : (
+                              <ArrowLeftRight className="size-4" aria-hidden="true" />
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate mt-0.5">
-                            <span className="shrink-0">{formatDateIndo(tx.transaction_date)}</span>
-                            <span>•</span>
-                            <span className="truncate">{tx.category?.name || "Umum"}</span>
-                            {tx.member && (
-                              <>
-                                <span>•</span>
-                                <span className="truncate text-foreground font-medium">{tx.member.full_name}</span>
-                              </>
-                            )}
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {enableTooltip ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      className="font-medium text-sm truncate text-foreground cursor-pointer hover:underline decoration-dotted underline-offset-2"
+                                      tabIndex={0}
+                                    >
+                                      {fullTitle}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    align="start"
+                                    className="max-w-xs text-xs font-normal p-2.5 bg-popover text-popover-foreground border border-border shadow-lg"
+                                  >
+                                    <p className="font-semibold text-foreground text-xs leading-snug">{fullTitle}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
+                                      <span>{formatDateIndo(tx.transaction_date)}</span>
+                                      <span>•</span>
+                                      <span>{tx.category?.name || "Umum"}</span>
+                                      {tx.wallet && (
+                                        <>
+                                          <span>•</span>
+                                          <span className="font-medium text-foreground">{tx.wallet.name}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <span className="font-medium text-sm truncate text-foreground">
+                                  {fullTitle}
+                                </span>
+                              )}
+
+                              {tx.wallet && (
+                                <Badge
+                                  variant="outline"
+                                  className="inline-flex shrink-0 whitespace-nowrap text-nowrap max-w-[130px] truncate text-[10px] font-medium px-1.5 py-0 border-border/80 bg-muted/30 text-muted-foreground"
+                                  title={tx.wallet.name}
+                                >
+                                  {tx.wallet.name}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate mt-0.5">
+                              <span className="shrink-0">{formatDateIndo(tx.transaction_date)}</span>
+                              <span>•</span>
+                              <span className="truncate">{tx.category?.name || "Umum"}</span>
+                              {tx.member && (
+                                <>
+                                  <span>•</span>
+                                  <span className="truncate text-foreground font-medium">{tx.member.full_name}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                       {/* Right: Amount, Receipt Badge & Actions */}
                       <div className="flex items-center gap-2 shrink-0 pl-2">
@@ -309,7 +344,8 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
                 );
               })
             )}
-          </div>
+            </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
 
