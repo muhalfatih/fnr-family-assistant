@@ -1,77 +1,66 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { FamilyOverviewCards } from "@/components/family/family-overview-cards";
 import { MemberCard } from "@/components/family/member-card";
 import { ContributionCharts } from "@/components/family/contribution-charts";
 import { AddMemberModal } from "@/components/family/add-member-modal";
 import { Button } from "@/components/ui/button";
-import { Users, Plus, Loader2, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Users, Plus, RefreshCw } from "lucide-react";
+import {
+  useFamilyMembers,
+  useWallets,
+  useFamilyContributions,
+} from "@/lib/hooks/use-family-data";
 
 export default function FamilyPage() {
-  const [members, setMembers] = useState<any[]>([]);
-  const [wallets, setWallets] = useState<any[]>([]);
-  const [contributions, setContributions] = useState<any[]>([]);
-  const [totalExpense, setTotalExpense] = useState<number>(0);
-  const [unassigned, setUnassigned] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<any | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // 1. Fetch members
-      const memRes = await fetch("/api/members");
-      if (memRes.ok) {
-        const memData = await memRes.json();
-        setMembers(memData.members || []);
-      }
+  // SWR Caching & Real-time Auto-sync Hooks
+  const { members, isLoading: isLoadingMembers, isValidating: isValidatingMembers, mutate: mutateMembers } = useFamilyMembers();
+  const { wallets, mutate: mutateWallets } = useWallets();
+  const {
+    contributions,
+    totalExpense,
+    unassigned,
+    isLoading: isLoadingContributions,
+    mutate: mutateContributions,
+  } = useFamilyContributions();
 
-      // 2. Fetch wallets for dropdown
-      const walRes = await fetch("/api/wallets");
-      if (walRes.ok) {
-        const walData = await walRes.json();
-        setWallets(walData.wallets || []);
-      }
-
-      // 3. Fetch contributions analytics
-      const conRes = await fetch("/api/members/contributions");
-      if (conRes.ok) {
-        const conData = await conRes.json();
-        setContributions(conData.contributions || []);
-        setTotalExpense(conData.totalExpense || 0);
-        setUnassigned(conData.unassigned || null);
-      }
-    } catch (err) {
-      console.error("Failed to load family data:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const refreshAll = () => {
+    mutateMembers();
+    mutateWallets();
+    mutateContributions();
+  };
 
   const handleDeleteMember = async (id: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus profil anggota keluarga ini?")) return;
     try {
       const res = await fetch(`/api/members?id=${id}`, { method: "DELETE" });
       if (res.ok) {
-        fetchData();
+        refreshAll();
       }
     } catch (err) {
       console.error("Failed to delete member:", err);
     }
   };
 
+  const handleEditMember = (member: any) => {
+    setMemberToEdit(member);
+    setIsAddModalOpen(true);
+  };
+
+  const isInitialLoading = isLoadingMembers && members.length === 0;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top Navbar */}
       <Navbar familyName="Keluarga F&R" />
 
+      {/* Main Container */}
       <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -81,22 +70,28 @@ export default function FamilyPage() {
               <h1 className="text-3xl font-bold tracking-tight">
                 Anggota Keluarga & Kontribusi
               </h1>
+              {isValidatingMembers && !isLoadingMembers && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse">
+                  <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
+                  <span>Sinkronisasi...</span>
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Kelola profil anggota keluarga, tautkan ID bot Telegram, dan pantau perbandingan belanja antar-anggota.
+              Kelola profil anggota keluarga, tautan akun bot Telegram, dan pantau kontribusi belanja bulanan.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchData}
-              disabled={isLoading}
-              className="h-9 gap-1.5 text-xs"
+              onClick={refreshAll}
+              className="gap-1.5 h-9 text-xs"
+              title="Segarkan data sekarang"
             >
-              <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
-              <span>Segarkan</span>
+              <RefreshCw className={`size-3.5 ${isValidatingMembers ? "animate-spin" : ""}`} aria-hidden="true" />
+              <span className="hidden sm:inline">Segarkan</span>
             </Button>
 
             <Button
@@ -105,7 +100,7 @@ export default function FamilyPage() {
                 setMemberToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="h-9 gap-1.5 text-xs"
+              className="gap-1.5 h-9 text-xs"
             >
               <Plus className="size-4" aria-hidden="true" />
               <span>Tambah Anggota</span>
@@ -113,70 +108,103 @@ export default function FamilyPage() {
           </div>
         </div>
 
-        {/* 1. Summary Overview Cards */}
-        <FamilyOverviewCards members={members} totalExpense={totalExpense} />
+        {/* 4 Summary Stat Cards */}
+        {isInitialLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-[106px] rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <FamilyOverviewCards members={members} totalExpense={totalExpense} />
+        )}
 
-        {/* 2. Visual Contribution Charts */}
-        <ContributionCharts
-          contributions={contributions}
-          unassigned={unassigned}
-          totalExpense={totalExpense}
-        />
+        {/* 2-Column Section: Contribution Breakdown & Members Grid */}
+        <div className="grid gap-6 lg:grid-cols-7 items-start">
+          {/* Left / Top: Spending Contribution Charts (4 Cols) */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-foreground">
+                  Proporsi & Analisis Belanja
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Distribusi kontribusi pengeluaran antar-anggota keluarga periode ini.
+                </p>
+              </div>
+            </div>
 
-        {/* 3. Member Cards Grid */}
-        <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Daftar Anggota Keluarga ({members.length})</h2>
+            {isInitialLoading ? (
+              <Skeleton className="h-[360px] rounded-xl" />
+            ) : (
+              <ContributionCharts
+                contributions={contributions}
+                unassigned={unassigned}
+                totalExpense={totalExpense}
+              />
+            )}
           </div>
 
-          {isLoading ? (
-            <div className="py-16 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-              <Loader2 className="size-6 animate-spin text-primary" aria-hidden="true" />
-              <p className="text-xs">Memuat data anggota keluarga...</p>
+          {/* Right: Member Profiles Grid (3 Cols) */}
+          <div className="lg:col-span-3 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-foreground">
+                  Daftar Profil ({members.length})
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Tautan dompet & status bot Telegram per anggota.
+                </p>
+              </div>
             </div>
-          ) : members.length === 0 ? (
-            <div className="py-16 px-4 text-center rounded-xl border border-dashed text-muted-foreground">
-              <Users className="size-10 mx-auto mb-3 text-muted-foreground/40" aria-hidden="true" />
-              <p className="text-sm font-semibold text-foreground">Belum Ada Anggota Keluarga</p>
-              <p className="text-xs mt-1 max-w-sm mx-auto">
-                Tambahkan profil Ayah, Ibu, atau Anak untuk mulai melacak pengeluaran per-anggota dan menautkan akun bot Telegram.
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setMemberToEdit(null);
-                  setIsAddModalOpen(true);
-                }}
-                className="mt-4 text-xs gap-1.5"
-              >
-                <Plus className="size-3.5" aria-hidden="true" />
-                <span>Tambah Anggota Pertama</span>
-              </Button>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {members.map((member) => (
-                <MemberCard
-                  key={member.id}
-                  member={member}
-                  onEdit={(m) => {
-                    setMemberToEdit(m);
-                    setIsAddModalOpen(true);
-                  }}
-                  onDelete={handleDeleteMember}
-                />
-              ))}
-            </div>
-          )}
+
+            {isInitialLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-[160px] rounded-xl" />
+                ))}
+              </div>
+            ) : members.length === 0 ? (
+              <div className="py-12 px-4 text-center rounded-xl border border-dashed text-muted-foreground">
+                <Users className="size-8 mx-auto mb-2 text-muted-foreground/40" aria-hidden="true" />
+                <p className="text-sm font-semibold text-foreground">Belum Ada Anggota</p>
+                <p className="text-xs mt-1">
+                  Tambahkan profil anggota keluarga pertama untuk mulai memantau kontribusi belanja.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="mt-3 text-xs gap-1.5"
+                >
+                  <Plus className="size-3.5" aria-hidden="true" />
+                  <span>Tambah Anggota Sekarang</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {members.map((m) => (
+                  <MemberCard
+                    key={m.id}
+                    member={m}
+                    onEdit={handleEditMember}
+                    onDelete={handleDeleteMember}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
-      {/* Add / Edit Member Modal */}
+      {/* Modal Tambah / Edit Anggota */}
       <AddMemberModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={fetchData}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setMemberToEdit(null);
+        }}
+        onSuccess={refreshAll}
         memberToEdit={memberToEdit}
         wallets={wallets}
       />

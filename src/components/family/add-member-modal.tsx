@@ -9,6 +9,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,7 +107,7 @@ export function AddMemberModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>
             {memberToEdit ? "Edit Profil Anggota" : "Tambah Anggota Keluarga"}
@@ -109,7 +117,7 @@ export function AddMemberModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {errorMsg && (
             <div className="p-3 text-xs rounded-md bg-destructive/15 text-destructive border border-destructive/20">
               {errorMsg}
@@ -118,7 +126,7 @@ export function AddMemberModal({
 
           {/* 1. Nama Lengkap */}
           <div className="space-y-1.5">
-            <Label htmlFor="fullName" className="text-xs">
+            <Label htmlFor="fullName" className="text-xs font-medium">
               Nama Lengkap <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -126,7 +134,7 @@ export function AddMemberModal({
               placeholder="Contoh: Ayah / Ibu / Sulung"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="text-xs"
+              className="text-xs h-9"
               required
             />
           </div>
@@ -134,44 +142,47 @@ export function AddMemberModal({
           {/* 2. Role dan Dompet Default */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="role" className="text-xs">
+              <Label className="text-xs font-medium">
                 Peran (Role)
               </Label>
-              <select
-                id="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="admin">Admin (Pengelola Penuh)</option>
-                <option value="member">Anggota (Pencatat)</option>
-              </select>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Pilih Peran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="admin">Admin (Pengelola Penuh)</SelectItem>
+                    <SelectItem value="member">Anggota (Pencatat)</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="wallet" className="text-xs">
+              <Label className="text-xs font-medium">
                 Dompet Pengeluaran Default
               </Label>
-              <select
-                id="wallet"
-                value={defaultWalletId}
-                onChange={(e) => setDefaultWalletId(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">-- Pilih Rekening --</option>
-                {wallets.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
+              <Select value={defaultWalletId} onValueChange={setDefaultWalletId}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Pilih Dompet" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {wallets.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* 3. Tautan Telegram Chat ID */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="tgId" className="text-xs">
+              <Label htmlFor="tgId" className="text-xs font-medium">
                 Telegram Chat ID (Opsional)
               </Label>
               <span className="text-[11px] text-muted-foreground flex items-center gap-1" title="Untuk mendapatkan Chat ID, kirim /start ke bot @fnr_assistant_bot">
@@ -185,7 +196,7 @@ export function AddMemberModal({
               placeholder="Contoh: 123456789"
               value={telegramChatId}
               onChange={(e) => setTelegramChatId(e.target.value)}
-              className="text-xs font-mono"
+              className="text-xs font-mono h-9"
             />
             <p className="text-[10px] text-muted-foreground">
               Jika diisi, semua transaksi foto struk / chat yang dikirim nomor Telegram ini akan otomatis diatribusikan ke anggota ini.
@@ -194,7 +205,7 @@ export function AddMemberModal({
 
           {/* 4. Nomor WhatsApp */}
           <div className="space-y-1.5">
-            <Label htmlFor="wa" className="text-xs">
+            <Label htmlFor="wa" className="text-xs font-medium">
               Nomor WhatsApp (Opsional)
             </Label>
             <Input
@@ -202,15 +213,15 @@ export function AddMemberModal({
               placeholder="Contoh: +6281234567890"
               value={whatsappNumber}
               onChange={(e) => setWhatsappNumber(e.target.value)}
-              className="text-xs font-mono"
+              className="text-xs font-mono h-9"
             />
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs">
               Batal
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5">
+            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs">
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               <span>{memberToEdit ? "Simpan Perubahan" : "Tambah Anggota"}</span>
             </Button>

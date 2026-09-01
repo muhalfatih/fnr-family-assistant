@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { VaultDocument } from "@/app/api/documents/route";
 import { VaultSummaryCards } from "@/components/vault/vault-summary-cards";
@@ -9,6 +9,7 @@ import { AddDocumentModal } from "@/components/vault/add-document-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
   Search,
@@ -17,12 +18,10 @@ import {
   RefreshCw,
   FolderLock,
   CheckCircle2,
-  AlertTriangle,
 } from "lucide-react";
+import { useDocuments } from "@/lib/hooks/use-family-data";
 
 export default function VaultPage() {
-  const [documents, setDocuments] = useState<VaultDocument[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -31,74 +30,46 @@ export default function VaultPage() {
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [reminderNotification, setReminderNotification] = useState<string | null>(null);
 
-  const fetchDocuments = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/documents");
-      if (res.ok) {
-        const data = await res.json();
-        setDocuments(data.documents || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch documents:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+  // SWR Caching & Real-time Auto-sync Hook
+  const { documents, isLoading, isValidating, mutate } = useDocuments();
 
   const handleDeleteDocument = async (id: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus arsip dokumen ini?")) return;
     try {
       const res = await fetch(`/api/documents?id=${id}`, { method: "DELETE" });
       if (res.ok) {
-        fetchDocuments();
+        mutate();
       }
     } catch (err) {
       console.error("Failed to delete document:", err);
     }
   };
 
-  const handleSendTelegramReminder = async () => {
+  const handleEditDocument = (doc: VaultDocument) => {
+    setDocumentToEdit(doc);
+    setIsAddModalOpen(true);
+  };
+
+  const handleTriggerReminder = async () => {
     setIsSendingReminder(true);
     setReminderNotification(null);
     try {
-      const res = await fetch("/api/documents/remind", { method: "POST" });
+      const res = await fetch("/api/documents/remind");
       const data = await res.json();
       if (res.ok) {
-        if (data.count > 0) {
-          setReminderNotification(
-            `✅ Berhasil mengirim pengingat untuk ${data.count} dokumen yang mendekati kedaluwarsa ke Telegram!`
-          );
-        } else {
-          setReminderNotification("ℹ️ Semua dokumen aman. Tidak ada dokumen yang mendekati jatuh tempo.");
-        }
+        setReminderNotification(data.message || "Pemeriksaan dokumen selesai.");
+        mutate();
       } else {
-        setReminderNotification(`⚠️ Gagal mengirim pengingat: ${data.error || "Unknown error"}`);
+        setReminderNotification(`Gagal: ${data.error}`);
       }
     } catch (err: any) {
-      setReminderNotification(`⚠️ Terjadi kesalahan: ${err.message}`);
+      setReminderNotification("Terjadi kesalahan saat memicu pengingat.");
     } finally {
       setIsSendingReminder(false);
-      setTimeout(() => setReminderNotification(null), 6000);
     }
   };
 
-  const filteredDocuments = documents.filter((doc) => {
-    if (selectedCategory !== "all" && doc.category !== selectedCategory) return false;
-    if (selectedStatus !== "all" && doc.status !== selectedStatus) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const title = (doc.title || "").toLowerCase();
-      const num = (doc.document_number || "").toLowerCase();
-      return title.includes(q) || num.includes(q);
-    }
-    return true;
-  });
-
+  // Categories list
   const categories = [
     { id: "all", label: "Semua Kategori" },
     { id: "identity", label: "Identitas" },
@@ -107,16 +78,41 @@ export default function VaultPage() {
     { id: "insurance", label: "Asuransi" },
     { id: "health", label: "Kesehatan" },
     { id: "tax", label: "Pajak" },
-    { id: "other", label: "Lainnya" },
+    { id: "other", label: "Lain-lain" },
   ];
+
+  // Filter and search logic
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      // Category filter
+      if (selectedCategory !== "all" && doc.category !== selectedCategory) {
+        return false;
+      }
+      // Status filter
+      if (selectedStatus !== "all" && doc.status !== selectedStatus) {
+        return false;
+      }
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = doc.title.toLowerCase().includes(q);
+        const matchNum = doc.document_number ? doc.document_number.toLowerCase().includes(q) : false;
+        if (!matchTitle && !matchNum) return false;
+      }
+      return true;
+    });
+  }, [documents, selectedCategory, selectedStatus, searchQuery]);
+
+  const isInitialLoading = isLoading && documents.length === 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Top Navbar */}
       <Navbar familyName="Keluarga F&R" />
 
+      {/* Main Container */}
       <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        {/* Page Header & Actions */}
+        {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
@@ -124,22 +120,41 @@ export default function VaultPage() {
               <h1 className="text-3xl font-bold tracking-tight">
                 Brankas Dokumen & Legalitas
               </h1>
+              {isValidating && !isLoading && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse">
+                  <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
+                  <span>Sinkronisasi...</span>
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Simpan arsip penting keluarga (KTP, SIM, STNK, Paspor, SHM, Asuransi) dengan peringatan kedaluwarsa otomatis.
+              Penyimpanan arsip digital keluarga, pelacakan masa berlaku berkas, dan notifikasi pengingat otomatis.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
-              onClick={handleSendTelegramReminder}
+              onClick={() => mutate()}
+              className="gap-1.5 h-9 text-xs"
+              title="Segarkan data dokumen"
+            >
+              <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
+              <span className="hidden sm:inline">Segarkan</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTriggerReminder}
               disabled={isSendingReminder}
-              className="h-9 gap-1.5 text-xs"
+              className="gap-1.5 h-9 text-xs"
+              title="Picu scanner pengingat dokumen kedaluwarsa ke bot Telegram"
             >
               {isSendingReminder ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden="true" />
               ) : (
                 <Send className="size-3.5 text-blue-500" aria-hidden="true" />
               )}
@@ -152,7 +167,7 @@ export default function VaultPage() {
                 setDocumentToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="h-9 gap-1.5 text-xs"
+              className="gap-1.5 h-9 text-xs"
             >
               <Plus className="size-4" aria-hidden="true" />
               <span>Tambah Dokumen</span>
@@ -169,7 +184,15 @@ export default function VaultPage() {
         )}
 
         {/* Summary Stat Cards */}
-        <VaultSummaryCards documents={documents} />
+        {isInitialLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-[106px] rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <VaultSummaryCards documents={documents} />
+        )}
 
         {/* Filters and Search Bar */}
         <div className="space-y-3 pt-2">
@@ -228,10 +251,11 @@ export default function VaultPage() {
         </div>
 
         {/* Documents Grid Feed */}
-        {isLoading ? (
-          <div className="py-16 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-            <Loader2 className="size-6 animate-spin text-primary" aria-hidden="true" />
-            <p className="text-xs">Memuat berkas brankas dokumen...</p>
+        {isInitialLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-[210px] rounded-xl" />
+            ))}
           </div>
         ) : filteredDocuments.length === 0 ? (
           <div className="py-16 px-4 text-center rounded-xl border border-dashed text-muted-foreground">
@@ -261,10 +285,7 @@ export default function VaultPage() {
               <DocumentCard
                 key={doc.id}
                 document={doc}
-                onEdit={(d) => {
-                  setDocumentToEdit(d);
-                  setIsAddModalOpen(true);
-                }}
+                onEdit={handleEditDocument}
                 onDelete={handleDeleteDocument}
               />
             ))}
@@ -272,11 +293,14 @@ export default function VaultPage() {
         )}
       </main>
 
-      {/* Add / Edit Modal */}
+      {/* Modal Tambah / Edit Dokumen */}
       <AddDocumentModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={fetchDocuments}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setDocumentToEdit(null);
+        }}
+        onSuccess={() => mutate()}
         documentToEdit={documentToEdit}
       />
     </div>

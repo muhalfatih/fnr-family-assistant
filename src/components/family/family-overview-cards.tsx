@@ -16,16 +16,16 @@ export function FamilyOverviewCards({ members, totalExpense }: FamilyOverviewCar
   const admins = members.filter((m) => m.role === "admin").length;
 
   return (
-    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* 1. Total Anggota */}
       <Card>
         <CardContent className="p-5 flex items-center justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <p className="text-xs font-medium text-muted-foreground">Anggota Keluarga</p>
-            <p className="text-2xl font-bold tracking-tight">{totalMembers}</p>
-            <p className="text-[11px] text-muted-foreground">Profil Terdaftar</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate">{totalMembers}</p>
+            <p className="text-xs text-muted-foreground truncate">Profil Terdaftar</p>
           </div>
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Users className="size-5" aria-hidden="true" />
           </div>
         </CardContent>
@@ -36,12 +36,12 @@ export function FamilyOverviewCards({ members, totalExpense }: FamilyOverviewCar
         <CardContent className="p-5 flex items-center justify-between">
           <div className="space-y-1 min-w-0">
             <p className="text-xs font-medium text-muted-foreground">Total Belanja Bulan Ini</p>
-            <p className="text-2xl font-bold tracking-tight text-foreground truncate">
+            <p className="text-2xl font-bold tracking-tight tabular-nums text-foreground truncate">
               {formatRupiah(totalExpense)}
             </p>
-            <p className="text-[11px] text-muted-foreground">Gabungan Seluruh Anggota</p>
+            <p className="text-xs text-muted-foreground truncate">Gabungan Seluruh Anggota</p>
           </div>
-          <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <TrendingUp className="size-5" aria-hidden="true" />
           </div>
         </CardContent>
@@ -50,14 +50,14 @@ export function FamilyOverviewCards({ members, totalExpense }: FamilyOverviewCar
       {/* 3. Terhubung ke Telegram Bot */}
       <Card>
         <CardContent className="p-5 flex items-center justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Terhubung ke Telegram</p>
-            <p className="text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
+            <p className="text-2xl font-bold tracking-tight tabular-nums text-blue-600 dark:text-blue-400 truncate">
               {connectedTelegram} <span className="text-sm font-normal text-muted-foreground">/ {totalMembers}</span>
             </p>
-            <p className="text-[11px] text-muted-foreground">Dapat Mencatat via Chat</p>
+            <p className="text-xs text-muted-foreground truncate">Dapat Mencatat via Chat</p>
           </div>
-          <div className="flex size-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
             <Send className="size-5" aria-hidden="true" />
           </div>
         </CardContent>
@@ -66,12 +66,12 @@ export function FamilyOverviewCards({ members, totalExpense }: FamilyOverviewCar
       {/* 4. Pengelola (Admin) */}
       <Card>
         <CardContent className="p-5 flex items-center justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <p className="text-xs font-medium text-muted-foreground">Hak Akses Admin</p>
-            <p className="text-2xl font-bold tracking-tight">{admins}</p>
-            <p className="text-[11px] text-muted-foreground">Pengelola Pagu & Aset</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate">{admins}</p>
+            <p className="text-xs text-muted-foreground truncate">Pengelola Pagu & Aset</p>
           </div>
-          <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
             <ShieldCheck className="size-5" aria-hidden="true" />
           </div>
         </CardContent>

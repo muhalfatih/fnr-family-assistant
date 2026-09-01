@@ -1,35 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { ActiveTasksBanner } from "@/components/logs/active-tasks-banner";
 import { ActivityLogTable } from "@/components/logs/activity-log-table";
-import { ChatActivityLog } from "@/lib/types/database";
+import { Button } from "@/components/ui/button";
+import { Terminal, RefreshCw } from "lucide-react";
+import { useChatLogs } from "@/lib/hooks/use-family-data";
 
 export default function LogsPage() {
-  const [logs, setLogs] = useState<ChatActivityLog[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const fetchLogs = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/logs");
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.logs || []);
-      }
-    } catch (e) {
-      console.error("Failed to fetch logs:", e);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 5000);
-    return () => clearInterval(interval);
-  }, [fetchLogs]);
+  const { logs, isLoading, isValidating, mutate } = useChatLogs();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -41,23 +21,45 @@ export default function LogsPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Log Chat & Pemantauan Proses
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <Terminal className="size-7 text-primary" aria-hidden="true" />
+              <h1 className="text-3xl font-bold tracking-tight">
+                Log Chat & Pemantauan Proses
+              </h1>
+              {isValidating && !isLoading && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse">
+                  <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
+                  <span>Sinkronisasi...</span>
+                </span>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">
               Monitor riwayat percakapan bot Telegram & WhatsApp, status latensi AI, serta kendali kill-switch proses aktif.
             </p>
           </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => mutate()}
+              disabled={isLoading}
+              className="gap-1.5 h-9 text-xs"
+            >
+              <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
+              <span>Segarkan</span>
+            </Button>
+          </div>
         </div>
 
         {/* Live Active Tasks Banner & Kill Switch */}
-        <ActiveTasksBanner onTaskCancelled={fetchLogs} />
+        <ActiveTasksBanner onTaskCancelled={() => mutate()} />
 
         {/* Chat Activity Log Feed */}
         <ActivityLogTable
           logs={logs}
-          isLoading={isLoading}
-          onRefresh={fetchLogs}
+          isLoading={isLoading && logs.length === 0}
+          onRefresh={() => mutate()}
         />
       </main>
     </div>

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { formatRupiah } from "@/lib/utils";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Wallet, TrendingUp, TrendingDown, Target } from "lucide-react";
 
@@ -23,77 +23,79 @@ export function SummaryCards({
   const budgetUsagePercent = totalBudget > 0 ? Math.round((monthlyExpense / totalBudget) * 100) : 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* 1. Total Saldo */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Total Saldo Kas
-          </CardTitle>
-          <Wallet className="size-4 text-muted-foreground" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tabular-nums">
-            {formatRupiah(totalBalance)}
+        <CardContent className="p-5 flex items-center justify-between">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Total Saldo Kas</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-foreground">
+              {formatRupiah(totalBalance)}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              Gabungan seluruh rekening aktif
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Gabungan seluruh rekening aktif
-          </p>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Wallet className="size-5" aria-hidden="true" />
+          </div>
         </CardContent>
       </Card>
 
       {/* 2. Pemasukan */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Pemasukan Bulan Ini
-          </CardTitle>
-          <TrendingUp className="size-4 text-emerald-600" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-emerald-600 tabular-nums">
-            {formatRupiah(monthlyIncome)}
+        <CardContent className="p-5 flex items-center justify-between">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Pemasukan Bulan Ini</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-emerald-600 dark:text-emerald-400">
+              {formatRupiah(monthlyIncome)}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              Total pendapatan keluarga
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Total pendapatan keluarga
-          </p>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <TrendingUp className="size-5" aria-hidden="true" />
+          </div>
         </CardContent>
       </Card>
 
       {/* 3. Pengeluaran */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Pengeluaran Bulan Ini
-          </CardTitle>
-          <TrendingDown className="size-4 text-destructive" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tabular-nums">
-            {formatRupiah(monthlyExpense)}
+        <CardContent className="p-5 flex items-center justify-between">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Pengeluaran Bulan Ini</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-destructive">
+              {formatRupiah(monthlyExpense)}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {budgetUsagePercent}% dari target anggaran
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {budgetUsagePercent}% dari target anggaran
-          </p>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+            <TrendingDown className="size-5" aria-hidden="true" />
+          </div>
         </CardContent>
       </Card>
 
       {/* 4. Sisa Anggaran */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Sisa Anggaran
-          </CardTitle>
-          <Target className="size-4 text-muted-foreground" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tabular-nums">
-            {formatRupiah(remainingBudget)}
+        <CardContent className="p-5 flex flex-col justify-between space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">Sisa Anggaran</p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-foreground">
+                {formatRupiah(remainingBudget)}
+              </p>
+            </div>
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Target className="size-5" aria-hidden="true" />
+            </div>
           </div>
-          <div className="mt-2.5">
+          <div>
             <Progress
               value={Math.min(100, budgetUsagePercent)}
-              className="h-2"
+              className="h-1.5"
               indicatorClassName={
                 budgetUsagePercent > 90
                   ? "bg-destructive"

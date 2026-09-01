@@ -2,7 +2,7 @@
 
 import React from "react";
 import { formatRupiah } from "@/lib/utils";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ShieldCheck, Gem, Landmark, PieChart } from "lucide-react";
 
@@ -22,77 +22,79 @@ export function NetWorthSummary({
   const debtToAssetRatio = grossAssets > 0 ? Math.round((totalLiabilities / grossAssets) * 100) : 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* 1. Total Kekayaan Bersih (Net Worth) */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Kekayaan Bersih (Net Worth)
-          </CardTitle>
-          <ShieldCheck className="size-4 text-emerald-600" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tracking-tight text-emerald-600 tabular-nums truncate">
-            {formatRupiah(netWorth)}
+        <CardContent className="p-5 flex items-center justify-between">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Kekayaan Bersih (Net Worth)</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-emerald-600 dark:text-emerald-400">
+              {formatRupiah(netWorth)}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              Total aset dikurangi kewajiban
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            (Total Kas + Aset) - Total Hutang
-          </p>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <ShieldCheck className="size-5" aria-hidden="true" />
+          </div>
         </CardContent>
       </Card>
 
-      {/* 2. Total Aset Fisik & Investasi */}
+      {/* 2. Total Nilai Aset */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Total Nilai Aset
-          </CardTitle>
-          <Gem className="size-4 text-primary" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tracking-tight tabular-nums truncate">
-            {formatRupiah(grossAssets)}
+        <CardContent className="p-5 flex items-center justify-between">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Total Nilai Aset</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-foreground">
+              {formatRupiah(grossAssets)}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              Kas `{formatRupiah(totalCash)}` + Fisik `{formatRupiah(totalAssets)}`
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            Kas: {formatRupiah(totalCash)} · Non-Kas: {formatRupiah(totalAssets)}
-          </p>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Gem className="size-5" aria-hidden="true" />
+          </div>
         </CardContent>
       </Card>
 
       {/* 3. Total Liabilitas / Hutang */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Total Sisa Hutang
-          </CardTitle>
-          <Landmark className="size-4 text-destructive" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tracking-tight text-destructive tabular-nums truncate">
-            {formatRupiah(totalLiabilities)}
+        <CardContent className="p-5 flex items-center justify-between">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Total Sisa Hutang</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-destructive">
+              {formatRupiah(totalLiabilities)}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              KPR, pinjaman & cicilan aktif
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            KPR, pinjaman & cicilan aktif
-          </p>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+            <Landmark className="size-5" aria-hidden="true" />
+          </div>
         </CardContent>
       </Card>
 
       {/* 4. Rasio Beban Hutang */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Rasio Hutang terhadap Aset
-          </CardTitle>
-          <PieChart className="size-4 text-muted-foreground" aria-hidden="true" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tracking-tight tabular-nums truncate">
-            {debtToAssetRatio}%
+        <CardContent className="p-5 flex flex-col justify-between space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">Rasio Hutang terhadap Aset</p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-foreground">
+                {debtToAssetRatio}%
+              </p>
+            </div>
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <PieChart className="size-5" aria-hidden="true" />
+            </div>
           </div>
-          <div className="mt-2.5">
+          <div>
             <Progress
               value={Math.min(100, debtToAssetRatio)}
-              className="h-2"
+              className="h-1.5"
               indicatorClassName={
                 debtToAssetRatio > 50
                   ? "bg-destructive"

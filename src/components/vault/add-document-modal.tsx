@@ -10,6 +10,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +41,7 @@ export function AddDocumentModal({
   const [documentNumber, setDocumentNumber] = useState("");
   const [hasExpiry, setHasExpiry] = useState(true);
   const [expiryDate, setExpiryDate] = useState("");
-  const [reminderDays, setReminderDays] = useState(30);
+  const [reminderDays, setReminderDays] = useState("30");
   const [driveUrl, setDriveUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -45,7 +53,7 @@ export function AddDocumentModal({
       setDocumentNumber(documentToEdit.document_number || "");
       setHasExpiry(Boolean(documentToEdit.expiry_date));
       setExpiryDate(documentToEdit.expiry_date || "");
-      setReminderDays(documentToEdit.reminder_days_before || 30);
+      setReminderDays(String(documentToEdit.reminder_days_before || 30));
       setDriveUrl(documentToEdit.drive_view_url || "");
     } else {
       setTitle("");
@@ -53,7 +61,7 @@ export function AddDocumentModal({
       setDocumentNumber("");
       setHasExpiry(true);
       setExpiryDate("");
-      setReminderDays(30);
+      setReminderDays("30");
       setDriveUrl("");
     }
     setErrorMsg("");
@@ -105,7 +113,7 @@ export function AddDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>
             {documentToEdit ? "Edit Dokumen" : "Tambah Dokumen ke Brankas"}
@@ -115,7 +123,7 @@ export function AddDocumentModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {errorMsg && (
             <div className="p-3 text-xs rounded-md bg-destructive/15 text-destructive border border-destructive/20">
               {errorMsg}
@@ -124,7 +132,7 @@ export function AddDocumentModal({
 
           {/* 1. Nama Dokumen */}
           <div className="space-y-1.5">
-            <Label htmlFor="title" className="text-xs">
+            <Label htmlFor="title" className="text-xs font-medium">
               Nama Dokumen <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -132,7 +140,7 @@ export function AddDocumentModal({
               placeholder="Contoh: STNK Honda HR-V / KTP Ayah"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-xs"
+              className="text-xs h-9"
               required
             />
           </div>
@@ -140,28 +148,30 @@ export function AddDocumentModal({
           {/* 2. Kategori Dokumen */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="category" className="text-xs">
+              <Label className="text-xs font-medium">
                 Kategori
               </Label>
-              <select
-                id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="identity">Identitas (KTP, Paspor, KK)</option>
-                <option value="vehicle">Kendaraan (STNK, BPKB, SIM)</option>
-                <option value="property">Properti (SHM, PBB, HGB)</option>
-                <option value="insurance">Asuransi (Jiwa, Mobil)</option>
-                <option value="health">Kesehatan (BPJS, Medis)</option>
-                <option value="tax">Pajak (NPWP, SPT)</option>
-                <option value="other">Lain-lain (Ijazah, Kontrak)</option>
-              </select>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Pilih Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="identity">Identitas (KTP, Paspor, KK)</SelectItem>
+                    <SelectItem value="vehicle">Kendaraan (STNK, SIM, BPKB)</SelectItem>
+                    <SelectItem value="property">Properti (SHM, PBB, HGB)</SelectItem>
+                    <SelectItem value="insurance">Asuransi (Jiwa, Mobil)</SelectItem>
+                    <SelectItem value="health">Kesehatan (BPJS, Medis)</SelectItem>
+                    <SelectItem value="tax">Pajak (NPWP, SPT)</SelectItem>
+                    <SelectItem value="other">Lain-lain (Ijazah, Kontrak)</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* 3. Nomor Dokumen */}
             <div className="space-y-1.5">
-              <Label htmlFor="docNumber" className="text-xs">
+              <Label htmlFor="docNumber" className="text-xs font-medium">
                 Nomor Dokumen
               </Label>
               <Input
@@ -169,13 +179,13 @@ export function AddDocumentModal({
                 placeholder="Contoh: B 1234 XYZ / NIK"
                 value={documentNumber}
                 onChange={(e) => setDocumentNumber(e.target.value)}
-                className="text-xs font-mono"
+                className="text-xs font-mono h-9"
               />
             </div>
           </div>
 
           {/* 4. Masa Berlaku Switch & Tanggal */}
-          <div className="p-3 rounded-lg border bg-muted/30 space-y-3">
+          <div className="p-3.5 rounded-lg border bg-muted/30 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium">Memiliki Masa Berlaku?</span>
               <div className="flex items-center gap-2">
@@ -184,9 +194,9 @@ export function AddDocumentModal({
                   id="hasExpiry"
                   checked={hasExpiry}
                   onChange={(e) => setHasExpiry(e.target.checked)}
-                  className="rounded size-4 text-primary focus:ring-primary"
+                  className="rounded size-4 accent-primary text-primary focus:ring-primary cursor-pointer"
                 />
-                <label htmlFor="hasExpiry" className="text-xs text-muted-foreground cursor-pointer">
+                <label htmlFor="hasExpiry" className="text-xs text-muted-foreground cursor-pointer select-none">
                   {hasExpiry ? "Ada batas waktu" : "Seumur hidup / Permanen"}
                 </label>
               </div>
@@ -195,7 +205,7 @@ export function AddDocumentModal({
             {hasExpiry && (
               <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                 <div className="space-y-1.5">
-                  <Label htmlFor="expiryDate" className="text-xs">
+                  <Label htmlFor="expiryDate" className="text-xs font-medium">
                     Tanggal Kedaluwarsa
                   </Label>
                   <Input
@@ -203,27 +213,29 @@ export function AddDocumentModal({
                     type="date"
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
-                    className="text-xs"
+                    className="text-xs h-9"
                     required={hasExpiry}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="reminderDays" className="text-xs">
+                  <Label className="text-xs font-medium">
                     Ingatkan Sebelum
                   </Label>
-                  <select
-                    id="reminderDays"
-                    value={reminderDays}
-                    onChange={(e) => setReminderDays(Number(e.target.value))}
-                    className="w-full h-9 px-3 rounded-md border bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value={7}>7 Hari Sebelumnya</option>
-                    <option value={14}>14 Hari Sebelumnya</option>
-                    <option value={30}>30 Hari Sebelumnya (Standar)</option>
-                    <option value={60}>60 Hari Sebelumnya</option>
-                    <option value={90}>90 Hari Sebelumnya</option>
-                  </select>
+                  <Select value={reminderDays} onValueChange={setReminderDays}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Pilih Waktu" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="7">7 Hari Sebelumnya</SelectItem>
+                        <SelectItem value="14">14 Hari Sebelumnya</SelectItem>
+                        <SelectItem value="30">30 Hari Sebelumnya (Standar)</SelectItem>
+                        <SelectItem value="60">60 Hari Sebelumnya</SelectItem>
+                        <SelectItem value="90">90 Hari Sebelumnya</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
@@ -231,23 +243,23 @@ export function AddDocumentModal({
 
           {/* 5. Tautan Salinan Google Drive */}
           <div className="space-y-1.5">
-            <Label htmlFor="driveUrl" className="text-xs">
-              Tautan Berkas Google Drive / Cloud Link (Opsional)
+            <Label htmlFor="driveUrl" className="text-xs font-medium">
+              Tautan Berkas Google Drive / Cloud (Opsional)
             </Label>
             <Input
               id="driveUrl"
               placeholder="https://drive.google.com/file/d/..."
               value={driveUrl}
               onChange={(e) => setDriveUrl(e.target.value)}
-              className="text-xs font-mono"
+              className="text-xs font-mono h-9"
             />
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs">
               Batal
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5">
+            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs">
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               <span>{documentToEdit ? "Simpan Perubahan" : "Simpan ke Brankas"}</span>
             </Button>

@@ -11,10 +11,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Activity } from "lucide-react";
+import {
+  Bot,
+  Activity,
+  Menu,
+  WalletCards,
+  Landmark,
+  FolderLock,
+  Users,
+  Terminal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
 
@@ -25,13 +41,14 @@ interface NavbarProps {
 export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
   const pathname = usePathname();
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: "/", label: "Keuangan" },
-    { href: "/assets", label: "Aset & Hutang" },
-    { href: "/vault", label: "Brankas Dokumen" },
-    { href: "/family", label: "Keluarga" },
-    { href: "/logs", label: "Log Aktivitas" },
+    { href: "/", label: "Keuangan", icon: WalletCards },
+    { href: "/assets", label: "Aset & Hutang", icon: Landmark },
+    { href: "/vault", label: "Brankas Dokumen", icon: FolderLock },
+    { href: "/family", label: "Keluarga", icon: Users },
+    { href: "/logs", label: "Log Aktivitas", icon: Terminal },
   ];
 
   return (
@@ -39,7 +56,85 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 items-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto justify-between gap-4">
           {/* Left: Brand Switcher & Main Nav */}
-          <div className="flex items-center gap-6 min-w-0">
+          <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+            {/* Mobile Menu Trigger (< md) */}
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 md:hidden text-foreground hover:bg-muted"
+                  aria-label="Buka menu navigasi"
+                >
+                  <Menu className="size-5" aria-hidden="true" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0 flex flex-col justify-between">
+                <div>
+                  <SheetHeader className="p-4 border-b text-left">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-xs">
+                        FR
+                      </div>
+                      <SheetTitle className="text-sm font-semibold">
+                        {familyName}
+                      </SheetTitle>
+                    </div>
+                  </SheetHeader>
+
+                  <div className="p-3 space-y-1">
+                    {navLinks.map((link) => {
+                      const Icon = link.icon;
+                      const isActive = pathname === link.href;
+                      return (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          )}
+                        >
+                          <Icon className="size-4 shrink-0" aria-hidden="true" />
+                          <span>{link.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Mobile Drawer Footer */}
+                <div className="p-4 border-t space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setIsApiModalOpen(true);
+                    }}
+                    className="w-full justify-start text-xs gap-2 h-9"
+                  >
+                    <Activity className="size-3.5 text-primary" aria-hidden="true" />
+                    <span>Cek Status API & Bot</span>
+                  </Button>
+                  <div className="flex items-center gap-2.5 pt-2">
+                    <Avatar className="size-8">
+                      <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground">
+                        AY
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 text-xs">
+                      <p className="font-semibold leading-tight text-foreground truncate">Ayah (Admin)</p>
+                      <p className="text-[11px] text-muted-foreground truncate">ayah@keluarga.hub</p>
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+
             <Link href="/" className="flex items-center gap-2.5 shrink-0 hover:opacity-90 transition-opacity">
               <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-xs">
                 FR
@@ -51,7 +146,7 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
 
             <div className="hidden md:block h-4 w-px bg-border" />
 
-            {/* Nav Links */}
+            {/* Desktop Nav Links */}
             <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
               {navLinks.map((link) => {
                 const isActive = pathname === link.href;
