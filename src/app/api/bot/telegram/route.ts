@@ -21,6 +21,7 @@ import {
   completeBotProcess,
   updateProcessLoadingMessage,
 } from "@/lib/bot/process-manager";
+import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
 import { formatRupiah, formatDateIndo } from "@/lib/utils";
 
 // Persistent Quick Action Reply Keyboard
@@ -693,31 +694,16 @@ export async function POST(req: NextRequest) {
       chosenWallet = newWallet;
     }
 
-    // 2f. Match or Create Category
-    let categoryId: string | null = null;
-    if (parsed.category) {
-      const { data: cat } = await supabaseAdmin
-        .from("categories")
-        .select("id")
-        .eq("family_id", familyId)
-        .ilike("name", `%${parsed.category}%`)
-        .maybeSingle();
-
-      if (cat) {
-        categoryId = cat.id;
-      } else {
-        const { data: newCat } = await supabaseAdmin
-          .from("categories")
-          .insert({
-            family_id: familyId,
-            name: parsed.category,
-            type: parsed.type === "income" ? "income" : "expense",
-          })
-          .select()
-          .single();
-        categoryId = newCat?.id || null;
-      }
-    }
+    // 2f. Intelligently Match Category & Automatically Sync with Current Month Budget
+    const budgetSync = await matchCategoryAndSyncBudget(
+      familyId,
+      parsed.category,
+      parsed.description,
+      parsed.amount,
+      parsed.type
+    );
+    const categoryId = budgetSync?.categoryId || null;
+    const categoryDisplayName = budgetSync?.categoryName || parsed.category || "Lain-lain";
 
     // 2g. Insert Transaction into Supabase
     const { data: transaction, error: txError } = await supabaseAdmin
@@ -757,7 +743,7 @@ export async function POST(req: NextRequest) {
     appendTransactionToSheet({
       transactionDate: new Date().toISOString().split("T")[0],
       type: parsed.type,
-      category: parsed.category || "Lain-lain",
+      category: categoryDisplayName,
       amount: parsed.amount,
       walletName: chosenWallet.name,
       description: parsed.description,
@@ -765,15 +751,31 @@ export async function POST(req: NextRequest) {
       driveLink: driveViewUrl || undefined,
     }).catch((err) => console.error("Async Google Sheet Sync Error:", err));
 
-    // 2i. Reply Confirmation Message with Action Buttons
+    // 2i. Reply Confirmation Message with Live Budget Progress & Action Buttons
     const typeText = parsed.type === "expense" ? "Pengeluaran" : parsed.type === "income" ? "Pemasukan" : "Transfer";
 
     let replyText =
       `✅ *${typeText} Berhasil Dicatat!*\n\n` +
       `💵 *Nominal:* \`${formatRupiah(parsed.amount)}\`\n` +
-      `🏷️ *Kategori:* ${parsed.category || "Lain-lain"}\n` +
+      `🏷️ *Kategori:* ${categoryDisplayName}\n` +
       `💳 *Dompet:* ${chosenWallet.name}\n` +
       `📝 *Catatan:* ${parsed.description}`;
+
+    // Append Real-time Budget Progress if applicable
+    if (parsed.type === "expense" && budgetSync && budgetSync.targetAmount > 0) {
+      const updatedTotalSpent = budgetSync.totalSpent + parsed.amount;
+      const updatedPercent = Math.round((updatedTotalSpent / budgetSync.targetAmount) * 100);
+      const isOver = updatedTotalSpent > budgetSync.targetAmount;
+      const budgetStatusTag = isOver ? "🔴 Overbudget!" : updatedPercent >= 80 ? "🟡 Peringatan (≥80%)" : "🟢 Aman";
+
+      replyText +=
+        `\n\n🎯 *Status Anggaran ${categoryDisplayName}:*\n` +
+        `📊 Terpakai: \`${formatRupiah(updatedTotalSpent)}\` / \`${formatRupiah(budgetSync.targetAmount)}\` (*${updatedPercent}%* ${budgetStatusTag})`;
+
+      if (isOver) {
+        replyText += `\n⚠️ _Peringatan: Total pengeluaran telah melebihi target anggaran bulan ini!_`;
+      }
+    }
 
     if (parsed.items && parsed.items.length > 0) {
       replyText += `\n\n🧾 *Rincian Item (${parsed.items.length}):*\n`;
