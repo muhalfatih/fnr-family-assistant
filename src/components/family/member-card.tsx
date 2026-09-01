@@ -1,0 +1,143 @@
+"use client";
+
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { formatRupiah } from "@/lib/utils";
+import {
+  CreditCard,
+  Send,
+  Pencil,
+  Trash2,
+  ShieldCheck,
+  User,
+  Phone,
+} from "lucide-react";
+
+interface MemberCardProps {
+  member: any;
+  onEdit: (member: any) => void;
+  onDelete: (id: string) => void;
+}
+
+export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  };
+
+  const isConnectedTelegram = Boolean(member.telegram_chat_id);
+
+  return (
+    <Card className="flex flex-col justify-between hover:shadow-md transition-shadow">
+      <CardContent className="p-5 space-y-4">
+        {/* Top: Avatar, Name & Role Badge */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="size-11 border-2 border-primary/20">
+              <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
+                {getInitials(member.full_name || "FM")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm leading-tight text-foreground truncate">
+                  {member.full_name}
+                </h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {member.role === "admin" ? "Pengelola (Admin)" : "Anggota Keluarga"}
+              </p>
+            </div>
+          </div>
+
+          <Badge
+            variant={member.role === "admin" ? "default" : "secondary"}
+            className="text-[10px] capitalize gap-1 font-normal"
+          >
+            {member.role === "admin" ? (
+              <ShieldCheck className="size-3" aria-hidden="true" />
+            ) : (
+              <User className="size-3" aria-hidden="true" />
+            )}
+            <span>{member.role}</span>
+          </Badge>
+        </div>
+
+        {/* Middle Stats: Wallet & Monthly Spent */}
+        <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-lg bg-muted/40 border">
+          <div>
+            <p className="text-muted-foreground text-[11px]">Dompet Default:</p>
+            <div className="flex items-center gap-1.5 font-medium truncate mt-0.5" title={member.default_wallet?.name || "Otomatis"}>
+              <CreditCard className="size-3 text-muted-foreground shrink-0" aria-hidden="true" />
+              <span className="truncate">{member.default_wallet?.name || "Dompet Tunai"}</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-[11px]">Belanja Bulan Ini:</p>
+            <p className="font-semibold text-foreground truncate mt-0.5">
+              {formatRupiah(member.monthlySpent || 0)}
+            </p>
+          </div>
+        </div>
+
+        {/* Channels: Telegram & WhatsApp status */}
+        <div className="space-y-1.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground text-[11px] flex items-center gap-1">
+              <Send className="size-3 text-blue-500" aria-hidden="true" />
+              <span>Telegram Chat:</span>
+            </span>
+            {isConnectedTelegram ? (
+              <Badge variant="outline" className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                ● ID: {member.telegram_chat_id}
+              </Badge>
+            ) : (
+              <span className="text-[11px] text-muted-foreground italic">Belum ditautkan</span>
+            )}
+          </div>
+
+          {member.whatsapp_number && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px] flex items-center gap-1">
+                <Phone className="size-3 text-emerald-500" aria-hidden="true" />
+                <span>WhatsApp:</span>
+              </span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {member.whatsapp_number}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex items-center justify-end gap-1 pt-2 border-t text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => onEdit(member)}
+          >
+            <Pencil className="size-3.5" aria-hidden="true" />
+            <span>Edit Profil</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(member.id)}
+            title="Hapus Anggota"
+          >
+            <Trash2 className="size-3.5" aria-hidden="true" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

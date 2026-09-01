@@ -30,6 +30,7 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
     { href: "/", label: "Keuangan" },
     { href: "/assets", label: "Aset & Hutang" },
     { href: "/vault", label: "Brankas Dokumen" },
+    { href: "/family", label: "Keluarga" },
     { href: "/logs", label: "Log Aktivitas" },
   ];
 
@@ -106,7 +107,9 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                   <Activity className="size-4 text-primary" aria-hidden="true" />
                   <span>Cek Koneksi API & Layanan</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>Profil Keluarga</DropdownMenuItem>
+                <Link href="/family">
+                  <DropdownMenuItem className="cursor-pointer">Profil & Anggota Keluarga</DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem>Pengaturan Bot & Webhook</DropdownMenuItem>
                 <DropdownMenuItem>Integrasi Google Drive & Sheets</DropdownMenuItem>
               </DropdownMenuContent>
