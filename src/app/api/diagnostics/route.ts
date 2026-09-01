@@ -31,7 +31,7 @@ export async function GET() {
     try {
       const ai = new GoogleGenAI({ apiKey: geminiApiKey });
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.7-flash",
         contents: "Balas dengan 1 kata: OK",
       });
       const latency = Date.now() - geminiStart;
@@ -41,10 +41,10 @@ export async function GET() {
           name: "Google Gemini AI (OCR & Parser)",
           category: "Artificial Intelligence",
           status: "connected",
-          message: "Model Gemini 2.5 Flash siap memproses struk & voice note.",
+          message: "Model Gemini 3.7 Flash siap memproses struk & voice note.",
           latencyMs: latency,
           details: {
-            model: "gemini-2.5-flash",
+            model: "gemini-3.7-flash",
             keyPrefix: `${geminiApiKey.substring(0, 6)}...`,
           },
         });
