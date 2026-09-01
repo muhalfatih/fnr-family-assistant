@@ -460,7 +460,7 @@ export default function DashboardPage() {
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium block">
                           Saldo Saat Ini
                         </span>
-                        <div className="text-lg font-bold font-mono tabular-nums text-foreground truncate">
+                        <div className="text-lg font-bold tracking-tight text-foreground truncate">
                           {formatRupiah(w.current_balance)}
                         </div>
                       </div>

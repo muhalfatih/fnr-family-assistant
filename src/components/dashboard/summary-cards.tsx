@@ -26,15 +26,15 @@ export function SummaryCards({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* 1. Total Saldo */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 sm:p-5 pb-0">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Total Saldo Kas
           </CardTitle>
           <Wallet className="size-4 text-muted-foreground" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
+        <CardContent className="p-4 sm:p-5 pt-1 space-y-1">
           <div
-            className="text-3xl lg:text-[34px] font-bold tracking-tight text-foreground truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-foreground truncate cursor-default leading-tight"
             title={formatRupiah(totalBalance)}
           >
             {formatCompactNumber(totalBalance)}
@@ -47,15 +47,15 @@ export function SummaryCards({
 
       {/* 2. Pemasukan */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 sm:p-5 pb-0">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Pemasukan Bulan Ini
           </CardTitle>
           <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
+        <CardContent className="p-4 sm:p-5 pt-1 space-y-1">
           <div
-            className="text-3xl lg:text-[34px] font-bold tracking-tight text-emerald-600 dark:text-emerald-400 truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-emerald-600 dark:text-emerald-400 truncate cursor-default leading-tight"
             title={formatRupiah(monthlyIncome)}
           >
             {formatCompactNumber(monthlyIncome)}
@@ -68,15 +68,15 @@ export function SummaryCards({
 
       {/* 3. Pengeluaran */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 sm:p-5 pb-0">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Pengeluaran Bulan Ini
           </CardTitle>
           <TrendingDown className="size-4 text-rose-600 dark:text-rose-400" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
+        <CardContent className="p-4 sm:p-5 pt-1 space-y-1">
           <div
-            className="text-3xl lg:text-[34px] font-bold tracking-tight text-rose-600 dark:text-rose-400 truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-rose-600 dark:text-rose-400 truncate cursor-default leading-tight"
             title={formatRupiah(monthlyExpense)}
           >
             {formatCompactNumber(monthlyExpense)}
@@ -89,15 +89,15 @@ export function SummaryCards({
 
       {/* 4. Sisa Anggaran */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 sm:p-5 pb-0">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Sisa Anggaran
           </CardTitle>
           <Target className="size-4 text-amber-500" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-4 sm:p-5 pt-0 space-y-2">
+        <CardContent className="p-4 sm:p-5 pt-1 space-y-1.5">
           <div
-            className="text-3xl lg:text-[34px] font-bold tracking-tight text-foreground truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-foreground truncate cursor-default leading-tight"
             title={formatRupiah(remainingBudget)}
           >
             {formatCompactNumber(remainingBudget)}
