@@ -1,6 +1,6 @@
 ---
 trigger: always_on
-description: Aturan otomatis untuk sesi #Build — Menyiapkan commit dan push setiap selesai perubahan kode dengan konfirmasi eksplisit dari pengguna sebelum dijalankan.
+description: Aturan otomatis untuk sesi #Build — Menyiapkan commit dan push setiap selesai perubahan kode dengan modal konfirmasi interaktif (ask_question) sebelum dijalankan.
 ---
 
 # 🚀 Git Commit & Push Workflow (Khusus Sesi #Build)
@@ -14,21 +14,22 @@ Setelah menyelesaikan pengeditan kode, perbaikan bug, atau penambahan fitur baru
    - **Ringkasan Singkat Perubahan**: Poin-poin apa saja yang diubah.
    - **Rancangan Pesan Commit (Conventional Commits)**: Format standar seperti `feat(...)`, `fix(...)`, `refactor(...)`, `style(...)`, `docs(...)`, atau `chore(...)`.
 
-## 2. WAJIB Tanyakan Konfirmasi ke Pengguna (Approval Gate)
+## 2. WAJIB Munculkan Pop-up Interaktif (Approval Gate via `ask_question`)
 **DILARANG KERAS** menjalankan `git commit` atau `git push` secara diam-diam tanpa persetujuan user.
-Tampilkan secara jelas ke user:
-- Daftar file yang terpengaruh.
-- Pesan commit yang diusulkan.
-- Pertanyaan interaktif persetujuan:
-  > *"Perubahan kode telah selesai. Apakah Anda ingin saya melakukan commit dan push dengan pesan di atas ke remote repository sekarang? [Ya / Ubah Pesan / Lewati]"*
+Panggil tool `ask_question` untuk merender modal pop-up interaktif yang dapat diklik langsung oleh user:
+- Tampilkan ringkasan file dan usulan pesan commit pada deskripsi/pertanyaan.
+- Sediakan opsi tombol yang bisa diklik langsung:
+  1. `(Recommended) Ya, Setujui & Push sekarang`
+  2. `Ubah Pesan Commit`
+  3. `Lewati / Batalkan`
 
 ## 3. Eksekusi Setelah Persetujuan
-- **Jika User Menyetujui (Ya)**:
+- **Jika User Menyetujui (Ya, Setujui & Push sekarang)**:
   1. `git add <files>` (atau `git add .` jika semua perubahan relevan).
   2. `git commit -m "<pesan yang disepakati>"`.
   3. `git push origin <branch_aktif>`.
   4. Berikan konfirmasi bahwa commit & push telah berhasil disertai hash commit atau status remote.
-- **Jika User Menginginkan Revisi Pesan**:
-  - Sesuaikan pesan commit sesuai instruksi user, lalu tanyakan konfirmasi ulang sebelum eksekusi.
-- **Jika User Menolak / Memilih Lewati**:
+- **Jika User Memilih Ubah Pesan Commit**:
+  - Tanyakan pesan commit baru melalui modal `ask_question` atau instruksi chat, lalu konfirmasi ulang sebelum eksekusi.
+- **Jika User Memilih Lewati / Batalkan**:
   - Batalkan proses commit/push dan lanjutkan pekerjaan berikutnya.
