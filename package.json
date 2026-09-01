@@ -6,7 +6,8 @@
     "dev": "node node_modules/next/dist/bin/next dev -p 1000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node scripts/test-all-modules.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.19.0",
