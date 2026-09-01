@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { formatRupiah, formatCompactRupiah } from "@/lib/utils";
+import { formatRupiah, formatCompactNumber } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Wallet, TrendingUp, TrendingDown, Target } from "lucide-react";
@@ -34,10 +34,10 @@ export function SummaryCards({
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
           <div
-            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-foreground truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-foreground truncate cursor-default py-0.5"
             title={formatRupiah(totalBalance)}
           >
-            {formatCompactRupiah(totalBalance)}
+            {formatCompactNumber(totalBalance)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
             Gabungan seluruh rekening aktif
@@ -55,10 +55,10 @@ export function SummaryCards({
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
           <div
-            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-emerald-600 dark:text-emerald-400 truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-emerald-600 dark:text-emerald-400 truncate cursor-default py-0.5"
             title={formatRupiah(monthlyIncome)}
           >
-            {formatCompactRupiah(monthlyIncome)}
+            {formatCompactNumber(monthlyIncome)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
             Total pendapatan keluarga
@@ -76,10 +76,10 @@ export function SummaryCards({
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
           <div
-            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-rose-600 dark:text-rose-400 truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-rose-600 dark:text-rose-400 truncate cursor-default py-0.5"
             title={formatRupiah(monthlyExpense)}
           >
-            {formatCompactRupiah(monthlyExpense)}
+            {formatCompactNumber(monthlyExpense)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
             {budgetUsagePercent}% dari pagu anggaran
@@ -97,10 +97,10 @@ export function SummaryCards({
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-2">
           <div
-            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-foreground truncate cursor-default py-0.5"
+            className="text-3xl lg:text-[34px] font-bold tracking-tight text-foreground truncate cursor-default py-0.5"
             title={formatRupiah(remainingBudget)}
           >
-            {formatCompactRupiah(remainingBudget)}
+            {formatCompactNumber(remainingBudget)}
           </div>
           <Progress
             value={Math.min(100, budgetUsagePercent)}

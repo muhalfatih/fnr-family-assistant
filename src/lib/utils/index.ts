@@ -27,7 +27,7 @@ export function formatShortRupiah(amount: number): string {
   return formatRupiah(amount);
 }
 
-export function formatCompactRupiah(amount: number): string {
+export function formatCompactNumber(amount: number): string {
   const isNegative = amount < 0;
   const abs = Math.abs(amount);
 
@@ -45,7 +45,13 @@ export function formatCompactRupiah(amount: number): string {
     formatted = `${abs.toLocaleString("id-ID")}`;
   }
 
-  return `${isNegative ? "-" : ""}Rp ${formatted}`;
+  return `${isNegative ? "-" : ""}${formatted}`;
+}
+
+export function formatCompactRupiah(amount: number): string {
+  const isNegative = amount < 0;
+  const abs = Math.abs(amount);
+  return `${isNegative ? "-" : ""}Rp ${formatCompactNumber(abs)}`;
 }
 
 export function formatDateIndo(dateStr: string | Date): string {
