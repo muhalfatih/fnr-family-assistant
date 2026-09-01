@@ -466,7 +466,7 @@ export async function POST(req: NextRequest) {
       sendTelegramChatAction(chatId, "upload_photo").catch(() => {});
       const tempMsg = await sendTelegramMessage(
         chatId,
-        "📸 *Menerima foto struk...*\n⏳ _Sedang membaca data & rincian item dengan Gemini 3.7 Flash AI..._"
+        "📸 *Menerima foto struk...*\n⏳ _Sedang membaca data & rincian item dengan Gemini 3 Flash Lite AI..._"
       );
       if (tempMsg?.result?.message_id) {
         loadingMessageId = tempMsg.result.message_id;
@@ -487,7 +487,7 @@ export async function POST(req: NextRequest) {
           driveViewUrl = driveResult.webViewLink;
         }
 
-        // Parse with Gemini 3.7 Flash with continuous typing pulse
+        // Parse with Gemini 3.5 Flash Lite with continuous typing pulse
         parsed = await withContinuousChatAction(chatId, "typing", async () => {
           return await parseFinancialInputWithGemini({
             text: message.caption,

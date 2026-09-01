@@ -118,7 +118,7 @@ export async function parseFinancialInputWithGemini(options: {
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-3.5-flash-lite",
       contents,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -194,7 +194,7 @@ Instruksi Menjawab:
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-3.5-flash-lite",
       contents: prompt,
       config: {
         temperature: 0.2,
