@@ -69,16 +69,14 @@ function generatePNG(width, height, drawFn) {
   return Buffer.concat([signature, ihdrChunk, idatChunk, iendChunk]);
 }
 
-// Draw Executive F&R Icon: Deep Zinc background with subtle emerald/indigo glow and clean monogram badge
-function drawIcon(x, y, w, h) {
+// Draw Executive Family Vault & Ledger Emblem (No initials - Pure App Identity)
+function drawVaultIcon(x, y, w, h) {
   const cx = w / 2;
   const cy = h / 2;
   const dx = (x - cx) / (w / 2);
   const dy = (y - cy) / (h / 2);
-  const distSq = dx * dx + dy * dy;
 
   // Rounded squircle mask
-  const radius = 0.88;
   const cornerDist = Math.pow(Math.abs(dx), 4) + Math.pow(Math.abs(dy), 4);
   if (cornerDist > 0.85) {
     return [0, 0, 0, 0]; // Transparent outside squircle
@@ -91,46 +89,73 @@ function drawIcon(x, y, w, h) {
 
   // Background gradient: Dark Zinc-950 (#09090b) with subtle top-center emerald glow
   const glow = Math.max(0, 1 - Math.sqrt(dx * dx + (dy + 0.3) * (dy + 0.3)) * 0.9);
-  const rBg = Math.round(9 + glow * 10);
-  const gBg = Math.round(9 + glow * 35);
+  const rBg = Math.round(9 + glow * 12);
+  const gBg = Math.round(9 + glow * 40);
   const bBg = Math.round(11 + glow * 25);
 
-  // Inner Shield / Emblem Geometry
-  const nx = (x - cx) / (w * 0.32);
-  const ny = (y - cy) / (h * 0.32);
+  // Normalize coordinates for Shield & Vault Dial
+  const sx = (x - cx) / (w * 0.36);
+  const sy = (y - (cy + h * 0.02)) / (h * 0.36);
 
-  // Draw Shield outline: Top flat, bottom curve
-  const inShield =
-    Math.abs(nx) <= 1.0 &&
-    ny >= -0.9 &&
-    (ny <= 0.2 || (ny - 0.2) * (ny - 0.2) + nx * nx <= 1.0);
+  // Shield Geometry: Top point at (0, -0.85), corners at (+-0.75, -0.55), sides down to (+-0.75, 0.05), converging to (0, 0.85)
+  let inShield = false;
+  let onShieldBorder = false;
 
-  const onShieldBorder =
-    inShield &&
-    (Math.abs(nx) >= 0.82 ||
-      ny <= -0.72 ||
-      (ny > 0.1 && (ny - 0.2) * (ny - 0.2) + nx * nx >= 0.68));
+  const topSlope = 0.4;
+  const inTop = sy >= -0.85 + Math.abs(sx) * topSlope && sy <= -0.55 && Math.abs(sx) <= 0.75;
+  const inMid = sy > -0.55 && sy <= 0.1 && Math.abs(sx) <= 0.75;
+  const bottomCurve = 0.1 + Math.pow(Math.abs(sx) / 0.75, 1.35) * 0.75;
+  const inBottom = sy > 0.1 && sy <= bottomCurve && Math.abs(sx) <= 0.75;
+
+  if (inTop || inMid || inBottom) {
+    inShield = true;
+    // Check border edge
+    const nearTop = Math.abs(sy - (-0.85 + Math.abs(sx) * topSlope)) < 0.08;
+    const nearSide = Math.abs(Math.abs(sx) - 0.75) < 0.08 && sy >= -0.55 && sy <= 0.1;
+    const nearBottom = Math.abs(sy - bottomCurve) < 0.09 && Math.abs(sx) <= 0.75;
+    if (nearTop || nearSide || nearBottom) {
+      onShieldBorder = true;
+    }
+  }
 
   if (onShieldBorder) {
     return [16, 185, 129, 255]; // Emerald-500 (#10b981)
   }
 
-  // Monogram / Central symbol inside shield
   if (inShield) {
-    // Left 'F' bar: vertical bar from ny -0.5 to 0.4 at nx -0.45 to -0.25
-    const isFVert = nx >= -0.5 && nx <= -0.3 && ny >= -0.5 && ny <= 0.45;
-    const isFTop = nx >= -0.5 && nx <= 0.1 && ny >= -0.5 && ny <= -0.32;
-    const isFMid = nx >= -0.5 && nx <= -0.05 && ny >= -0.15 && ny <= 0.02;
+    // Vault Dial Geometry centered at (0, 0) inside the shield
+    const vx = sx;
+    const vy = sy - 0.02;
+    const vDist = Math.sqrt(vx * vx + vy * vy);
 
-    // Right 'R' bar: vertical bar at nx 0.05 to 0.25
-    const isRVert = nx >= 0.05 && nx <= 0.25 && ny >= -0.5 && ny <= 0.45;
-    const isRTop = nx >= 0.05 && nx <= 0.55 && ny >= -0.5 && ny <= -0.32;
-    const isRMid = nx >= 0.05 && nx <= 0.55 && ny >= -0.15 && ny <= 0.02;
-    const isRLoopRight = nx >= 0.35 && nx <= 0.55 && ny >= -0.5 && ny <= 0.02;
-    const isRLeg = nx >= 0.15 && nx <= 0.55 && ny >= 0.0 && ny <= 0.45 && Math.abs(nx - ny * 0.9 - 0.1) < 0.18;
+    // 1. Center Core Glowing Node (Family Hearth / AI Core)
+    if (vDist <= 0.12) {
+      return [52, 211, 153, 255]; // Emerald-400 (#34d399)
+    }
 
-    if (isFVert || isFTop || isFMid || isRVert || isRTop || isRMid || isRLoopRight || isRLeg) {
-      return [255, 255, 255, 255]; // Crisp white lettering
+    // 2. Inner Ring Dial (Financial Vault Safe)
+    if (vDist >= 0.24 && vDist <= 0.32) {
+      return [255, 255, 255, 255]; // Crisp Platinum White (#ffffff)
+    }
+
+    // 3. Cardinal Vault Pins (Top, Bottom, Left, Right)
+    const isTopPin = Math.abs(vx) <= 0.05 && vy >= -0.56 && vy <= -0.32;
+    const isBottomPin = Math.abs(vx) <= 0.05 && vy >= 0.32 && vy <= 0.56;
+    const isLeftPin = Math.abs(vy) <= 0.05 && vx >= -0.56 && vx <= -0.32;
+    const isRightPin = Math.abs(vy) <= 0.05 && vx >= 0.32 && vx <= 0.56;
+
+    if (isTopPin || isBottomPin || isLeftPin || isRightPin) {
+      return [16, 185, 129, 255]; // Emerald-500 (#10b981)
+    }
+
+    // 4. Diagonal Node Accents
+    const diagDist1 = Math.abs(vx - vy) / Math.SQRT2;
+    const diagDist2 = Math.abs(vx + vy) / Math.SQRT2;
+    const isDiag1 = diagDist1 <= 0.04 && vDist >= 0.33 && vDist <= 0.48;
+    const isDiag2 = diagDist2 <= 0.04 && vDist >= 0.33 && vDist <= 0.48;
+
+    if (isDiag1 || isDiag2) {
+      return [228, 228, 231, 255]; // Zinc-200 Silver (#e4e4e7)
     }
 
     // Inside shield background
@@ -160,13 +185,29 @@ function generateICO(pngBuffer) {
   return Buffer.concat([header, dirEntry, pngBuffer]);
 }
 
-// SVG Vector Icon
+// SVG Vector Icon for Family Vault & Ledger
 const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="128" fill="#09090b"/>
-  <rect x="8" y="8" width="496" height="496" rx="120" stroke="#27272a" stroke-width="8"/>
-  <path d="M256 96L384 144V272C384 352 256 416 256 416C256 416 128 352 128 272V144L256 96Z" fill="#18181b" stroke="#10b981" stroke-width="12" stroke-linejoin="round"/>
-  <path d="M192 192H240M192 240H228M192 192V320" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M284 192H324C335 192 344 201 344 212C344 223 335 232 324 232H284M284 192V320M284 232L340 320" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="512" height="512" rx="120" fill="#09090b"/>
+  <rect x="8" y="8" width="496" height="496" rx="112" stroke="#27272a" stroke-width="6"/>
+  
+  <!-- Outer Executive Shield Geometry -->
+  <path d="M256 72L408 128V264C408 360 256 440 256 440C256 440 104 360 104 264V128L256 72Z" fill="#18181b" stroke="#10b981" stroke-width="12" stroke-linejoin="round"/>
+  
+  <!-- Inner Vault Lock & Family Vault Ring -->
+  <circle cx="256" cy="248" r="68" stroke="#ffffff" stroke-width="12"/>
+  <circle cx="256" cy="248" r="28" fill="#10b981"/>
+  
+  <!-- Upward Wealth & Vault Nodes -->
+  <path d="M256 140V180" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  <path d="M256 316V356" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  <path d="M148 248H188" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  <path d="M324 248H364" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  
+  <!-- Diagonal Vault Spokes -->
+  <path d="M180 172L208 200" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M332 324L304 296" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M332 172L304 200" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M180 324L208 296" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
 </svg>`;
 
 const publicDir = path.join(process.cwd(), "public");
@@ -175,26 +216,26 @@ if (!fs.existsSync(publicDir)) {
 }
 
 // Generate 192x192 PNG
-const png192 = generatePNG(192, 192, drawIcon);
+const png192 = generatePNG(192, 192, drawVaultIcon);
 fs.writeFileSync(path.join(publicDir, "icon-192.png"), png192);
-console.log("✓ Generated public/icon-192.png");
+console.log("✓ Generated public/icon-192.png (Family Vault Emblem)");
 
 // Generate 512x512 PNG
-const png512 = generatePNG(512, 512, drawIcon);
+const png512 = generatePNG(512, 512, drawVaultIcon);
 fs.writeFileSync(path.join(publicDir, "icon-512.png"), png512);
-console.log("✓ Generated public/icon-512.png");
+console.log("✓ Generated public/icon-512.png (Family Vault Emblem)");
 
 // Generate apple-touch-icon.png (180x180)
-const appleIcon = generatePNG(180, 180, drawIcon);
+const appleIcon = generatePNG(180, 180, drawVaultIcon);
 fs.writeFileSync(path.join(publicDir, "apple-touch-icon.png"), appleIcon);
-console.log("✓ Generated public/apple-touch-icon.png");
+console.log("✓ Generated public/apple-touch-icon.png (Family Vault Emblem)");
 
 // Generate 48x48 PNG for favicon.ico
-const png48 = generatePNG(48, 48, drawIcon);
+const png48 = generatePNG(48, 48, drawVaultIcon);
 const ico = generateICO(png48);
 fs.writeFileSync(path.join(publicDir, "favicon.ico"), ico);
-console.log("✓ Generated public/favicon.ico");
+console.log("✓ Generated public/favicon.ico (Family Vault Emblem)");
 
 // Generate icon.svg
 fs.writeFileSync(path.join(publicDir, "icon.svg"), svgIcon);
-console.log("✓ Generated public/icon.svg");
+console.log("✓ Generated public/icon.svg (Family Vault Emblem)");

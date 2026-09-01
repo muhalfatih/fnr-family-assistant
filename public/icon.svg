@@ -1,7 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="128" fill="#09090b"/>
-  <rect x="8" y="8" width="496" height="496" rx="120" stroke="#27272a" stroke-width="8"/>
-  <path d="M256 96L384 144V272C384 352 256 416 256 416C256 416 128 352 128 272V144L256 96Z" fill="#18181b" stroke="#10b981" stroke-width="12" stroke-linejoin="round"/>
-  <path d="M192 192H240M192 240H228M192 192V320" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M284 192H324C335 192 344 201 344 212C344 223 335 232 324 232H284M284 192V320M284 232L340 320" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="512" height="512" rx="120" fill="#09090b"/>
+  <rect x="8" y="8" width="496" height="496" rx="112" stroke="#27272a" stroke-width="6"/>
+  
+  <!-- Outer Executive Shield Geometry -->
+  <path d="M256 72L408 128V264C408 360 256 440 256 440C256 440 104 360 104 264V128L256 72Z" fill="#18181b" stroke="#10b981" stroke-width="12" stroke-linejoin="round"/>
+  
+  <!-- Inner Vault Lock & Family Vault Ring -->
+  <circle cx="256" cy="248" r="68" stroke="#ffffff" stroke-width="12"/>
+  <circle cx="256" cy="248" r="28" fill="#10b981"/>
+  
+  <!-- Upward Wealth & Vault Nodes -->
+  <path d="M256 140V180" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  <path d="M256 316V356" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  <path d="M148 248H188" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  <path d="M324 248H364" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  
+  <!-- Diagonal Vault Spokes -->
+  <path d="M180 172L208 200" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M332 324L304 296" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M332 172L304 200" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M180 324L208 296" stroke="#e4e4e7" stroke-width="8" stroke-linecap="round"/>
 </svg>

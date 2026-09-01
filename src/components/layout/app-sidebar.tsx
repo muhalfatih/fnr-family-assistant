@@ -79,15 +79,22 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/70">
-      <SidebarHeader className="border-b border-border/50 pb-3">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
-              <Link href="/" className="flex items-center gap-2.5">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono font-bold text-xs shadow-sm">
-                  FR
+      <SidebarHeader className="border-b border-border/50 pb-3 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
+        <SidebarMenu className="group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
+          <SidebarMenuItem className="group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
+            <SidebarMenuButton
+              size="lg"
+              asChild
+              className="hover:bg-transparent group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
+            >
+              <Link
+                href="/"
+                className="flex items-center gap-1.5 group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
+              >
+                <div className="flex shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="size-6 shrink-0" strokeWidth={2.1} aria-hidden="true" />
                 </div>
-                <div className="flex flex-col gap-0.5 leading-none">
+                <div className="flex flex-col gap-0.5 leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="font-semibold text-xs text-foreground tracking-tight flex items-center gap-1.5">
                     F&R Family Hub
                     <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono">
