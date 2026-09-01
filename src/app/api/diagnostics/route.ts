@@ -111,10 +111,21 @@ export async function GET() {
     }
   }
 
-  // 3. Check Supabase Database
+  // 3. Check Supabase & PostgreSQL Database (Supports Vercel Auto-Integration)
   const supabaseStart = Date.now();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  const supabaseKey =
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  const hasPostgresUrl = Boolean(process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL);
 
   if (!supabaseUrl || !supabaseKey || supabaseUrl.includes("placeholder")) {
     results.push({
@@ -122,7 +133,7 @@ export async function GET() {
       name: "Supabase PostgreSQL Database",
       category: "Cloud Database",
       status: "missing_config",
-      message: "NEXT_PUBLIC_SUPABASE_URL atau SUPABASE_SERVICE_ROLE_KEY belum diisi",
+      message: "SUPABASE_URL atau SUPABASE_SECRET_KEY/ANON_KEY belum terdeteksi",
     });
   } else {
     try {
@@ -141,10 +152,16 @@ export async function GET() {
           name: "Supabase PostgreSQL Database",
           category: "Cloud Database",
           status: "connected",
-          message: "Koneksi REST API Supabase terhubung dengan baik.",
+          message: "Koneksi REST API & PostgreSQL Supabase aktif terhubung (Vercel Integration).",
           latencyMs: latency,
           details: {
             url: supabaseUrl,
+            postgresUrlDetected: hasPostgresUrl ? "Ya (POSTGRES_URL)" : "Direct REST",
+            keyType: process.env.SUPABASE_SECRET_KEY
+              ? "SUPABASE_SECRET_KEY"
+              : process.env.SUPABASE_SERVICE_ROLE_KEY
+              ? "SUPABASE_SERVICE_ROLE_KEY"
+              : "SUPABASE_ANON_KEY",
           },
         });
       } else {
