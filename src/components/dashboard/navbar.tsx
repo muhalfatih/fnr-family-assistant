@@ -30,6 +30,7 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
     { href: "/", label: "Keuangan" },
     { href: "/assets", label: "Aset & Hutang" },
     { href: "/vault", label: "Brankas Dokumen" },
+    { href: "/logs", label: "Log Aktivitas" },
   ];
 
   return (

@@ -15,6 +15,12 @@ import {
   deleteTelegramMessage,
   withContinuousChatAction,
 } from "@/lib/telegram/bot";
+import {
+  registerBotProcess,
+  cancelBotProcess,
+  completeBotProcess,
+  updateProcessLoadingMessage,
+} from "@/lib/bot/process-manager";
 import { formatRupiah, formatDateIndo } from "@/lib/utils";
 
 // Persistent Quick Action Reply Keyboard
@@ -160,6 +166,22 @@ export async function POST(req: NextRequest) {
       sendTelegramChatAction(chatId, "typing").catch(() => {});
     }
 
+    // Cancel Active Running Task
+    if (data.startsWith("cancel_task:")) {
+      const taskId = data.replace("cancel_task:", "");
+      await cancelBotProcess(taskId, "Dibatalkan melalui tombol chat Telegram");
+      await answerTelegramCallbackQuery(cq.id, "Proses telah dihentikan!");
+      if (chatId && messageId) {
+        await editTelegramMessageText(
+          chatId,
+          messageId,
+          "⛔ *Proses telah dibatalkan atas permintaan pengguna.*",
+          { inline_keyboard: [] }
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     if (data.startsWith("undo:")) {
       const transactionId = data.replace("undo:", "");
       const { error } = await supabaseAdmin.from("transactions").delete().eq("id", transactionId);
@@ -250,6 +272,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  const taskId = `task_tg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  let loadingMessageId: number | null = null;
+  const startTime = Date.now();
+
   try {
     // Show instant typing status header
     sendTelegramChatAction(chatId, "typing").catch(() => {});
@@ -304,7 +330,7 @@ export async function POST(req: NextRequest) {
           `• 🎯 *Sisa Anggaran*: Realisasi vs batas pagu bulanan\n\n` +
           `*Cara Mencatat Transaksi Langsung:*\n` +
           `• 💬 Ketik teks: _"Beli bensin 150rb BCA"_\n` +
-          `• 📸 Kirim foto struk kasir (Otomatis dibaca Gemini AI OCR)\n` +
+          `• 📸 Kirim foto struk kasir (Otomatis dibaca Gemini 3 Flash Lite)\n` +
           `• 🎙️ Kirim voice note: _"Tadi beli obat di apotek 85rb"_`,
         MAIN_KEYBOARD
       );
@@ -450,26 +476,71 @@ export async function POST(req: NextRequest) {
       lowerText.includes("pengeluaran") ||
       lowerText.includes("habis berapa");
 
-    // 2d. Identify Input Type (Photo, Voice, or Financial Recording / Question)
+    // 2d. Identify Input Type & Register Task with 15s Timeout Safeguard
     let parsed: any = null;
     let mediaType: "text" | "image" | "audio" = "text";
     let driveFileId: string | null = null;
     let driveViewUrl: string | null = null;
-    let rawPrompt: string = "";
-    let loadingMessageId: number | null = null;
+    let rawPrompt: string = text || "[Media]";
 
     if (message.photo && message.photo.length > 0) {
       mediaType = "image";
       rawPrompt = message.caption || "[Foto Struk]";
-      
-      // Trigger header action and instant loading message
+    } else if (message.voice || message.audio) {
+      mediaType = "audio";
+      rawPrompt = "[Pesan Suara]";
+    }
+
+    // Register process with 15-second automatic timeout and kill switch
+    registerBotProcess(
+      taskId,
+      {
+        channel: "telegram",
+        chatId,
+        senderName,
+        inputType: mediaType,
+        rawPrompt,
+      },
+      {
+        timeoutMs: 15000,
+        onTimeout: async () => {
+          if (loadingMessageId) {
+            await replyOrEditLoading(
+              chatId,
+              loadingMessageId,
+              "⚠️ *Maaf, server AI sedang mengalami antrean tinggi / respon memakan waktu terlalu lama (>15 detik).*\n\n" +
+                "Proses telah dihentikan secara otomatis untuk menghemat sumber daya. Silakan coba kirim ulang beberapa saat lagi atau catat transaksi secara manual.",
+              MAIN_KEYBOARD
+            );
+          }
+        },
+        onCancel: async () => {
+          if (loadingMessageId) {
+            await replyOrEditLoading(
+              chatId,
+              loadingMessageId,
+              "⛔ *Proses telah dibatalkan atas permintaan pengguna.*",
+              MAIN_KEYBOARD
+            );
+          }
+        },
+      }
+    );
+
+    const cancelKeyboard = [
+      [{ text: "⛔ Batalkan Proses", callback_data: `cancel_task:${taskId}` }],
+    ];
+
+    if (message.photo && message.photo.length > 0) {
       sendTelegramChatAction(chatId, "upload_photo").catch(() => {});
       const tempMsg = await sendTelegramMessage(
         chatId,
-        "📸 *Menerima foto struk...*\n⏳ _Sedang membaca data & rincian item dengan Gemini 3 Flash Lite AI..._"
+        "📸 *Menerima foto struk...*\n⏳ _Sedang membaca data & rincian item dengan Gemini 3 Flash Lite AI..._",
+        { inline_keyboard: cancelKeyboard }
       );
       if (tempMsg?.result?.message_id) {
         loadingMessageId = tempMsg.result.message_id;
+        updateProcessLoadingMessage(taskId, loadingMessageId);
       }
 
       const photo = message.photo[message.photo.length - 1]; // highest res
@@ -487,7 +558,7 @@ export async function POST(req: NextRequest) {
           driveViewUrl = driveResult.webViewLink;
         }
 
-        // Parse with Gemini 3.5 Flash Lite with continuous typing pulse
+        // Parse with Gemini 3 Flash Lite with continuous typing pulse
         parsed = await withContinuousChatAction(chatId, "typing", async () => {
           return await parseFinancialInputWithGemini({
             text: message.caption,
@@ -497,16 +568,15 @@ export async function POST(req: NextRequest) {
         });
       }
     } else if (message.voice || message.audio) {
-      mediaType = "audio";
-
-      // Trigger header action and instant loading message
       sendTelegramChatAction(chatId, "record_voice").catch(() => {});
       const tempMsg = await sendTelegramMessage(
         chatId,
-        "🎙️ *Menerima pesan suara...*\n⏳ _Sedang mentranskripsikan suara & memproses nominal dengan Gemini AI..._"
+        "🎙️ *Menerima pesan suara...*\n⏳ _Sedang mentranskripsikan suara & memproses nominal dengan Gemini AI..._",
+        { inline_keyboard: cancelKeyboard }
       );
       if (tempMsg?.result?.message_id) {
         loadingMessageId = tempMsg.result.message_id;
+        updateProcessLoadingMessage(taskId, loadingMessageId);
       }
 
       const audioFile = message.voice || message.audio;
@@ -528,10 +598,12 @@ export async function POST(req: NextRequest) {
       if (isQuestion) {
         const tempMsg = await sendTelegramMessage(
           chatId,
-          "🤖 *Menganalisis data keuangan Anda...*\n⏳ _Menghitung saldo, anggaran & mutasi transaksi terkini..._"
+          "🤖 *Menganalisis data keuangan Anda...*\n⏳ _Menghitung saldo, anggaran & mutasi transaksi terkini..._",
+          { inline_keyboard: cancelKeyboard }
         );
         if (tempMsg?.result?.message_id) {
           loadingMessageId = tempMsg.result.message_id;
+          updateProcessLoadingMessage(taskId, loadingMessageId);
         }
 
         // Continuous typing indicator in chat header until Gemini finishes
@@ -547,6 +619,11 @@ export async function POST(req: NextRequest) {
           `🤖 *Jawaban F&R Assistant:*\n\n${aiAnswer}`,
           MAIN_KEYBOARD
         );
+
+        await completeBotProcess(taskId, "success", undefined, {
+          latencyMs: Date.now() - startTime,
+          aiModel: "gemini-3.5-flash-lite",
+        });
         return NextResponse.json({ ok: true });
       }
 
@@ -564,6 +641,10 @@ export async function POST(req: NextRequest) {
           return await answerFinancialQuestionWithGemini(message.text, finData);
         });
         await replyOrEditLoading(chatId, loadingMessageId, `🤖 *F&R Assistant:*\n\n${aiAnswer}`, MAIN_KEYBOARD);
+        await completeBotProcess(taskId, "success", undefined, {
+          latencyMs: Date.now() - startTime,
+          aiModel: "gemini-3.5-flash-lite",
+        });
         return NextResponse.json({ ok: true });
       }
 
@@ -573,6 +654,9 @@ export async function POST(req: NextRequest) {
         "🤔 Maaf, saya belum bisa mengenali transaksi dari input tersebut. Silakan ketik nominal yang jelas (contoh: *Beli makan siang 35rb*) atau kirim foto struk.",
         MAIN_KEYBOARD
       );
+      await completeBotProcess(taskId, "failed", "Nominal transaksi tidak terdeteksi", {
+        latencyMs: Date.now() - startTime,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -663,6 +747,9 @@ export async function POST(req: NextRequest) {
     if (txError || !transaction) {
       console.error("Failed to insert transaction:", txError);
       await replyOrEditLoading(chatId, loadingMessageId, "⚠️ Terjadi kesalahan saat menyimpan ke database.", MAIN_KEYBOARD);
+      await completeBotProcess(taskId, "failed", txError?.message || "Insert database error", {
+        latencyMs: Date.now() - startTime,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -712,12 +799,27 @@ export async function POST(req: NextRequest) {
     // Smooth transition: in-place transform loading message directly into the receipt!
     await replyOrEditLoading(chatId, loadingMessageId, replyText, { inline_keyboard: inlineKeyboard });
 
+    // Mark process as completed successfully
+    await completeBotProcess(taskId, "success", undefined, {
+      latencyMs: Date.now() - startTime,
+      aiModel: "gemini-3.5-flash-lite",
+      parsedMetadata: parsed,
+      transactionId: transaction.id,
+    });
+
     return NextResponse.json({ ok: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Unhandled error in Telegram webhook:", err);
-    await sendTelegramMessage(
+    await completeBotProcess(taskId, "failed", err.message || "Unknown error", {
+      latencyMs: Date.now() - startTime,
+    });
+
+    // Human-friendly non-AI fallback response
+    await replyOrEditLoading(
       chatId,
-      "⚠️ Terjadi gangguan saat memproses pesan. Mohon coba beberapa saat lagi.",
+      loadingMessageId,
+      "⚠️ *Layanan AI sedang mengalami kendala teknis sementara (High Demand / Gangguan Jaringan).*\n\n" +
+        "Transaksi belum tersimpan. Silakan coba sesaat lagi atau gunakan pencatatan manual via Web Dashboard.",
       MAIN_KEYBOARD
     );
     return NextResponse.json({ ok: true });

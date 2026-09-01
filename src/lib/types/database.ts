@@ -178,6 +178,38 @@ export interface LegalDocument {
   created_at: string;
 }
 
+export type LogStatus = 'processing' | 'success' | 'failed' | 'timeout' | 'cancelled';
+export type LogChannel = 'telegram' | 'whatsapp' | 'web';
+
+export interface ChatActivityLog {
+  id: string;
+  family_id?: string | null;
+  channel: LogChannel;
+  chat_id?: string | null;
+  sender_name: string;
+  input_type: 'text' | 'image' | 'audio' | 'command';
+  raw_prompt?: string | null;
+  status: LogStatus;
+  error_message?: string | null;
+  ai_model?: string | null;
+  latency_ms?: number | null;
+  parsed_metadata?: Record<string, any> | null;
+  transaction_id?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export interface ActiveProcessInfo {
+  taskId: string;
+  channel: LogChannel;
+  chatId: string | number;
+  senderName: string;
+  inputType: 'text' | 'image' | 'audio' | 'command';
+  rawPrompt?: string;
+  startTime: number;
+  status: 'running' | 'cancelling';
+}
+
 export interface BotLog {
   id: string;
   family_id?: string | null;
@@ -189,3 +221,4 @@ export interface BotLog {
   status: 'success' | 'failed' | 'clarification_needed';
   created_at: string;
 }
+
