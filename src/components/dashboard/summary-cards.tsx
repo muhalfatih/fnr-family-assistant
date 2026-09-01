@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatCompactRupiah } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Wallet, TrendingUp, TrendingDown, Target } from "lucide-react";
@@ -26,15 +26,18 @@ export function SummaryCards({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* 1. Total Saldo */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Total Saldo Kas
           </CardTitle>
           <Wallet className="size-4 text-muted-foreground" aria-hidden="true" />
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
-          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-foreground truncate">
-            {formatRupiah(totalBalance)}
+          <div
+            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-foreground truncate cursor-default py-0.5"
+            title={formatRupiah(totalBalance)}
+          >
+            {formatCompactRupiah(totalBalance)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
             Gabungan seluruh rekening aktif
@@ -44,15 +47,18 @@ export function SummaryCards({
 
       {/* 2. Pemasukan */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Pemasukan Bulan Ini
           </CardTitle>
           <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
-          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-emerald-600 dark:text-emerald-400 truncate">
-            {formatRupiah(monthlyIncome)}
+          <div
+            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-emerald-600 dark:text-emerald-400 truncate cursor-default py-0.5"
+            title={formatRupiah(monthlyIncome)}
+          >
+            {formatCompactRupiah(monthlyIncome)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
             Total pendapatan keluarga
@@ -62,15 +68,18 @@ export function SummaryCards({
 
       {/* 3. Pengeluaran */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Pengeluaran Bulan Ini
           </CardTitle>
           <TrendingDown className="size-4 text-rose-600 dark:text-rose-400" aria-hidden="true" />
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
-          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-rose-600 dark:text-rose-400 truncate">
-            {formatRupiah(monthlyExpense)}
+          <div
+            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-rose-600 dark:text-rose-400 truncate cursor-default py-0.5"
+            title={formatRupiah(monthlyExpense)}
+          >
+            {formatCompactRupiah(monthlyExpense)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
             {budgetUsagePercent}% dari pagu anggaran
@@ -80,15 +89,18 @@ export function SummaryCards({
 
       {/* 4. Sisa Anggaran */}
       <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-4 sm:p-5">
           <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Sisa Anggaran
           </CardTitle>
           <Target className="size-4 text-amber-500" aria-hidden="true" />
         </CardHeader>
         <CardContent className="p-4 sm:p-5 pt-0 space-y-2">
-          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-foreground truncate">
-            {formatRupiah(remainingBudget)}
+          <div
+            className="text-3xl lg:text-[32px] font-extrabold tracking-tight font-mono tabular-nums text-foreground truncate cursor-default py-0.5"
+            title={formatRupiah(remainingBudget)}
+          >
+            {formatCompactRupiah(remainingBudget)}
           </div>
           <Progress
             value={Math.min(100, budgetUsagePercent)}

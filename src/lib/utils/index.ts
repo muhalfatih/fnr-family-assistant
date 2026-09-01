@@ -27,6 +27,27 @@ export function formatShortRupiah(amount: number): string {
   return formatRupiah(amount);
 }
 
+export function formatCompactRupiah(amount: number): string {
+  const isNegative = amount < 0;
+  const abs = Math.abs(amount);
+
+  let formatted = "";
+  if (abs >= 1_000_000_000) {
+    const val = abs / 1_000_000_000;
+    formatted = `${val % 1 === 0 ? val.toFixed(0) : parseFloat(val.toFixed(2)).toLocaleString("id-ID")}B`;
+  } else if (abs >= 1_000_000) {
+    const val = abs / 1_000_000;
+    formatted = `${val % 1 === 0 ? val.toFixed(0) : parseFloat(val.toFixed(2)).toLocaleString("id-ID")}M`;
+  } else if (abs >= 1_000) {
+    const val = abs / 1_000;
+    formatted = `${val % 1 === 0 ? val.toFixed(0) : parseFloat(val.toFixed(1)).toLocaleString("id-ID")}k`;
+  } else {
+    formatted = `${abs.toLocaleString("id-ID")}`;
+  }
+
+  return `${isNegative ? "-" : ""}Rp ${formatted}`;
+}
+
 export function formatDateIndo(dateStr: string | Date): string {
   const date = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
   return new Intl.DateTimeFormat("id-ID", {
