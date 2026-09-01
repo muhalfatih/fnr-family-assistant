@@ -25,15 +25,15 @@ export function SummaryCards({
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* 1. Total Saldo */}
-      <Card className="rounded-xl border border-border/80 bg-card">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-5">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+          <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Total Saldo Kas
           </CardTitle>
           <Wallet className="size-4 text-muted-foreground" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-5 pt-0 space-y-1">
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-foreground truncate">
+        <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
+          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-foreground truncate">
             {formatRupiah(totalBalance)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
@@ -43,15 +43,15 @@ export function SummaryCards({
       </Card>
 
       {/* 2. Pemasukan */}
-      <Card className="rounded-xl border border-border/80 bg-card">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-5">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+          <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Pemasukan Bulan Ini
           </CardTitle>
           <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-5 pt-0 space-y-1">
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 truncate">
+        <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
+          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-emerald-600 dark:text-emerald-400 truncate">
             {formatRupiah(monthlyIncome)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
@@ -61,15 +61,15 @@ export function SummaryCards({
       </Card>
 
       {/* 3. Pengeluaran */}
-      <Card className="rounded-xl border border-border/80 bg-card">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-5">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+          <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Pengeluaran Bulan Ini
           </CardTitle>
-          <TrendingDown className="size-4 text-destructive" aria-hidden="true" />
+          <TrendingDown className="size-4 text-rose-600 dark:text-rose-400" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-5 pt-0 space-y-1">
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-destructive truncate">
+        <CardContent className="p-4 sm:p-5 pt-0 space-y-1">
+          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-rose-600 dark:text-rose-400 truncate">
             {formatRupiah(monthlyExpense)}
           </div>
           <p className="text-xs text-muted-foreground truncate">
@@ -79,15 +79,15 @@ export function SummaryCards({
       </Card>
 
       {/* 4. Sisa Anggaran */}
-      <Card className="rounded-xl border border-border/80 bg-card">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-5">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <Card className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 p-4 sm:p-5">
+          <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Sisa Anggaran
           </CardTitle>
           <Target className="size-4 text-amber-500" aria-hidden="true" />
         </CardHeader>
-        <CardContent className="p-5 pt-0 space-y-2">
-          <div className="text-2xl font-bold tracking-tight tabular-nums text-foreground truncate">
+        <CardContent className="p-4 sm:p-5 pt-0 space-y-2">
+          <div className="text-2xl font-bold tracking-tight font-mono tabular-nums text-foreground truncate">
             {formatRupiah(remainingBudget)}
           </div>
           <Progress
@@ -95,7 +95,7 @@ export function SummaryCards({
             className="h-1.5"
             indicatorClassName={
               budgetUsagePercent > 90
-                ? "bg-destructive"
+                ? "bg-rose-500"
                 : budgetUsagePercent > 75
                 ? "bg-amber-500"
                 : "bg-emerald-600"

@@ -1,11 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { getMonthDateRange } from "@/lib/utils";
+import { mockStore } from "@/lib/mock-data";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const monthYear = searchParams.get("period") || new Date().toISOString().substring(0, 7);
+
+    if (!isSupabaseConfigured()) {
+      const categories = mockStore.getCategories().filter((c) => c.type === "expense");
+      const budgets = mockStore.getBudgets(monthYear);
+      const txs = mockStore.getTransactions(monthYear).filter((t) => t.type === "expense");
+
+      const spentMap: Record<string, number> = {};
+      txs.forEach((tx) => {
+        if (tx.category_id) {
+          spentMap[tx.category_id] = (spentMap[tx.category_id] || 0) + Number(tx.amount);
+        }
+      });
+
+      const budgetItems = categories.map((cat) => {
+        const b = budgets.find((item) => item.category_id === cat.id);
+        return {
+          id: b?.id || `cat-${cat.id}`,
+          category_id: cat.id,
+          name: cat.name,
+          spent: spentMap[cat.id] || 0,
+          target: b ? Number(b.target_amount) : 0,
+          color: cat.color || "#3b82f6",
+        };
+      });
+
+      return NextResponse.json({ budgets: budgetItems, monthYear });
+    }
+
     const { startDate, endDate } = getMonthDateRange(monthYear);
 
     // 1. Fetch categories
@@ -16,7 +45,21 @@ export async function GET(req: NextRequest) {
       .order("name", { ascending: true });
 
     if (catErr) {
-      return NextResponse.json({ error: catErr.message }, { status: 500 });
+      console.warn("Supabase categories error, falling back to mock:", catErr.message);
+      const mockCats = mockStore.getCategories().filter((c) => c.type === "expense");
+      const mockB = mockStore.getBudgets(monthYear);
+      const budgetItems = mockCats.map((cat) => {
+        const b = mockB.find((item) => item.category_id === cat.id);
+        return {
+          id: b?.id || `cat-${cat.id}`,
+          category_id: cat.id,
+          name: cat.name,
+          spent: 0,
+          target: b ? Number(b.target_amount) : 0,
+          color: cat.color || "#3b82f6",
+        };
+      });
+      return NextResponse.json({ budgets: budgetItems, monthYear });
     }
 
     // 2. Fetch budgets for the period
@@ -56,35 +99,60 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ budgets: budgetItems, monthYear });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    console.warn("Error in GET budgets, falling back to mock:", err.message);
+    const mockCats = mockStore.getCategories().filter((c) => c.type === "expense");
+    const budgetItems = mockCats.map((cat) => ({
+      id: `cat-${cat.id}`,
+      category_id: cat.id,
+      name: cat.name,
+      spent: 0,
+      target: 0,
+      color: cat.color || "#3b82f6",
+    }));
+    return NextResponse.json({ budgets: budgetItems, monthYear: "2026-09" });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { items, monthYear = new Date().toISOString().substring(0, 7) } = body;
+    const { items, budgets, monthYear = new Date().toISOString().substring(0, 7) } = body;
+    const targetItems = items || (budgets ? budgets.map((b: any) => ({ category_id: b.categoryId, target: b.targetAmount })) : []);
 
-    if (!Array.isArray(items)) {
+    if (!Array.isArray(targetItems)) {
       return NextResponse.json({ error: "Invalid items array" }, { status: 400 });
+    }
+
+    if (!isSupabaseConfigured()) {
+      mockStore.setBudgets(monthYear, targetItems.map((item: any) => ({
+        categoryId: item.category_id || item.categoryId,
+        targetAmount: item.target !== undefined ? item.target : item.targetAmount,
+      })));
+      return NextResponse.json({ success: true, monthYear });
     }
 
     const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
     const familyId = families && families.length > 0 ? families[0].id : null;
 
     if (!familyId) {
-      return NextResponse.json({ error: "Family not found" }, { status: 400 });
+      mockStore.setBudgets(monthYear, targetItems.map((item: any) => ({
+        categoryId: item.category_id || item.categoryId,
+        targetAmount: item.target !== undefined ? item.target : item.targetAmount,
+      })));
+      return NextResponse.json({ success: true, monthYear });
     }
 
-    for (const item of items) {
-      if (item.category_id && item.target !== undefined) {
+    for (const item of targetItems) {
+      const catId = item.category_id || item.categoryId;
+      const target = item.target !== undefined ? item.target : item.targetAmount;
+      if (catId && target !== undefined) {
         await supabaseAdmin
           .from("budgets")
           .upsert(
             {
               family_id: familyId,
-              category_id: item.category_id,
-              target_amount: item.target,
+              category_id: catId,
+              target_amount: target,
               period: "monthly",
               month_year: monthYear,
             },

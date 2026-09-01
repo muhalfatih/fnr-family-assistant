@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Navbar } from "@/components/dashboard/navbar";
+import { AppShell } from "@/components/layout/app-shell";
 import { MemberCard } from "@/components/family/member-card";
 import { ContributionCharts } from "@/components/family/contribution-charts";
 import { AddMemberModal } from "@/components/family/add-member-modal";
@@ -57,29 +57,25 @@ export default function FamilyPage() {
   const isInitialLoading = isLoadingMembers && members.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Top Navbar */}
-      <Navbar familyName="Keluarga F&R" />
-
-      {/* Main Container with Standard Shadcn Dashboard Layout */}
-      <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+    <AppShell>
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <Users className="size-7 text-primary shrink-0" aria-hidden="true" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
+              <Users className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Anggota Keluarga & Kontribusi
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Kelola profil anggota keluarga, tautan akun bot Telegram, dan pantau kontribusi belanja bulanan.
               </p>
               {isValidatingMembers && !isLoadingMembers && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sinkronisasi</span>
+                  <span>Sync</span>
                 </span>
               )}
             </div>
@@ -90,7 +86,7 @@ export default function FamilyPage() {
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingMembers ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -103,40 +99,40 @@ export default function FamilyPage() {
                 setMemberToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
             >
-              <Plus className="size-4" aria-hidden="true" />
+              <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Anggota</span>
             </Button>
           </div>
         </div>
 
         {/* Integrated Quick Info Strip (Clean, Calm & Non-Redundant) */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border bg-card text-card-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-border/70 bg-card/60 text-card-foreground">
           <div className="flex items-center gap-6">
             <div>
               <p className="text-xs text-muted-foreground">Total Pengeluaran Keluarga</p>
-              <p className="text-xl font-bold tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
                 {formatRupiah(totalExpense)}
               </p>
             </div>
-            <div className="h-8 w-px bg-border hidden sm:block" />
+            <div className="h-8 w-px bg-border/60 hidden sm:block" />
             <div className="hidden sm:block">
               <p className="text-xs text-muted-foreground">Anggota Terdaftar</p>
-              <p className="text-xl font-bold tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
                 {members.length} <span className="text-xs font-normal text-muted-foreground">Orang</span>
               </p>
             </div>
-            <div className="h-8 w-px bg-border hidden md:block" />
+            <div className="h-8 w-px bg-border/60 hidden md:block" />
             <div className="hidden md:block">
               <p className="text-xs text-muted-foreground">Terhubung ke Telegram</p>
-              <p className="text-xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {connectedTelegram} <span className="text-xs font-normal text-muted-foreground">/ {members.length}</span>
               </p>
             </div>
           </div>
 
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground font-mono">
             Bulan: <span className="font-semibold text-foreground">September 2026</span>
           </div>
         </div>
@@ -147,7 +143,7 @@ export default function FamilyPage() {
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold tracking-tight text-foreground">
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">
                   Proporsi & Analisis Belanja
                 </h2>
                 <p className="text-xs text-muted-foreground">
@@ -171,7 +167,7 @@ export default function FamilyPage() {
           <div className="lg:col-span-3 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold tracking-tight text-foreground">
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">
                   Daftar Profil Anggota ({members.length})
                 </h2>
                 <p className="text-xs text-muted-foreground">
@@ -189,15 +185,15 @@ export default function FamilyPage() {
             ) : members.length === 0 ? (
               <div className="py-12 px-4 text-center rounded-xl border border-dashed text-muted-foreground">
                 <Users className="size-8 mx-auto mb-2 text-muted-foreground/40" aria-hidden="true" />
-                <p className="text-sm font-semibold text-foreground">Belum Ada Anggota</p>
-                <p className="text-xs mt-1">
+                <p className="text-xs font-semibold text-foreground">Belum Ada Anggota</p>
+                <p className="text-[11px] mt-1 text-muted-foreground">
                   Tambahkan profil anggota keluarga pertama untuk mulai memantau kontribusi belanja.
                 </p>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setIsAddModalOpen(true)}
-                  className="mt-3 text-xs gap-1.5 h-9"
+                  className="mt-3 text-xs gap-1.5 h-8"
                 >
                   <Plus className="size-3.5" aria-hidden="true" />
                   <span>Tambah Anggota Sekarang</span>
@@ -217,7 +213,7 @@ export default function FamilyPage() {
             )}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Modal Tambah / Edit Anggota */}
       <AddMemberModal
@@ -230,6 +226,6 @@ export default function FamilyPage() {
         memberToEdit={memberToEdit}
         wallets={wallets}
       />
-    </div>
+    </AppShell>
   );
 }

@@ -234,7 +234,9 @@ export async function GET() {
 
   return NextResponse.json({
     timestamp: new Date().toISOString(),
-    overallStatus: allConnected ? "healthy" : hasMissing ? "needs_config" : "degraded",
+    overallStatus: allConnected ? "healthy" : hasMissing ? "mock_mode" : "degraded",
+    isMockMode: !allConnected,
+    mockModeNotice: !allConnected ? "Aplikasi saat ini menggunakan Mock Data In-Memory yang interaktif. Anda dapat mencoba semua fitur (catat transaksi, kelola dompet, lihat grafik, dll) tanpa memerlukan koneksi env eksternal." : undefined,
     services: results,
   });
 }

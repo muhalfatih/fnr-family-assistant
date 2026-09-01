@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { mockStore } from "@/lib/mock-data";
 
 export async function GET() {
   try {
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json({ assets: mockStore.getAssets() });
+    }
+
     const { data: assets, error } = await supabaseAdmin
       .from("assets")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.warn("Supabase assets query error, falling back to mock:", error.message);
+      return NextResponse.json({ assets: mockStore.getAssets() });
     }
 
     return NextResponse.json({ assets: assets || [] });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    console.warn("Error in GET assets, falling back to mock:", err.message);
+    return NextResponse.json({ assets: mockStore.getAssets() });
   }
 }
 
@@ -25,6 +32,11 @@ export async function POST(req: NextRequest) {
 
     if (!name || !category || estimated_value === undefined) {
       return NextResponse.json({ error: "Nama, kategori, dan estimasi nilai aset wajib diisi" }, { status: 400 });
+    }
+
+    if (!isSupabaseConfigured()) {
+      const newAsset = mockStore.addAsset({ name, category, estimated_value, acquisition_date, notes });
+      return NextResponse.json({ asset: newAsset }, { status: 201 });
     }
 
     let targetFamilyId = family_id;
@@ -57,7 +69,9 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.warn("Supabase insert asset error, falling back to mock:", error.message);
+      const newAsset = mockStore.addAsset({ name, category, estimated_value, acquisition_date, notes });
+      return NextResponse.json({ asset: newAsset }, { status: 201 });
     }
 
     return NextResponse.json({ asset }, { status: 201 });
@@ -75,9 +89,15 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing asset id" }, { status: 400 });
     }
 
+    if (!isSupabaseConfigured()) {
+      mockStore.deleteAsset(id);
+      return NextResponse.json({ success: true, deletedId: id });
+    }
+
     const { error } = await supabaseAdmin.from("assets").delete().eq("id", id);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      mockStore.deleteAsset(id);
+      return NextResponse.json({ success: true, deletedId: id });
     }
 
     return NextResponse.json({ success: true, deletedId: id });

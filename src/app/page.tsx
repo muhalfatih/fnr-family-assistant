@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Navbar } from "@/components/dashboard/navbar";
+import { AppShell } from "@/components/layout/app-shell";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { BudgetProgress } from "@/components/dashboard/budget-progress";
 import { TransactionFeed } from "@/components/dashboard/transaction-feed";
@@ -185,29 +185,25 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Top Navbar */}
-      <Navbar familyName="Keluarga F&R" />
-
-      {/* Main Container with Standard Shadcn Dashboard Layout */}
-      <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+    <AppShell onAddTransaction={() => setIsAddModalOpen(true)}>
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <WalletCards className="size-7 text-primary shrink-0" aria-hidden="true" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
+              <WalletCards className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Keuangan & Arus Kas
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Pusat kendali keuangan, analitik arus kas, dan saldo rekening keluarga.
               </p>
               {isValidatingTx && !isLoadingTx && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sinkronisasi</span>
+                  <span>Sync</span>
                 </span>
               )}
             </div>
@@ -215,15 +211,15 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-auto min-w-[145px] h-9 text-xs px-3 rounded-md" aria-label="Filter Periode Bulan">
+              <SelectTrigger className="w-auto min-w-[140px] h-8 text-xs px-2.5 rounded-md" aria-label="Filter Periode Bulan">
                 <SelectValue placeholder="Pilih Periode" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="all">Semua Periode</SelectItem>
-                  <SelectItem value="2026-09">September 2026</SelectItem>
-                  <SelectItem value="2026-08">Agustus 2026</SelectItem>
-                  <SelectItem value="2026-07">Juli 2026</SelectItem>
+                  <SelectItem value="all" className="text-xs">Semua Periode</SelectItem>
+                  <SelectItem value="2026-09" className="text-xs">September 2026</SelectItem>
+                  <SelectItem value="2026-08" className="text-xs">Agustus 2026</SelectItem>
+                  <SelectItem value="2026-07" className="text-xs">Juli 2026</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -232,7 +228,7 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingTx ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -242,9 +238,9 @@ export default function DashboardPage() {
             <Button
               size="sm"
               onClick={() => setIsAddModalOpen(true)}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
             >
-              <Plus className="size-4" aria-hidden="true" />
+              <Plus className="size-3.5" aria-hidden="true" />
               <span>Catat Transaksi</span>
             </Button>
           </div>
@@ -252,11 +248,11 @@ export default function DashboardPage() {
 
         {/* Canonical Shadcn Tabs Navigation */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-            <TabsTrigger value="transactions">Transaksi ({transactions.length})</TabsTrigger>
-            <TabsTrigger value="budgets">Anggaran & Analisis</TabsTrigger>
-            <TabsTrigger value="wallets">Rekening ({wallets.length})</TabsTrigger>
+          <TabsList className="bg-muted/50 p-1 border border-border/50">
+            <TabsTrigger value="overview" className="text-xs">Ringkasan</TabsTrigger>
+            <TabsTrigger value="transactions" className="text-xs">Transaksi ({transactions.length})</TabsTrigger>
+            <TabsTrigger value="budgets" className="text-xs">Anggaran & Analisis</TabsTrigger>
+            <TabsTrigger value="wallets" className="text-xs">Rekening ({wallets.length})</TabsTrigger>
           </TabsList>
 
           {/* TAB 1: OVERVIEW */}
@@ -319,8 +315,8 @@ export default function DashboardPage() {
           <TabsContent value="budgets" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">Pengaturan Pagu Anggaran</h2>
-                <p className="text-sm text-muted-foreground">
+                <h2 className="text-base font-semibold tracking-tight">Pengaturan Pagu Anggaran</h2>
+                <p className="text-xs text-muted-foreground">
                   Pantau dan kelola batas pengeluaran keluarga per kategori setiap bulan.
                 </p>
               </div>
@@ -328,9 +324,9 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsBudgetModalOpen(true)}
-                className="gap-1.5 h-9 text-xs"
+                className="gap-1.5 h-8 text-xs"
               >
-                <Plus className="size-4" aria-hidden="true" />
+                <Plus className="size-3.5" aria-hidden="true" />
                 <span>Atur Pagu Anggaran</span>
               </Button>
             </div>
@@ -344,8 +340,8 @@ export default function DashboardPage() {
           <TabsContent value="wallets" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">Rekening & Dompet Kas</h2>
-                <p className="text-sm text-muted-foreground">
+                <h2 className="text-base font-semibold tracking-tight">Rekening & Dompet Kas</h2>
+                <p className="text-xs text-muted-foreground">
                   Daftar seluruh rekening bank, e-wallet, dan dompet fisik keluarga.
                 </p>
               </div>
@@ -353,34 +349,34 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsWalletModalOpen(true)}
-                className="gap-1.5 h-9 text-xs"
+                className="gap-1.5 h-8 text-xs"
               >
-                <Plus className="size-4" aria-hidden="true" />
+                <Plus className="size-3.5" aria-hidden="true" />
                 <span>Tambah Rekening</span>
               </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {wallets.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-muted-foreground border rounded-lg border-dashed">
+                <div className="col-span-full py-12 text-center text-muted-foreground border rounded-xl border-dashed">
                   <CreditCard className="size-8 mx-auto mb-2 text-muted-foreground/60" aria-hidden="true" />
-                  <p className="text-sm font-medium">Belum ada rekening terdaftar</p>
-                  <p className="text-xs mt-1">Tambahkan rekening bank, e-wallet, atau dompet tunai pertama Anda.</p>
+                  <p className="text-xs font-medium">Belum ada rekening terdaftar</p>
+                  <p className="text-[11px] mt-1 text-muted-foreground">Tambahkan rekening bank, e-wallet, atau dompet tunai pertama Anda.</p>
                 </div>
               ) : (
                 wallets.map((w) => (
-                  <Card key={w.id}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium truncate">
+                  <Card key={w.id} className="rounded-xl border border-border/70 bg-card/60 shadow-none hover:border-border transition-colors">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                      <CardTitle className="text-xs font-semibold truncate">
                         {w.name}
                       </CardTitle>
                       <CreditCard className="size-4 text-muted-foreground" aria-hidden="true" />
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold tabular-nums truncate">
+                    <CardContent className="p-4 pt-0">
+                      <div className="text-xl font-bold font-mono tabular-nums truncate text-foreground">
                         {formatRupiah(w.current_balance)}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 uppercase font-medium">Tipe: {w.type}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1 uppercase font-mono">Tipe: {w.type}</p>
                     </CardContent>
                   </Card>
                 ))
@@ -388,7 +384,7 @@ export default function DashboardPage() {
             </div>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
 
       {/* Modal Catat Transaksi */}
       <AddTransactionModal
@@ -413,6 +409,6 @@ export default function DashboardPage() {
         budgets={budgets}
         onSaveBudgets={handleSaveBudgets}
       />
-    </div>
+    </AppShell>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Navbar } from "@/components/dashboard/navbar";
+import { AppShell } from "@/components/layout/app-shell";
 import { VaultDocument } from "@/app/api/documents/route";
 import { DocumentCard } from "@/components/vault/document-card";
 import { AddDocumentModal } from "@/components/vault/add-document-modal";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -37,7 +38,6 @@ export default function VaultPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [documentToEdit, setDocumentToEdit] = useState<VaultDocument | null>(null);
   const [isSendingReminder, setIsSendingReminder] = useState(false);
-  const [reminderNotification, setReminderNotification] = useState<string | null>(null);
 
   // SWR Caching & Real-time Auto-sync Hook
   const { documents, isLoading, isValidating, mutate } = useDocuments();
@@ -47,9 +47,11 @@ export default function VaultPage() {
     try {
       const res = await fetch(`/api/documents?id=${id}`, { method: "DELETE" });
       if (res.ok) {
+        toast.success("Dokumen berhasil dihapus dari brankas");
         mutate();
       }
     } catch (err) {
+      toast.error("Gagal menghapus dokumen");
       console.error("Failed to delete document:", err);
     }
   };
@@ -61,18 +63,17 @@ export default function VaultPage() {
 
   const handleTriggerReminder = async () => {
     setIsSendingReminder(true);
-    setReminderNotification(null);
     try {
       const res = await fetch("/api/documents/remind", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        setReminderNotification(data.message || "Pemeriksaan dokumen selesai.");
+        toast.success(data.message || "Pemeriksaan dokumen & pengingat selesai dikirim ke Telegram.");
         mutate();
       } else {
-        setReminderNotification(`Gagal: ${data.error || "Terjadi kesalahan pada server."}`);
+        toast.error(`Gagal: ${data.error || "Terjadi kesalahan pada server."}`);
       }
     } catch (err: any) {
-      setReminderNotification("Terjadi kesalahan saat memicu pengingat.");
+      toast.error("Terjadi kesalahan saat memicu pengingat.");
     } finally {
       setIsSendingReminder(false);
     }
@@ -122,29 +123,25 @@ export default function VaultPage() {
   const isInitialLoading = isLoading && documents.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Top Navbar */}
-      <Navbar familyName="Keluarga F&R" />
-
-      {/* Main Container with Standard Shadcn Dashboard Layout */}
-      <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+    <AppShell>
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <FolderLock className="size-7 text-primary shrink-0" aria-hidden="true" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
+              <FolderLock className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Brankas Dokumen & Legalitas
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Arsip digital keluarga, pelacakan masa berlaku berkas, dan notifikasi pengingat otomatis ke Telegram.
               </p>
               {isValidating && !isLoading && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sinkronisasi</span>
+                  <span>Sync</span>
                 </span>
               )}
             </div>
@@ -156,7 +153,7 @@ export default function VaultPage() {
               variant="outline"
               size="sm"
               onClick={() => mutate()}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
               title="Segarkan data dokumen"
             >
               <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -168,7 +165,7 @@ export default function VaultPage() {
               size="sm"
               onClick={handleTriggerReminder}
               disabled={isSendingReminder}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
               title="Picu scanner pengingat dokumen kedaluwarsa ke bot Telegram"
             >
               {isSendingReminder ? (
@@ -176,7 +173,7 @@ export default function VaultPage() {
               ) : (
                 <Send className="size-3.5 text-blue-500" aria-hidden="true" />
               )}
-              <span>Kirim Pengingat Telegram</span>
+              <span>Pengingat Telegram</span>
             </Button>
 
             <Button
@@ -185,37 +182,29 @@ export default function VaultPage() {
                 setDocumentToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
             >
-              <Plus className="size-4" aria-hidden="true" />
+              <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Dokumen</span>
             </Button>
           </div>
         </div>
 
-        {/* Reminder Notification Toast/Banner */}
-        {reminderNotification && (
-          <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/10 text-xs font-medium text-foreground flex items-center gap-2 animate-in fade-in">
-            <CheckCircle2 className="size-4 text-primary shrink-0" aria-hidden="true" />
-            <span>{reminderNotification}</span>
-          </div>
-        )}
-
         {/* Integrated Status Alert Bars if Expiring or Expired */}
         {(counts.expiringSoon > 0 || counts.expired > 0) && (
-          <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-xl border bg-muted/30 text-xs">
+          <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-xl border border-border/70 bg-card/60 text-xs">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
               <AlertTriangle className="size-4 text-amber-500" aria-hidden="true" />
               <span>Perhatian Dokumen:</span>
             </span>
             {counts.expired > 0 && (
-              <Badge variant="destructive" className="gap-1 text-[11px]">
+              <Badge variant="destructive" className="gap-1 text-[11px] font-mono">
                 <XCircle className="size-3" aria-hidden="true" />
-                <span>{counts.expired} Berkas Sudah Kedaluwarsa</span>
+                <span>{counts.expired} Berkas Kedaluwarsa</span>
               </Badge>
             )}
             {counts.expiringSoon > 0 && (
-              <Badge variant="secondary" className="gap-1 text-[11px] bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+              <Badge variant="secondary" className="gap-1 text-[11px] font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
                 <AlertTriangle className="size-3" aria-hidden="true" />
                 <span>{counts.expiringSoon} Berkas Segera Habis (&le; 30 Hari)</span>
               </Badge>
@@ -233,17 +222,17 @@ export default function VaultPage() {
                 placeholder="Cari nama atau nomor dokumen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 text-xs h-9 rounded-md"
+                className="pl-8 text-xs h-8 rounded-md"
               />
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[145px] h-9 text-xs shrink-0 rounded-md">
+              <SelectTrigger className="w-[140px] h-8 text-xs shrink-0 rounded-md">
                 <SelectValue placeholder="Kategori" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
+                    <SelectItem key={c.id} value={c.id} className="text-xs">
                       {c.label}
                     </SelectItem>
                   ))}
@@ -253,7 +242,7 @@ export default function VaultPage() {
           </div>
 
           {/* Status Filter Tabs with Integrated Badge Counters */}
-          <div className="flex items-center rounded-md border p-0.5 bg-muted/40 text-xs gap-1 overflow-x-auto">
+          <div className="flex items-center rounded-md border border-border/70 p-0.5 bg-muted/40 text-xs gap-1 overflow-x-auto">
             {[
               { id: "all", label: "Semua", count: counts.total },
               { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
@@ -264,7 +253,7 @@ export default function VaultPage() {
               <button
                 key={st.id}
                 onClick={() => setSelectedStatus(st.id)}
-                className={`px-3 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs ${
                   selectedStatus === st.id
                     ? "bg-background text-foreground font-semibold shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -294,9 +283,9 @@ export default function VaultPage() {
           </div>
         ) : filteredDocuments.length === 0 ? (
           <div className="py-16 px-4 text-center rounded-xl border border-dashed text-muted-foreground">
-            <FolderLock className="size-10 mx-auto mb-3 text-muted-foreground/40" aria-hidden="true" />
-            <p className="text-sm font-semibold text-foreground">Tidak Ada Dokumen yang Sesuai</p>
-            <p className="text-xs mt-1 max-w-sm mx-auto">
+            <FolderLock className="size-8 mx-auto mb-2 text-muted-foreground/40" aria-hidden="true" />
+            <p className="text-xs font-semibold text-foreground">Tidak Ada Dokumen yang Sesuai</p>
+            <p className="text-[11px] mt-1 max-w-sm mx-auto text-muted-foreground">
               Belum ada dokumen yang terdaftar pada kategori atau status ini. Klik "Tambah Dokumen" untuk mengarsipkan berkas keluarga Anda.
             </p>
             <Button
@@ -308,7 +297,7 @@ export default function VaultPage() {
                 setSearchQuery("");
                 setIsAddModalOpen(true);
               }}
-              className="mt-4 text-xs gap-1.5 h-9"
+              className="mt-4 text-xs gap-1.5 h-8"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Dokumen Sekarang</span>
@@ -326,7 +315,7 @@ export default function VaultPage() {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Modal Tambah / Edit Dokumen */}
       <AddDocumentModal
@@ -338,6 +327,6 @@ export default function VaultPage() {
         onSuccess={() => mutate()}
         documentToEdit={documentToEdit}
       />
-    </div>
+    </AppShell>
   );
 }

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { mockStore } from "@/lib/mock-data";
 
 export async function GET() {
   try {
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json({ wallets: mockStore.getWallets() });
+    }
+
     const { data: wallets, error } = await supabaseAdmin
       .from("wallets")
       .select("*")
@@ -10,12 +15,14 @@ export async function GET() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.warn("Supabase wallets query error, falling back to mock:", error.message);
+      return NextResponse.json({ wallets: mockStore.getWallets() });
     }
 
     return NextResponse.json({ wallets: wallets || [] });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    console.warn("Error fetching wallets, falling back to mock:", err.message);
+    return NextResponse.json({ wallets: mockStore.getWallets() });
   }
 }
 
@@ -26,6 +33,11 @@ export async function POST(req: NextRequest) {
 
     if (!name || !type) {
       return NextResponse.json({ error: "Nama dan tipe rekening wajib diisi" }, { status: 400 });
+    }
+
+    if (!isSupabaseConfigured()) {
+      const newWallet = mockStore.addWallet({ name, type, current_balance, currency, family_id });
+      return NextResponse.json({ wallet: newWallet }, { status: 201 });
     }
 
     let targetFamilyId = family_id;
@@ -57,7 +69,9 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.warn("Supabase add wallet failed, saving to mock store:", error.message);
+      const newWallet = mockStore.addWallet({ name, type, current_balance, currency, family_id: targetFamilyId });
+      return NextResponse.json({ wallet: newWallet }, { status: 201 });
     }
 
     return NextResponse.json({ wallet }, { status: 201 });

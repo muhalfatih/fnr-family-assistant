@@ -1,5 +1,6 @@
 import { ActiveProcessInfo, ChatActivityLog, LogStatus } from "@/lib/types/database";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { mockStore } from "@/lib/mock-data";
 
 interface RegisteredProcess {
   info: ActiveProcessInfo;
@@ -18,7 +19,7 @@ const globalForBot = globalThis as unknown as {
 export const activeProcesses = globalForBot.activeBotProcesses || new Map<string, RegisteredProcess>();
 globalForBot.activeBotProcesses = activeProcesses;
 
-export const inMemoryLogs = globalForBot.inMemoryLogs || [];
+export const inMemoryLogs = globalForBot.inMemoryLogs || [...mockStore.getLogs()];
 globalForBot.inMemoryLogs = inMemoryLogs;
 
 const DEFAULT_TIMEOUT_MS = 15000; // 15 seconds strict timeout

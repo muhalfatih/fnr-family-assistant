@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Navbar } from "@/components/dashboard/navbar";
+import { AppShell } from "@/components/layout/app-shell";
 import { NetWorthSummary } from "@/components/assets/net-worth-summary";
 import { AssetList } from "@/components/assets/asset-list";
 import { LiabilityList } from "@/components/assets/liability-list";
@@ -96,29 +96,25 @@ export default function AssetsPage() {
   const isInitialLoading = isLoadingAssets && assets.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Top Navbar */}
-      <Navbar familyName="Keluarga F&R" />
-
-      {/* Main Container */}
-      <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+    <AppShell>
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <Landmark className="size-7 text-primary shrink-0" aria-hidden="true" />
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
+              <Landmark className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Aset & Liabilitas
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Pemantauan kekayaan bersih keluarga (Net Worth), kepemilikan aset, dan progres cicilan hutang.
               </p>
               {isValidatingAssets && !isLoadingAssets && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sinkronisasi</span>
+                  <span>Sync</span>
                 </span>
               )}
             </div>
@@ -129,7 +125,7 @@ export default function AssetsPage() {
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingAssets ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -140,18 +136,18 @@ export default function AssetsPage() {
               variant="outline"
               size="sm"
               onClick={() => setIsAssetModalOpen(true)}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md"
             >
-              <Gem className="size-3.5 text-primary" aria-hidden="true" />
+              <Gem className="size-3.5 text-foreground" aria-hidden="true" />
               <span>Tambah Aset</span>
             </Button>
 
             <Button
               size="sm"
               onClick={() => setIsLiabilityModalOpen(true)}
-              className="gap-1.5 h-9 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
             >
-              <Plus className="size-4" aria-hidden="true" />
+              <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Hutang</span>
             </Button>
           </div>
@@ -170,14 +166,14 @@ export default function AssetsPage() {
 
         {/* Canonical Shadcn Tabs Navigation */}
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="all">
+          <TabsList className="bg-muted/50 p-1 border border-border/50">
+            <TabsTrigger value="all" className="text-xs">
               Semua ({assets.length + liabilities.length})
             </TabsTrigger>
-            <TabsTrigger value="assets">
+            <TabsTrigger value="assets" className="text-xs">
               Aset Fisik & Investasi ({assets.length})
             </TabsTrigger>
-            <TabsTrigger value="liabilities">
+            <TabsTrigger value="liabilities" className="text-xs">
               Kewajiban / Hutang ({liabilities.length})
             </TabsTrigger>
           </TabsList>
@@ -231,7 +227,7 @@ export default function AssetsPage() {
             )}
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
 
       {/* Modal Dialogs */}
       <AddAssetModal
@@ -244,6 +240,6 @@ export default function AssetsPage() {
         onClose={() => setIsLiabilityModalOpen(false)}
         onAddLiability={handleAddLiability}
       />
-    </div>
+    </AppShell>
   );
 }
