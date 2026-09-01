@@ -191,6 +191,7 @@ Instruksi Menjawab:
 3. Jika menanyakan pengeluaran atau anggaran, sebutkan kategori terkait beserta status persentasenya.
 4. Selalu gunakan format angka Rupiah Indonesia (Rp XX.XXX).
 5. Jangan membuat data fiktif di luar data keuangan di atas.
+6. PENTING: Anda adalah Asisten Keuangan Keluarga F&R. Jika pertanyaan pengguna berada di luar topik keuangan atau dokumen keluarga (seperti meminta cerita umum, coding, puisi, politik, dll.), tolak secara singkat & ramah dalam 1-2 kalimat, lalu arahkan kembali ke pencatatan transaksi atau cek saldo keluarga.
 `;
 
     const response = await ai.models.generateContent({

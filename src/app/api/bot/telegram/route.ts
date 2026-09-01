@@ -20,8 +20,10 @@ import {
   cancelBotProcess,
   completeBotProcess,
   updateProcessLoadingMessage,
+  recordChatLog,
 } from "@/lib/bot/process-manager";
 import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
+import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from "@/lib/bot/relevance-guard";
 import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
 
 // Persistent Quick Action Reply Keyboard
@@ -278,6 +280,18 @@ export async function POST(req: NextRequest) {
   let loadingMessageId: number | null = null;
   const startTime = Date.now();
 
+  // 1. Anti-Spam / Rate Limiting Safeguard (Max 20 requests/minute per user)
+  const rateLimit = checkRateLimit(chatId);
+  if (!rateLimit.allowed) {
+    await sendTelegramMessage(
+      chatId,
+      `⏳ *Pesan Terlalu Cepat (Flood Protection)*\n\n` +
+        `Mohon tunggu ${rateLimit.remainingSeconds || 10} detik sebelum mengirim pesan berikutnya agar server tetap stabil. Terima kasih! 🙏`,
+      MAIN_KEYBOARD
+    );
+    return NextResponse.json({ ok: true });
+  }
+
   try {
     // Show instant typing status header
     sendTelegramChatAction(chatId, "typing").catch(() => {});
@@ -464,7 +478,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 2c. Check if User is Asking a Natural Language Financial Question
+    // 2c. Zero-Cost Relevance Gatekeeper (Save 100% tokens for irrelevant/out-of-domain messages)
+    if (!message.photo && !message.voice && !message.audio && text) {
+      const relevance = checkMessageRelevance(text, senderName);
+
+      if (relevance.isGreeting) {
+        await sendTelegramMessage(
+          chatId,
+          `👋 Halo *${senderName}*! Ada yang bisa saya bantu terkait pencatatan keuangan atau arsip dokumen keluarga hari ini?\n\n` +
+            `Anda bisa langsung mencatat pengeluaran (teks/foto struk), cek saldo, atau pilih menu di bawah ini! 👇`,
+          MAIN_KEYBOARD
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!relevance.isRelevant) {
+        await sendTelegramMessage(
+          chatId,
+          relevance.rejectionMessage || getPoliteRejectionMessage(senderName),
+          MAIN_KEYBOARD
+        );
+
+        recordChatLog({
+          id: taskId,
+          channel: "telegram",
+          chat_id: String(chatId),
+          sender_name: senderName,
+          input_type: "text",
+          raw_prompt: text,
+          status: "cancelled",
+          error_message: "Ditolak otomatis: Pesan di luar lingkup aplikasi (Out-of-Domain Guardrail)",
+          created_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          latency_ms: Date.now() - startTime,
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // 2d. Check if User is Asking a Natural Language Financial Question
     const questionKeywords = [
       "berapa", "apakah", "sisa", "total", "kemarin", "siapa", "kapan",
       "gimana", "bagaimana", "cukup", "bisa", "kenapa", "tanya", "apa aja", "?"
