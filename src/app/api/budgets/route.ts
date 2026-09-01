@@ -6,12 +6,24 @@ import { mockStore } from "@/lib/mock-data";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const monthYear = searchParams.get("period") || new Date().toISOString().substring(0, 7);
+    const monthYear =
+      searchParams.get("monthYear") ||
+      searchParams.get("period") ||
+      new Date().toISOString().substring(0, 7);
 
     if (!isSupabaseConfigured()) {
       const categories = mockStore.getCategories().filter((c) => c.type === "expense");
       const budgets = mockStore.getBudgets(monthYear);
-      const txs = mockStore.getTransactions(monthYear).filter((t) => t.type === "expense");
+      const allTxMonth = mockStore.getTransactions(monthYear);
+      const txs = allTxMonth.filter((t) => t.type === "expense");
+
+      let totalExpense = 0;
+      let totalIncome = 0;
+      allTxMonth.forEach((t) => {
+        const amt = Number(t.amount || 0);
+        if (t.type === "expense") totalExpense += amt;
+        if (t.type === "income") totalIncome += amt;
+      });
 
       const spentMap: Record<string, number> = {};
       txs.forEach((tx) => {
@@ -32,7 +44,12 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      return NextResponse.json({ budgets: budgetItems, monthYear });
+      return NextResponse.json({
+        budgets: budgetItems,
+        monthYear,
+        monthlyTotalExpense: totalExpense,
+        monthlyTotalIncome: totalIncome,
+      });
     }
 
     const { startDate, endDate } = getMonthDateRange(monthYear);
