@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight } from "lucide-react";
+import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag } from "lucide-react";
 
 interface TransactionFeedProps {
   transactions: Transaction[];
@@ -250,27 +250,56 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
 
                     {/* Receipt Items Accordion */}
                     {isExpanded && hasItems && tx.parsed_metadata?.items && (
-                      <div className="mt-3 pt-3 border-t pl-11 text-xs">
-                        <div className="rounded-lg bg-muted/40 p-3 space-y-2 border">
-                          <div className="flex items-center justify-between font-medium text-muted-foreground text-[11px] uppercase tracking-wider">
-                            <span>Rincian Item Belanja</span>
-                            {tx.parsed_metadata?.merchant && (
-                              <span className="capitalize font-semibold text-foreground">
-                                Toko: {tx.parsed_metadata.merchant}
+                      <div className="mt-3 pt-3 border-t border-border/60">
+                        <div className="rounded-xl bg-muted/30 p-3.5 sm:p-4 space-y-3 border border-border/80">
+                          {/* Receipt Header Banner */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border/60">
+                            <div className="flex items-center gap-2">
+                              <ShoppingBag className="size-4 text-primary shrink-0" aria-hidden="true" />
+                              <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
+                                {tx.parsed_metadata?.merchant ? `Struk: ${tx.parsed_metadata.merchant}` : "Rincian Nota Belanja"}
                               </span>
+                            </div>
+
+                            {tx.parsed_metadata?.drive_view_url && (
+                              <a
+                                href={tx.parsed_metadata.drive_view_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline bg-background border border-border px-2.5 py-1 rounded-md transition-colors"
+                              >
+                                <FileText className="size-3.5" aria-hidden="true" />
+                                <span>Lihat Nota Asli</span>
+                                <ExternalLink className="size-3 text-muted-foreground" aria-hidden="true" />
+                              </a>
                             )}
                           </div>
-                          <div className="divide-y divide-border/40">
+
+                          {/* Itemized Table List */}
+                          <div className="divide-y divide-border/60">
                             {tx.parsed_metadata.items.map((item: any, idx: number) => (
-                              <div key={idx} className="flex justify-between py-1 text-xs">
-                                <span className="text-foreground">
-                                  {item.name} {item.qty > 1 ? `(${item.qty}x)` : ""}
-                                </span>
-                                <span className="font-mono tabular-nums text-muted-foreground">
+                              <div key={idx} className="flex items-center justify-between gap-3 py-2.5">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <span className="inline-flex items-center justify-center font-semibold text-[11px] bg-background border border-border px-1.5 py-0.5 rounded text-foreground shrink-0 tabular-nums">
+                                    {item.qty && Number(item.qty) > 0 ? `${item.qty}x` : "1x"}
+                                  </span>
+                                  <span className="font-medium text-sm text-foreground leading-snug break-words">
+                                    {item.name}
+                                  </span>
+                                </div>
+                                <span className="font-mono text-sm font-semibold text-foreground tabular-nums shrink-0 pl-2">
                                   {formatRupiah(item.price)}
                                 </span>
                               </div>
                             ))}
+                          </div>
+
+                          {/* Receipt Summary Footer */}
+                          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs font-medium text-muted-foreground">
+                            <span>Total {tx.parsed_metadata.items.length} item tercatat</span>
+                            <span className="font-semibold text-foreground tabular-nums">
+                              {formatRupiah(tx.amount)}
+                            </span>
                           </div>
                         </div>
                       </div>
