@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
     const { data: transactions, error } = await supabaseAdmin
       .from("transactions")
-      .select("*, member:family_members(*), wallet:wallets(*), category:categories(*)")
+      .select("*, member:family_members(*), wallet:wallets!transactions_wallet_id_fkey(*), category:categories(*)")
       .order("transaction_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         transaction_date: transaction_date || new Date().toISOString(),
         media_type: "text",
       })
-      .select("*, member:family_members(*), wallet:wallets(*), category:categories(*)")
+      .select("*, member:family_members(*), wallet:wallets!transactions_wallet_id_fkey(*), category:categories(*)")
       .single();
 
     if (insertErr) {

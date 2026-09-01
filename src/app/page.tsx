@@ -177,7 +177,7 @@ export default function DashboardPage() {
   const [wallets, setWallets] = useState<Wallet[]>(INITIAL_WALLETS);
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [budgets, setBudgets] = useState<CategoryBudgetItem[]>(INITIAL_BUDGETS);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("2026-08");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
@@ -305,10 +305,11 @@ export default function DashboardPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
+                  <SelectItem value="all">Semua Periode</SelectItem>
+                  <SelectItem value="2026-09">September 2026</SelectItem>
                   <SelectItem value="2026-08">Agustus 2026</SelectItem>
                   <SelectItem value="2026-07">Juli 2026</SelectItem>
                   <SelectItem value="2026-06">Juni 2026</SelectItem>
-                  <SelectItem value="all">Semua Periode</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

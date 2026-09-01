@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getGoogleAuthClient } from "@/lib/google/auth";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { google } from "googleapis";
 
 export interface ServiceDiagnosticResult {
@@ -137,35 +138,25 @@ export async function GET() {
     });
   } else {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/`, {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        },
-        cache: "no-store",
-      });
+      const { data, error } = await supabaseAdmin.from("transactions").select("id").limit(1);
       const latency = Date.now() - supabaseStart;
 
-      if (res.ok || res.status === 200 || res.status === 404) {
+      if (!error) {
         results.push({
           id: "supabase",
           name: "Supabase PostgreSQL Database",
           category: "Cloud Database",
           status: "connected",
-          message: "Koneksi REST API & PostgreSQL Supabase aktif terhubung (Vercel Integration).",
+          message: "Koneksi database Supabase aktif & tabel transaksi terhubung.",
           latencyMs: latency,
           details: {
             url: supabaseUrl,
             postgresUrlDetected: hasPostgresUrl ? "Ya (POSTGRES_URL)" : "Direct REST",
-            keyType: process.env.SUPABASE_SECRET_KEY
-              ? "SUPABASE_SECRET_KEY"
-              : process.env.SUPABASE_SERVICE_ROLE_KEY
-              ? "SUPABASE_SERVICE_ROLE_KEY"
-              : "SUPABASE_ANON_KEY",
+            recordFound: data ? `${data.length} records checked` : "Ready",
           },
         });
       } else {
-        throw new Error(`HTTP Error status ${res.status}: ${res.statusText}`);
+        throw new Error(error.message);
       }
     } catch (err: any) {
       results.push({
@@ -186,13 +177,13 @@ export async function GET() {
   const driveFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
   const sheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
 
-  if (!serviceEmail || !privateKey) {
+  if (!serviceEmail || !privateKey || privateKey.includes("...") || privateKey.length < 300) {
     results.push({
       id: "google_cloud",
       name: "Google Cloud (Drive & Sheets)",
       category: "Cloud Storage & Backup",
       status: "missing_config",
-      message: "GOOGLE_SERVICE_ACCOUNT_EMAIL atau PRIVATE_KEY belum diatur",
+      message: "GOOGLE_SERVICE_ACCOUNT_EMAIL atau PRIVATE_KEY masih menggunakan contoh placeholder",
     });
   } else {
     try {
