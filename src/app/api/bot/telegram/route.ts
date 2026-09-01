@@ -27,6 +27,30 @@ const MAIN_KEYBOARD = {
   is_persistent: true,
 };
 
+/**
+ * Helper to smoothly edit loading message in-place, or send new message and cleanup
+ */
+async function replyOrEditLoading(
+  chatId: number | string,
+  loadingMessageId: number | null,
+  text: string,
+  replyMarkup?: any
+) {
+  if (loadingMessageId) {
+    try {
+      const editRes = await editTelegramMessageText(chatId, loadingMessageId, text, replyMarkup);
+      if (editRes && editRes.ok) {
+        return editRes;
+      }
+      // If edit failed, delete loading message and send fresh message
+      await deleteTelegramMessage(chatId, loadingMessageId);
+    } catch (e) {
+      console.error("Error editing loading message:", e);
+    }
+  }
+  return await sendTelegramMessage(chatId, text, replyMarkup);
+}
+
 export async function GET() {
   return NextResponse.json({
     status: "online",
@@ -506,16 +530,17 @@ export async function POST(req: NextRequest) {
           chatId,
           "🤖 *Menganalisis data keuangan Anda...*\n⏳ _Menghitung saldo, anggaran & mutasi transaksi terkini..._"
         );
+        if (tempMsg?.result?.message_id) {
+          loadingMessageId = tempMsg.result.message_id;
+        }
 
         const finData = await getFamilyFinancialData(familyId);
         const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
 
-        if (tempMsg?.result?.message_id) {
-          await deleteTelegramMessage(chatId, tempMsg.result.message_id);
-        }
-
-        await sendTelegramMessage(
+        // Smooth in-place edit: loading message transforms directly into final AI answer!
+        await replyOrEditLoading(
           chatId,
+          loadingMessageId,
           `🤖 *Jawaban F&R Assistant:*\n\n${aiAnswer}`,
           MAIN_KEYBOARD
         );
@@ -527,23 +552,19 @@ export async function POST(req: NextRequest) {
       parsed = await parseFinancialInputWithGemini({ text: message.text });
     }
 
-    // Clean up loading message if one was shown
-    if (loadingMessageId) {
-      await deleteTelegramMessage(chatId, loadingMessageId);
-    }
-
     if (!parsed || !parsed.amount || parsed.amount <= 0) {
       // If unable to parse transaction, try answering as conversational prompt
       if (message.text) {
         sendTelegramChatAction(chatId, "typing").catch(() => {});
         const finData = await getFamilyFinancialData(familyId);
         const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
-        await sendTelegramMessage(chatId, `🤖 *F&R Assistant:*\n\n${aiAnswer}`, MAIN_KEYBOARD);
+        await replyOrEditLoading(chatId, loadingMessageId, `🤖 *F&R Assistant:*\n\n${aiAnswer}`, MAIN_KEYBOARD);
         return NextResponse.json({ ok: true });
       }
 
-      await sendTelegramMessage(
+      await replyOrEditLoading(
         chatId,
+        loadingMessageId,
         "🤔 Maaf, saya belum bisa mengenali transaksi dari input tersebut. Silakan ketik nominal yang jelas (contoh: *Beli makan siang 35rb*) atau kirim foto struk.",
         MAIN_KEYBOARD
       );
@@ -636,7 +657,7 @@ export async function POST(req: NextRequest) {
 
     if (txError || !transaction) {
       console.error("Failed to insert transaction:", txError);
-      await sendTelegramMessage(chatId, "⚠️ Terjadi kesalahan saat menyimpan ke database.", MAIN_KEYBOARD);
+      await replyOrEditLoading(chatId, loadingMessageId, "⚠️ Terjadi kesalahan saat menyimpan ke database.", MAIN_KEYBOARD);
       return NextResponse.json({ ok: true });
     }
 
@@ -683,7 +704,8 @@ export async function POST(req: NextRequest) {
       ],
     ];
 
-    await sendTelegramMessage(chatId, replyText, { inline_keyboard: inlineKeyboard });
+    // Smooth transition: in-place transform loading message directly into the receipt!
+    await replyOrEditLoading(chatId, loadingMessageId, replyText, { inline_keyboard: inlineKeyboard });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
