@@ -106,7 +106,7 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
           </Badge>
         );
       default:
-        return <Badge variant="outline">Memeriksa…</Badge>;
+        return <Badge variant="outline">Memeriksa...</Badge>;
     }
   };
 
@@ -155,7 +155,7 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
             {isLoading && results.length === 0 ? (
               <div className="py-12 text-center text-sm text-muted-foreground">
                 <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-primary" aria-hidden="true" />
-                <span>Menghubungi endpoint API…</span>
+                <span>Menghubungi endpoint API...</span>
               </div>
             ) : (
               results.map((service) => (
@@ -211,7 +211,7 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
             className="gap-1.5 text-xs"
           >
             <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
-            <span>{isLoading ? "Memeriksa…" : "Uji Ulang Koneksi"}</span>
+            <span>{isLoading ? "Memeriksa..." : "Uji Ulang Koneksi"}</span>
           </Button>
 
           <Button type="button" size="sm" onClick={onClose}>

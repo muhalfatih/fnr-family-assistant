@@ -77,6 +77,7 @@ export function DatePicker({
           mode="single"
           selected={selectedDate}
           onSelect={handleSelect}
+          locale={id}
         />
       </PopoverContent>
     </Popover>
