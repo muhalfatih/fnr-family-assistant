@@ -22,7 +22,7 @@ import {
   updateProcessLoadingMessage,
 } from "@/lib/bot/process-manager";
 import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
-import { formatRupiah, formatDateIndo } from "@/lib/utils";
+import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
 
 // Persistent Quick Action Reply Keyboard
 const MAIN_KEYBOARD = {
@@ -111,12 +111,13 @@ export async function POST(req: NextRequest) {
       .order("transaction_date", { ascending: false })
       .limit(10);
 
+    const { startDate, endDate } = getMonthDateRange(currentMonth);
     const { data: monthlyTx } = await supabaseAdmin
       .from("transactions")
       .select("category_id, amount, type")
       .eq("family_id", familyId)
-      .gte("transaction_date", `${currentMonth}-01T00:00:00.000Z`)
-      .lte("transaction_date", `${currentMonth}-31T23:59:59.999Z`);
+      .gte("transaction_date", startDate)
+      .lte("transaction_date", endDate);
 
     const spentMap: Record<string, number> = {};
     let monthlyTotalExpense = 0;

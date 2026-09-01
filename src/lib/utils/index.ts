@@ -46,3 +46,23 @@ export function formatDateTimeIndo(dateStr: string | Date): string {
     minute: "2-digit",
   }).format(date);
 }
+
+/**
+ * Returns safe ISO start and end timestamps for any 'YYYY-MM' period,
+ * correctly handling months with 28, 29, 30, or 31 days.
+ */
+export function getMonthDateRange(monthYear: string): { startDate: string; endDate: string } {
+  const [yearStr, monthStr] = monthYear.split("-");
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const endDate = new Date(Date.UTC(year, month - 1, lastDay, 23, 59, 59, 999));
+
+  return {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+  };
+}
+

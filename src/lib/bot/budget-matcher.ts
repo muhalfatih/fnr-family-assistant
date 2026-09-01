@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getMonthDateRange } from "@/lib/utils";
 
 export interface BudgetStatusResult {
   categoryId: string;
@@ -167,14 +168,15 @@ export async function matchCategoryAndSyncBudget(
     }
 
     // 3. Compute total spent for this category in current month
+    const { startDate, endDate } = getMonthDateRange(currentMonth);
     const { data: monthlyTransactions } = await supabaseAdmin
       .from("transactions")
       .select("amount")
       .eq("family_id", familyId)
       .eq("category_id", matchedCategory.id)
       .eq("type", "expense")
-      .gte("transaction_date", `${currentMonth}-01T00:00:00.000Z`)
-      .lte("transaction_date", `${currentMonth}-31T23:59:59.999Z`);
+      .gte("transaction_date", startDate)
+      .lte("transaction_date", endDate);
 
     const totalSpent = (monthlyTransactions || []).reduce(
       (acc, tx) => acc + Number(tx.amount || 0),

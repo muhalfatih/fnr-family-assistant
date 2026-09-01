@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getMonthDateRange } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const monthYear = searchParams.get("period") || new Date().toISOString().substring(0, 7);
+    const { startDate, endDate } = getMonthDateRange(monthYear);
 
     // 1. Fetch categories
     const { data: categories, error: catErr } = await supabaseAdmin
@@ -23,13 +25,13 @@ export async function GET(req: NextRequest) {
       .select("*")
       .eq("month_year", monthYear);
 
-    // 3. Fetch monthly expenses per category
+    // 3. Fetch monthly expenses per category with safe date range
     const { data: transactions } = await supabaseAdmin
       .from("transactions")
       .select("category_id, amount, type")
       .eq("type", "expense")
-      .gte("transaction_date", `${monthYear}-01T00:00:00.000Z`)
-      .lte("transaction_date", `${monthYear}-31T23:59:59.999Z`);
+      .gte("transaction_date", startDate)
+      .lte("transaction_date", endDate);
 
     const spentMap: Record<string, number> = {};
     if (transactions) {
