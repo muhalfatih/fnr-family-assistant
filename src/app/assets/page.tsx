@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { NetWorthSummary } from "@/components/assets/net-worth-summary";
 import { AssetList } from "@/components/assets/asset-list";
@@ -10,9 +10,9 @@ import { AddLiabilityModal } from "@/components/assets/add-liability-modal";
 import { Asset, Liability } from "@/lib/types/database";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Gem, Landmark } from "lucide-react";
+import { Gem, Landmark } from "lucide-react";
 
-// Mock Initial Assets & Liabilities Data
+// Fallback Initial Assets & Liabilities Data
 const INITIAL_ASSETS: Asset[] = [
   {
     id: "a-1",
@@ -85,31 +85,98 @@ const INITIAL_LIABILITIES: Liability[] = [
   },
 ];
 
-const MOCK_CASH_BALANCE = 42850000;
-
 export default function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
   const [liabilities, setLiabilities] = useState<Liability[]>(INITIAL_LIABILITIES);
+  const [cashBalance, setCashBalance] = useState<number>(42850000);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [isLiabilityModalOpen, setIsLiabilityModalOpen] = useState(false);
 
-  const totalAssetValue = assets.reduce((acc, curr) => acc + curr.estimated_value, 0);
-  const totalLiabilityValue = liabilities.reduce((acc, curr) => acc + curr.remaining_amount, 0);
+  const fetchAssetsData = useCallback(async () => {
+    try {
+      // 1. Fetch Assets from Supabase
+      const aRes = await fetch("/api/assets");
+      if (aRes.ok) {
+        const aData = await aRes.json();
+        if (aData.assets && aData.assets.length > 0) {
+          setAssets(aData.assets);
+        }
+      }
 
-  const handleAddAsset = (newAsset: Asset) => {
+      // 2. Fetch Liabilities from Supabase
+      const lRes = await fetch("/api/liabilities");
+      if (lRes.ok) {
+        const lData = await lRes.json();
+        if (lData.liabilities && lData.liabilities.length > 0) {
+          setLiabilities(lData.liabilities);
+        }
+      }
+
+      // 3. Fetch Wallets from Supabase for total cash
+      const wRes = await fetch("/api/wallets");
+      if (wRes.ok) {
+        const wData = await wRes.json();
+        if (wData.wallets && wData.wallets.length > 0) {
+          const totalW = wData.wallets.reduce((acc: number, w: any) => acc + Number(w.current_balance || 0), 0);
+          setCashBalance(totalW);
+        }
+      }
+    } catch (e) {
+      console.log("Using preview assets data.");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAssetsData();
+  }, [fetchAssetsData]);
+
+  const totalAssetValue = assets.reduce((acc, curr) => acc + Number(curr.estimated_value || 0), 0);
+  const totalLiabilityValue = liabilities.reduce((acc, curr) => acc + Number(curr.remaining_amount || 0), 0);
+
+  const handleAddAsset = async (newAsset: Asset) => {
     setAssets((prev) => [newAsset, ...prev]);
+    try {
+      await fetch("/api/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAsset),
+      });
+      fetchAssetsData();
+    } catch (err) {
+      console.error("Failed to sync asset to Supabase:", err);
+    }
   };
 
-  const handleDeleteAsset = (id: string) => {
+  const handleDeleteAsset = async (id: string) => {
     setAssets((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await fetch(`/api/assets?id=${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Failed to delete asset in Supabase:", err);
+    }
   };
 
-  const handleAddLiability = (newLiability: Liability) => {
+  const handleAddLiability = async (newLiability: Liability) => {
     setLiabilities((prev) => [newLiability, ...prev]);
+    try {
+      await fetch("/api/liabilities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLiability),
+      });
+      fetchAssetsData();
+    } catch (err) {
+      console.error("Failed to sync liability to Supabase:", err);
+    }
   };
 
-  const handleDeleteLiability = (id: string) => {
+  const handleDeleteLiability = async (id: string) => {
     setLiabilities((prev) => prev.filter((l) => l.id !== id));
+    try {
+      await fetch(`/api/liabilities?id=${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Failed to delete liability in Supabase:", err);
+    }
   };
 
   return (
@@ -152,7 +219,7 @@ export default function AssetsPage() {
 
         {/* 4 Summary Cards for Net Worth */}
         <NetWorthSummary
-          totalCash={MOCK_CASH_BALANCE}
+          totalCash={cashBalance}
           totalAssets={totalAssetValue}
           totalLiabilities={totalLiabilityValue}
         />

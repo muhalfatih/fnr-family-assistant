@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { BudgetProgress, CategoryBudgetItem } from "@/components/dashboard/budget-progress";
@@ -25,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/lib/utils";
 import { Plus, CreditCard, PlusCircle } from "lucide-react";
 
-// Fallback initial data
+// Fallback initial preview data
 const INITIAL_WALLETS: Wallet[] = [
   {
     id: "w-1",
@@ -182,6 +182,44 @@ export default function DashboardPage() {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
 
+  // Fetch Live Data from Supabase Endpoints
+  const fetchAllData = useCallback(async () => {
+    try {
+      // 1. Fetch Transactions from Supabase
+      const txRes = await fetch("/api/transactions");
+      if (txRes.ok) {
+        const txData = await txRes.json();
+        if (txData.transactions && txData.transactions.length > 0) {
+          setTransactions(txData.transactions);
+        }
+      }
+
+      // 2. Fetch Wallets from Supabase
+      const wRes = await fetch("/api/wallets");
+      if (wRes.ok) {
+        const wData = await wRes.json();
+        if (wData.wallets && wData.wallets.length > 0) {
+          setWallets(wData.wallets);
+        }
+      }
+
+      // 3. Fetch Budgets from Supabase
+      const bRes = await fetch(`/api/budgets?period=${selectedPeriod === "all" ? "2026-08" : selectedPeriod}`);
+      if (bRes.ok) {
+        const bData = await bRes.json();
+        if (bData.budgets && bData.budgets.length > 0) {
+          setBudgets(bData.budgets);
+        }
+      }
+    } catch (e) {
+      console.log("Using preview data.");
+    }
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
   // Filter transactions by selected period
   const filteredByPeriodTransactions = transactions.filter((t) => {
     if (selectedPeriod === "all") return true;
@@ -208,38 +246,39 @@ export default function DashboardPage() {
     color: b.color || "#3b82f6",
   }));
 
-  const fetchTransactions = async () => {
-    try {
-      const res = await fetch("/api/transactions");
-      if (res.ok) {
-        const data = await jsonResponse(res);
-        if (data.transactions && data.transactions.length > 0) {
-          setTransactions(data.transactions);
-        }
-      }
-    } catch (e) {
-      console.log("Using preview transactions.");
-    }
-  };
-
-  const jsonResponse = async (res: Response) => {
-    return await res.json();
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  const handleDeleteTransaction = (id: string) => {
+  const handleDeleteTransaction = async (id: string) => {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const handleAddWallet = (newWallet: Wallet) => {
+  const handleAddWallet = async (newWallet: Wallet) => {
     setWallets((prev) => [...prev, newWallet]);
+    try {
+      await fetch("/api/wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newWallet),
+      });
+      fetchAllData();
+    } catch (err) {
+      console.error("Failed to sync wallet to Supabase:", err);
+    }
   };
 
-  const handleSaveBudgets = (updatedBudgets: CategoryBudgetItem[]) => {
+  const handleSaveBudgets = async (updatedBudgets: CategoryBudgetItem[]) => {
     setBudgets(updatedBudgets);
+    try {
+      await fetch("/api/budgets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: updatedBudgets,
+          monthYear: selectedPeriod === "all" ? "2026-08" : selectedPeriod,
+        }),
+      });
+      fetchAllData();
+    } catch (err) {
+      console.error("Failed to sync budgets to Supabase:", err);
+    }
   };
 
   return (
@@ -430,7 +469,7 @@ export default function DashboardPage() {
         onClose={() => setIsAddModalOpen(false)}
         wallets={wallets}
         categories={categories}
-        onSuccess={fetchTransactions}
+        onSuccess={fetchAllData}
       />
 
       {/* Modal Tambah Rekening */}
