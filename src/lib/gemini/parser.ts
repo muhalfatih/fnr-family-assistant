@@ -140,3 +140,71 @@ export async function parseFinancialInputWithGemini(options: {
     return null;
   }
 }
+
+/**
+ * Answers natural language questions about family finances using Gemini 3.7 Flash
+ */
+export async function answerFinancialQuestionWithGemini(
+  question: string,
+  financialContext: {
+    wallets: any[];
+    budgets: any[];
+    recentTransactions: any[];
+    monthlyTotalExpense: number;
+    monthlyTotalIncome: number;
+  }
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return "Maaf, API Key Gemini belum diatur.";
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const totalCash = financialContext.wallets.reduce(
+      (acc, w) => acc + Number(w.current_balance || 0),
+      0
+    );
+
+    const prompt = `
+Anda adalah Asisten Finansial Pintar Keluarga F&R (bernama "F&R Assistant").
+Tugas Anda adalah menjawab pertanyaan pengguna tentang kondisi keuangan, saldo, pengeluaran, atau anggaran keluarga dengan ramah, jelas, ringkas, dan akurat berdasarkan data real-time berikut:
+
+DATA KEUANGAN REAL-TIME:
+- Total Saldo Kas Tersedia: Rp ${totalCash.toLocaleString("id-ID")}
+- Pemasukan Bulan Ini: Rp ${financialContext.monthlyTotalIncome.toLocaleString("id-ID")}
+- Pengeluaran Bulan Ini: Rp ${financialContext.monthlyTotalExpense.toLocaleString("id-ID")}
+
+REKENING & DOMPET AKTIF:
+${financialContext.wallets.length > 0 ? financialContext.wallets.map((w) => `• ${w.name} (${w.type}): Rp ${Number(w.current_balance || 0).toLocaleString("id-ID")}`).join("\n") : "Belum ada rekening"}
+
+ANGGARAN & REALISASI BELANJA BULAN INI:
+${financialContext.budgets.length > 0 ? financialContext.budgets.map((b) => `• ${b.name}: Terpakai Rp ${Number(b.spent || 0).toLocaleString("id-ID")} dari Target Rp ${Number(b.target || 0).toLocaleString("id-ID")} (${b.target > 0 ? Math.round((b.spent / b.target) * 100) : 0}%)`).join("\n") : "Belum ada anggaran"}
+
+TRANSAKSI TERAKHIR:
+${financialContext.recentTransactions.length > 0 ? financialContext.recentTransactions.map((t) => `• [${t.transaction_date?.substring(0, 10)}] ${t.description} (${t.category?.name || "Lain-lain"}): ${t.type === "expense" ? "-" : "+"}Rp ${Number(t.amount || 0).toLocaleString("id-ID")} [${t.wallet?.name || "Dompet"}]`).join("\n") : "Belum ada transaksi"}
+
+PERTANYAAN PENGGUNA:
+"${question}"
+
+Instruksi Menjawab:
+1. Jawab langsung pertanyaan pengguna secara ramah menggunakan format teks Telegram (gunakan bullet point atau tebal *bold* jika perlu).
+2. Jika pengguna menanyakan sisa saldo, sebutkan per dompet atau totalnya.
+3. Jika menanyakan pengeluaran atau anggaran, sebutkan kategori terkait beserta status persentasenya.
+4. Selalu gunakan format angka Rupiah Indonesia (Rp XX.XXX).
+5. Jangan membuat data fiktif di luar data keuangan di atas.
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.7-flash",
+      contents: prompt,
+      config: {
+        temperature: 0.2,
+      },
+    });
+
+    return response.text || "Maaf, saya tidak dapat memproses jawaban saat ini.";
+  } catch (err: any) {
+    console.error("❌ Error running Gemini Q&A:", err);
+    return "Maaf, terjadi kendala saat menghubungi AI Gemini: " + err.message;
+  }
+}
+

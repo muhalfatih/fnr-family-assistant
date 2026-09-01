@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { parseFinancialInputWithGemini } from "@/lib/gemini/parser";
+import {
+  parseFinancialInputWithGemini,
+  answerFinancialQuestionWithGemini,
+} from "@/lib/gemini/parser";
 import { uploadReceiptToDrive } from "@/lib/google/drive";
 import { appendTransactionToSheet } from "@/lib/google/sheets";
 import {
@@ -9,7 +12,18 @@ import {
   answerTelegramCallbackQuery,
   downloadTelegramFile,
 } from "@/lib/telegram/bot";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatDateIndo } from "@/lib/utils";
+
+// Persistent Quick Action Reply Keyboard
+const MAIN_KEYBOARD = {
+  keyboard: [
+    [{ text: "📊 Ringkasan Keuangan" }, { text: "💳 Saldo Rekening" }],
+    [{ text: "🧾 5 Transaksi Terakhir" }, { text: "🎯 Sisa Anggaran" }],
+    [{ text: "💡 Tanya AI Keuangan" }, { text: "❓ Bantuan" }],
+  ],
+  resize_keyboard: true,
+  is_persistent: true,
+};
 
 export async function GET() {
   return NextResponse.json({
@@ -34,7 +48,81 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
-  // 1. Handle Callback Query (Inline Buttons: Undo / Change Wallet)
+  const currentMonth = new Date().toISOString().substring(0, 7);
+
+  // Helper to fetch live financial data for a family
+  const getFamilyFinancialData = async (familyId: string) => {
+    const { data: wallets } = await supabaseAdmin
+      .from("wallets")
+      .select("*")
+      .eq("family_id", familyId)
+      .eq("is_active", true);
+
+    const { data: categories } = await supabaseAdmin
+      .from("categories")
+      .select("*")
+      .eq("family_id", familyId)
+      .eq("type", "expense");
+
+    const { data: budgets } = await supabaseAdmin
+      .from("budgets")
+      .select("*")
+      .eq("family_id", familyId)
+      .eq("month_year", currentMonth);
+
+    const { data: transactions } = await supabaseAdmin
+      .from("transactions")
+      .select("*, member:family_members(*), wallet:wallets!transactions_wallet_id_fkey(*), category:categories(*)")
+      .eq("family_id", familyId)
+      .order("transaction_date", { ascending: false })
+      .limit(10);
+
+    const { data: monthlyTx } = await supabaseAdmin
+      .from("transactions")
+      .select("category_id, amount, type")
+      .eq("family_id", familyId)
+      .gte("transaction_date", `${currentMonth}-01T00:00:00.000Z`)
+      .lte("transaction_date", `${currentMonth}-31T23:59:59.999Z`);
+
+    const spentMap: Record<string, number> = {};
+    let monthlyTotalExpense = 0;
+    let monthlyTotalIncome = 0;
+
+    if (monthlyTx) {
+      monthlyTx.forEach((tx) => {
+        const amt = Number(tx.amount || 0);
+        if (tx.type === "expense") {
+          monthlyTotalExpense += amt;
+          if (tx.category_id) {
+            spentMap[tx.category_id] = (spentMap[tx.category_id] || 0) + amt;
+          }
+        } else if (tx.type === "income") {
+          monthlyTotalIncome += amt;
+        }
+      });
+    }
+
+    const budgetItems = (categories || []).map((cat) => {
+      const b = budgets?.find((item) => item.category_id === cat.id);
+      return {
+        id: b?.id || cat.id,
+        category_id: cat.id,
+        name: cat.name,
+        spent: spentMap[cat.id] || 0,
+        target: b ? Number(b.target_amount) : 0,
+      };
+    });
+
+    return {
+      wallets: wallets || [],
+      budgets: budgetItems,
+      recentTransactions: transactions || [],
+      monthlyTotalExpense,
+      monthlyTotalIncome,
+    };
+  };
+
+  // 1. Handle Callback Query (Inline Keyboard Actions)
   if (body.callback_query) {
     const cq = body.callback_query;
     const chatId = cq.message?.chat?.id;
@@ -48,12 +136,12 @@ export async function POST(req: NextRequest) {
       if (error) {
         await answerTelegramCallbackQuery(cq.id, "Gagal membatalkan transaksi.");
       } else {
-        await answerTelegramCallbackQuery(cq.id, "Transaksi berhasil dibatalkan & saldo dikembalikan!");
+        await answerTelegramCallbackQuery(cq.id, "Transaksi berhasil dibatalkan & dihapus!");
         if (chatId && messageId) {
           await editTelegramMessageText(
             chatId,
             messageId,
-            "❌ *Transaksi ini telah dibatalkan & dihapus dari catatan.*",
+            "❌ *Transaksi ini telah dibatalkan & dihapus dari database.*",
             { inline_keyboard: [] }
           );
         }
@@ -63,7 +151,6 @@ export async function POST(req: NextRequest) {
 
     if (data.startsWith("prompt_wallet:")) {
       const transactionId = data.replace("prompt_wallet:", "");
-      // Fetch available wallets
       const { data: wallets } = await supabaseAdmin
         .from("wallets")
         .select("id, name")
@@ -133,7 +220,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 2a. Whitelist Check against family_members
+    // 2a. Resolve Family ID
     const { data: member } = await supabaseAdmin
       .from("family_members")
       .select("*, family:families(*)")
@@ -143,7 +230,6 @@ export async function POST(req: NextRequest) {
     let familyId: string | null = member?.family_id || null;
     let defaultWalletId: string | null = member?.default_wallet_id || null;
 
-    // Fallback: If no family configured yet, pick or create default demo family
     if (!familyId) {
       const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
       if (families && families.length > 0) {
@@ -151,14 +237,182 @@ export async function POST(req: NextRequest) {
       } else {
         const { data: newFamily } = await supabaseAdmin
           .from("families")
-          .insert({ name: "Keluarga F&R" })
+          .insert({ name: "Keluarga F&R", currency: "IDR" })
           .select()
           .single();
         familyId = newFamily?.id || null;
       }
     }
 
-    // 2b. Identify Input Type (Text, Photo, Voice)
+    if (!familyId) {
+      await sendTelegramMessage(chatId, "⚠️ Keluarga belum terdaftar.", MAIN_KEYBOARD);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2b. Handle Quick Button / Text Commands
+    const text = message.text?.trim() || "";
+
+    // 1. Command: /start, /help, /menu, ❓ Bantuan
+    if (
+      text === "/start" ||
+      text === "/help" ||
+      text === "/menu" ||
+      text === "❓ Bantuan"
+    ) {
+      await sendTelegramMessage(
+        chatId,
+        `👋 Halo *${senderName}*! Selamat datang di *F&R Family Assistant* 🏡\n\n` +
+          `Saya asisten keuangan keluarga Anda yang terhubung langsung dengan Web Dashboard.\n\n` +
+          `*Pilihan Aksi Cepat:* (Gunakan tombol di bawah layar)\n` +
+          `• 📊 *Ringkasan Keuangan*: Total kas, pengeluaran & sisa surplus\n` +
+          `• 💳 *Saldo Rekening*: Cek saldo BCA, Mandiri, Gopay, & Cash\n` +
+          `• 🧾 *5 Transaksi Terakhir*: Mutasi pengeluaran terbaru\n` +
+          `• 🎯 *Sisa Anggaran*: Realisasi vs batas pagu bulanan\n\n` +
+          `*Cara Mencatat Transaksi Langsung:*\n` +
+          `• 💬 Ketik teks: _"Beli bensin 150rb BCA"_\n` +
+          `• 📸 Kirim foto struk kasir (Otomatis dibaca Gemini AI OCR)\n` +
+          `• 🎙️ Kirim voice note: _"Tadi beli obat di apotek 85rb"_`,
+        MAIN_KEYBOARD
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2. Command: 📊 Ringkasan Keuangan
+    if (
+      text === "📊 Ringkasan Keuangan" ||
+      text === "/ringkasan" ||
+      text === "/summary"
+    ) {
+      const data = await getFamilyFinancialData(familyId);
+      const totalCash = data.wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
+      const surplus = data.monthlyTotalIncome - data.monthlyTotalExpense;
+
+      let msg =
+        `📊 *Ringkasan Keuangan Keluarga F&R*\n` +
+        `📅 *Periode:* ${new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}\n` +
+        `━━━━━━━━━━━━━━━━━━━\n` +
+        `💰 *Total Saldo Kas:* \`${formatRupiah(totalCash)}\`\n` +
+        `📈 *Pemasukan Bulan Ini:* \`${formatRupiah(data.monthlyTotalIncome)}\`\n` +
+        `📉 *Pengeluaran Bulan Ini:* \`${formatRupiah(data.monthlyTotalExpense)}\`\n` +
+        `━━━━━━━━━━━━━━━━━━━\n` +
+        `⚖️ *Surplus / Arus Kas:* \`${formatRupiah(surplus)}\` ${surplus >= 0 ? "🟢 (Sehat)" : "🔴 (Defisit)"}\n\n` +
+        `_💡 Tekan "Saldo Rekening" atau "Sisa Anggaran" untuk rincian detail._`;
+
+      await sendTelegramMessage(chatId, msg, MAIN_KEYBOARD);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 3. Command: 💳 Saldo Rekening
+    if (
+      text === "💳 Saldo Rekening" ||
+      text === "/saldo" ||
+      text === "/wallets"
+    ) {
+      const data = await getFamilyFinancialData(familyId);
+      const totalCash = data.wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
+
+      let msg = `💳 *Daftar Saldo Rekening & Dompet:*\n━━━━━━━━━━━━━━━━━━━\n`;
+      data.wallets.forEach((w) => {
+        const icon = w.type === "bank" ? "🏦" : w.type === "ewallet" ? "📱" : w.type === "investment" ? "📈" : "💵";
+        msg += `${icon} *${w.name}*\n   └ Saldo: \`${formatRupiah(Number(w.current_balance || 0))}\`\n`;
+      });
+      msg += `━━━━━━━━━━━━━━━━━━━\n💰 *Total Kas Tersedia:* \`${formatRupiah(totalCash)}\``;
+
+      await sendTelegramMessage(chatId, msg, MAIN_KEYBOARD);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 4. Command: 🧾 5 Transaksi Terakhir
+    if (
+      text === "🧾 5 Transaksi Terakhir" ||
+      text === "/transaksi" ||
+      text === "/mutasi"
+    ) {
+      const data = await getFamilyFinancialData(familyId);
+
+      if (data.recentTransactions.length === 0) {
+        await sendTelegramMessage(chatId, "🧾 Belum ada transaksi yang tercatat di sistem.", MAIN_KEYBOARD);
+        return NextResponse.json({ ok: true });
+      }
+
+      let msg = `🧾 *5 Transaksi Terakhir Keluarga:*\n━━━━━━━━━━━━━━━━━━━\n`;
+      data.recentTransactions.slice(0, 5).forEach((t, idx) => {
+        const sign = t.type === "expense" ? "🔴 -" : "🟢 +";
+        const dateStr = t.transaction_date ? t.transaction_date.substring(0, 10) : "";
+        msg += `${idx + 1}. *${t.description}*\n`;
+        msg += `   └ ${sign}\`${formatRupiah(t.amount)}\` · ${t.category?.name || "Lain-lain"}\n`;
+        msg += `   └ 💳 ${t.wallet?.name || "Dompet"} · 📅 ${dateStr}\n`;
+        if (t.parsed_metadata?.items && t.parsed_metadata.items.length > 0) {
+          msg += `   └ 📋 _(${t.parsed_metadata.items.length} item rincian nota)_\n`;
+        }
+        msg += `\n`;
+      });
+
+      await sendTelegramMessage(chatId, msg, MAIN_KEYBOARD);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 5. Command: 🎯 Sisa Anggaran
+    if (
+      text === "🎯 Sisa Anggaran" ||
+      text === "/anggaran" ||
+      text === "/budget"
+    ) {
+      const data = await getFamilyFinancialData(familyId);
+
+      let msg =
+        `🎯 *Status Anggaran Kategori Bulan Ini:*\n` +
+        `📅 ${new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}\n` +
+        `━━━━━━━━━━━━━━━━━━━\n`;
+
+      if (data.budgets.length === 0) {
+        msg += `_Belum ada pagu anggaran yang diset._\n`;
+      } else {
+        data.budgets.forEach((b) => {
+          const percent = b.target > 0 ? Math.round((b.spent / b.target) * 100) : 0;
+          const statusIcon = percent > 100 ? "🔴 (Over!)" : percent >= 80 ? "🟡 (Peringatan)" : "🟢 (Aman)";
+          msg += `🏷️ *${b.name}*\n`;
+          msg += `   └ Terpakai: \`${formatRupiah(b.spent)}\` / \`${formatRupiah(b.target)}\`\n`;
+          msg += `   └ Progres: *${percent}%* ${statusIcon}\n\n`;
+        });
+      }
+      msg += `━━━━━━━━━━━━━━━━━━━\n📉 *Total Pengeluaran:* \`${formatRupiah(data.monthlyTotalExpense)}\``;
+
+      await sendTelegramMessage(chatId, msg, MAIN_KEYBOARD);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 6. Command: 💡 Tanya AI Keuangan / Petunjuk Tanya
+    if (text === "💡 Tanya AI Keuangan" || text === "/tanya") {
+      await sendTelegramMessage(
+        chatId,
+        `💡 *Fitur Tanya AI Finansial Aktif!*\n\n` +
+          `Anda bisa langsung menanyakan kondisi keuangan keluarga dalam bahasa santai, contohnya:\n\n` +
+          `• _"Berapa pengeluaran kita buat makan bulan ini?"_\n` +
+          `• _"Saldo BCA masih ada berapa ya?"_\n` +
+          `• _"Kemarin kita belanja apa aja di sate?"_\n` +
+          `• _"Apakah anggaran bulan ini sudah overbudget?"_\n\n` +
+          `Silakan ketik pertanyaan Anda sekarang! 👇`,
+        MAIN_KEYBOARD
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2c. Check if User is Asking a Natural Language Financial Question
+    const questionKeywords = [
+      "berapa", "apakah", "sisa", "total", "kemarin", "siapa", "kapan",
+      "gimana", "bagaimana", "cukup", "bisa", "kenapa", "tanya", "apa aja", "?"
+    ];
+    const lowerText = text.toLowerCase();
+    const isQuestion =
+      questionKeywords.some((kw) => lowerText.startsWith(kw) || lowerText.endsWith(kw)) ||
+      lowerText.includes("?") ||
+      lowerText.includes("saldo") ||
+      lowerText.includes("anggaran") ||
+      lowerText.includes("pengeluaran") ||
+      lowerText.includes("habis berapa");
+
+    // 2d. Identify Input Type (Photo, Voice, or Financial Recording / Question)
     let parsed: any = null;
     let mediaType: "text" | "image" | "audio" = "text";
     let driveFileId: string | null = null;
@@ -172,7 +426,7 @@ export async function POST(req: NextRequest) {
       const downloaded = await downloadTelegramFile(photo.file_id);
 
       if (downloaded) {
-        // Upload to Google Drive
+        // Upload to Google Drive if configured
         const driveResult = await uploadReceiptToDrive(
           downloaded.buffer,
           `struk_${Date.now()}.jpg`,
@@ -183,7 +437,7 @@ export async function POST(req: NextRequest) {
           driveViewUrl = driveResult.webViewLink;
         }
 
-        // Parse with Gemini
+        // Parse with Gemini 3.7 Flash
         parsed = await parseFinancialInputWithGemini({
           text: message.caption,
           imageBuffer: downloaded.buffer,
@@ -205,32 +459,40 @@ export async function POST(req: NextRequest) {
     } else if (message.text) {
       rawPrompt = message.text;
 
-      // Handle basic bot commands
-      if (message.text.startsWith("/start")) {
+      // If it is a conversational financial question, handle with Gemini AI Q&A
+      if (isQuestion) {
+        const finData = await getFamilyFinancialData(familyId);
+        const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
         await sendTelegramMessage(
           chatId,
-          `👋 Halo *${senderName}*! Selamat datang di *F&R Family Hub* 🏡\n\n` +
-            `Saya asisten keuangan keluarga Anda. Anda bisa langsung:\n` +
-            `• 💬 Ketik transaksi: _"Beli bensin 150rb BCA"_\n` +
-            `• 📸 Kirim foto struk belanjaan\n` +
-            `• 🎙️ Kirim voice note / rekaman suara\n\n` +
-            `Semua otomatis tersimpan, tersinkron ke Google Sheets & Google Drive!`
+          `🤖 *Jawaban F&R Assistant:*\n\n${aiAnswer}`,
+          MAIN_KEYBOARD
         );
         return NextResponse.json({ ok: true });
       }
 
+      // Otherwise parse as financial transaction entry
       parsed = await parseFinancialInputWithGemini({ text: message.text });
     }
 
     if (!parsed || !parsed.amount || parsed.amount <= 0) {
+      // If unable to parse transaction, try answering as conversational prompt
+      if (message.text) {
+        const finData = await getFamilyFinancialData(familyId);
+        const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
+        await sendTelegramMessage(chatId, `🤖 *F&R Assistant:*\n\n${aiAnswer}`, MAIN_KEYBOARD);
+        return NextResponse.json({ ok: true });
+      }
+
       await sendTelegramMessage(
         chatId,
-        "🤔 Maaf, saya belum bisa mengenali nominal transaksi dari pesan tersebut. Silakan ketik nominal yang jelas (contoh: *Beli makan siang 35rb*)."
+        "🤔 Maaf, saya belum bisa mengenali transaksi dari input tersebut. Silakan ketik nominal yang jelas (contoh: *Beli makan siang 35rb*) atau kirim foto struk.",
+        MAIN_KEYBOARD
       );
       return NextResponse.json({ ok: true });
     }
 
-    // 2c. Match Wallet
+    // 2e. Match Wallet
     const { data: wallets } = await supabaseAdmin
       .from("wallets")
       .select("*")
@@ -250,7 +512,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (!chosenWallet) {
-      // Create a default cash wallet if none exists
       const { data: newWallet } = await supabaseAdmin
         .from("wallets")
         .insert({
@@ -264,7 +525,7 @@ export async function POST(req: NextRequest) {
       chosenWallet = newWallet;
     }
 
-    // 2d. Match or Create Category
+    // 2f. Match or Create Category
     let categoryId: string | null = null;
     if (parsed.category) {
       const { data: cat } = await supabaseAdmin
@@ -290,7 +551,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2e. Insert Transaction (Optimistic Insert)
+    // 2g. Insert Transaction into Supabase
     const { data: transaction, error: txError } = await supabaseAdmin
       .from("transactions")
       .insert({
@@ -317,11 +578,11 @@ export async function POST(req: NextRequest) {
 
     if (txError || !transaction) {
       console.error("Failed to insert transaction:", txError);
-      await sendTelegramMessage(chatId, "⚠️ Terjadi kesalahan saat menyimpan ke database.");
+      await sendTelegramMessage(chatId, "⚠️ Terjadi kesalahan saat menyimpan ke database.", MAIN_KEYBOARD);
       return NextResponse.json({ ok: true });
     }
 
-    // 2f. Real-time Append to Google Sheets
+    // 2h. Real-time Append to Google Sheets
     appendTransactionToSheet({
       transactionDate: new Date().toISOString().split("T")[0],
       type: parsed.type,
@@ -333,8 +594,7 @@ export async function POST(req: NextRequest) {
       driveLink: driveViewUrl || undefined,
     }).catch((err) => console.error("Async Google Sheet Sync Error:", err));
 
-    // 2g. Reply Confirmation Message with Action Buttons
-    const typeEmoji = parsed.type === "expense" ? "📉" : parsed.type === "income" ? "📈" : "🔄";
+    // 2i. Reply Confirmation Message with Action Buttons
     const typeText = parsed.type === "expense" ? "Pengeluaran" : parsed.type === "income" ? "Pemasukan" : "Transfer";
 
     let replyText =
@@ -372,7 +632,8 @@ export async function POST(req: NextRequest) {
     console.error("Unhandled error in Telegram webhook:", err);
     await sendTelegramMessage(
       chatId,
-      "⚠️ Terjadi gangguan saat memproses pesan. Mohon coba beberapa saat lagi."
+      "⚠️ Terjadi gangguan saat memproses pesan. Mohon coba beberapa saat lagi.",
+      MAIN_KEYBOARD
     );
     return NextResponse.json({ ok: true });
   }
