@@ -35,22 +35,20 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
   const isConnectedTelegram = Boolean(member.telegram_chat_id);
 
   return (
-    <Card className="flex flex-col justify-between hover:shadow-md transition-shadow">
-      <CardContent className="p-5 space-y-4">
+    <Card className="rounded-xl border border-border/80 hover:border-primary/40 transition-colors flex flex-col justify-between">
+      <CardContent className="p-4 space-y-3">
         {/* Top: Avatar, Name & Role Badge */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Avatar className="size-11 border-2 border-primary/20">
+            <Avatar className="size-10 border border-primary/20">
               <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
                 {getInitials(member.full_name || "FM")}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-sm leading-tight text-foreground truncate">
-                  {member.full_name}
-                </h3>
-              </div>
+              <h3 className="font-semibold text-sm leading-snug text-foreground truncate">
+                {member.full_name}
+              </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {member.role === "admin" ? "Pengelola (Admin)" : "Anggota Keluarga"}
               </p>
@@ -59,7 +57,7 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
 
           <Badge
             variant={member.role === "admin" ? "default" : "secondary"}
-            className="text-[10px] capitalize gap-1 font-normal"
+            className="text-[11px] capitalize gap-1 font-medium shrink-0"
           >
             {member.role === "admin" ? (
               <ShieldCheck className="size-3" aria-hidden="true" />
@@ -71,17 +69,17 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
         </div>
 
         {/* Middle Stats: Wallet & Monthly Spent */}
-        <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-lg bg-muted/40 border">
-          <div>
-            <p className="text-muted-foreground text-[11px]">Dompet Default:</p>
-            <div className="flex items-center gap-1.5 font-medium truncate mt-0.5" title={member.default_wallet?.name || "Otomatis"}>
+        <div className="grid grid-cols-2 gap-2 text-xs p-2.5 rounded-lg bg-muted/40 border">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Dompet Default:</p>
+            <div className="flex items-center gap-1.5 font-medium truncate mt-0.5" title={member.default_wallet?.name || "Dompet Tunai"}>
               <CreditCard className="size-3 text-muted-foreground shrink-0" aria-hidden="true" />
               <span className="truncate">{member.default_wallet?.name || "Dompet Tunai"}</span>
             </div>
           </div>
-          <div>
-            <p className="text-muted-foreground text-[11px]">Belanja Bulan Ini:</p>
-            <p className="font-semibold text-foreground truncate mt-0.5">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Belanja Bulan Ini:</p>
+            <p className="font-semibold text-foreground truncate mt-0.5 tabular-nums">
               {formatRupiah(member.monthlySpent || 0)}
             </p>
           </div>
@@ -90,26 +88,26 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
         {/* Channels: Telegram & WhatsApp status */}
         <div className="space-y-1.5 text-xs">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-[11px] flex items-center gap-1">
+            <span className="text-muted-foreground text-xs flex items-center gap-1">
               <Send className="size-3 text-blue-500" aria-hidden="true" />
               <span>Telegram Chat:</span>
             </span>
             {isConnectedTelegram ? (
-              <Badge variant="outline" className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+              <Badge variant="outline" className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
                 ● ID: {member.telegram_chat_id}
               </Badge>
             ) : (
-              <span className="text-[11px] text-muted-foreground italic">Belum ditautkan</span>
+              <span className="text-xs text-muted-foreground italic">Belum ditautkan</span>
             )}
           </div>
 
           {member.whatsapp_number && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-[11px] flex items-center gap-1">
+              <span className="text-muted-foreground text-xs flex items-center gap-1">
                 <Phone className="size-3 text-emerald-500" aria-hidden="true" />
                 <span>WhatsApp:</span>
               </span>
-              <span className="text-[11px] font-mono text-muted-foreground">
+              <span className="text-xs font-mono text-muted-foreground">
                 {member.whatsapp_number}
               </span>
             </div>

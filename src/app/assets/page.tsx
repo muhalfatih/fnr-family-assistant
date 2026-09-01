@@ -11,7 +11,7 @@ import { Asset, Liability } from "@/lib/types/database";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Gem, Landmark, RefreshCw } from "lucide-react";
+import { Gem, Landmark, RefreshCw, Plus } from "lucide-react";
 import { useAssets, useLiabilities, useWallets } from "@/lib/hooks/use-family-data";
 
 export default function AssetsPage() {
@@ -103,31 +103,33 @@ export default function AssetsPage() {
       {/* Main Container */}
       <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <Landmark className="size-7 text-primary" aria-hidden="true" />
-              <h1 className="text-3xl font-bold tracking-tight">
+              <Landmark className="size-7 text-primary shrink-0" aria-hidden="true" />
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
                 Aset & Liabilitas
               </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Pemantauan kekayaan bersih keluarga (Net Worth), kepemilikan aset, dan progres cicilan hutang.
+              </p>
               {isValidatingAssets && !isLoadingAssets && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse">
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sinkronisasi...</span>
+                  <span>Sinkronisasi</span>
                 </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Pemantauan kekayaan bersih keluarga (Net Worth), kepemilikan aset, dan progres cicilan hutang.
-            </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-9 text-xs"
+              className="gap-1.5 h-9 text-xs px-3 rounded-md"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingAssets ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -138,30 +140,26 @@ export default function AssetsPage() {
               variant="outline"
               size="sm"
               onClick={() => setIsAssetModalOpen(true)}
-              className="gap-1.5 h-9 text-xs"
+              className="gap-1.5 h-9 text-xs px-3 rounded-md"
             >
-              <Gem className="size-4 text-primary" aria-hidden="true" />
+              <Gem className="size-3.5 text-primary" aria-hidden="true" />
               <span>Tambah Aset</span>
             </Button>
 
             <Button
               size="sm"
               onClick={() => setIsLiabilityModalOpen(true)}
-              className="gap-1.5 h-9 text-xs"
+              className="gap-1.5 h-9 text-xs px-3 rounded-md"
             >
-              <Landmark className="size-4" aria-hidden="true" />
+              <Plus className="size-4" aria-hidden="true" />
               <span>Tambah Hutang</span>
             </Button>
           </div>
         </div>
 
-        {/* 4 Summary Cards for Net Worth */}
+        {/* Executive Balance Sheet Summary */}
         {isInitialLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-[106px] rounded-xl" />
-            ))}
-          </div>
+          <Skeleton className="h-[170px] rounded-xl" />
         ) : (
           <NetWorthSummary
             totalCash={cashBalance}

@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Loader2 } from "lucide-react";
 
 interface AddDocumentModalProps {
@@ -118,7 +119,7 @@ export function AddDocumentModal({
           <DialogTitle>
             {documentToEdit ? "Edit Dokumen" : "Tambah Dokumen ke Brankas"}
           </DialogTitle>
-          <DialogDescription className="text-xs">
+          <DialogDescription className="text-xs text-muted-foreground">
             Simpan data arsip penting keluarga dan atur pengingat tanggal jatuh tempo otomatis.
           </DialogDescription>
         </DialogHeader>
@@ -132,8 +133,8 @@ export function AddDocumentModal({
 
           {/* 1. Nama Dokumen */}
           <div className="space-y-1.5">
-            <Label htmlFor="title" className="text-xs font-medium">
-              Nama Dokumen <span className="text-destructive">*</span>
+            <Label htmlFor="title" className="text-xs font-medium text-foreground">
+              Nama Dokumen <span className="text-destructive ml-0.5">*</span>
             </Label>
             <Input
               id="title"
@@ -148,11 +149,11 @@ export function AddDocumentModal({
           {/* 2. Kategori Dokumen */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">
-                Kategori
+              <Label className="text-xs font-medium text-foreground">
+                Kategori <span className="text-destructive ml-0.5">*</span>
               </Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-9 text-xs w-full">
                   <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -171,7 +172,7 @@ export function AddDocumentModal({
 
             {/* 3. Nomor Dokumen */}
             <div className="space-y-1.5">
-              <Label htmlFor="docNumber" className="text-xs font-medium">
+              <Label htmlFor="docNumber" className="text-xs font-medium text-foreground">
                 Nomor Dokumen
               </Label>
               <Input
@@ -187,7 +188,7 @@ export function AddDocumentModal({
           {/* 4. Masa Berlaku Switch & Tanggal */}
           <div className="p-3.5 rounded-lg border bg-muted/30 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium">Memiliki Masa Berlaku?</span>
+              <span className="text-xs font-medium text-foreground">Memiliki Masa Berlaku?</span>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -205,25 +206,22 @@ export function AddDocumentModal({
             {hasExpiry && (
               <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                 <div className="space-y-1.5">
-                  <Label htmlFor="expiryDate" className="text-xs font-medium">
-                    Tanggal Kedaluwarsa
+                  <Label htmlFor="expiryDate" className="text-xs font-medium text-foreground">
+                    Tanggal Kedaluwarsa <span className="text-destructive ml-0.5">*</span>
                   </Label>
-                  <Input
-                    id="expiryDate"
-                    type="date"
+                  <DatePicker
                     value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
-                    className="text-xs h-9"
-                    required={hasExpiry}
+                    onChange={setExpiryDate}
+                    placeholder="Pilih tanggal"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">
+                  <Label className="text-xs font-medium text-foreground">
                     Ingatkan Sebelum
                   </Label>
                   <Select value={reminderDays} onValueChange={setReminderDays}>
-                    <SelectTrigger className="h-9 text-xs">
+                    <SelectTrigger className="h-9 text-xs w-full">
                       <SelectValue placeholder="Pilih Waktu" />
                     </SelectTrigger>
                     <SelectContent>
@@ -243,7 +241,7 @@ export function AddDocumentModal({
 
           {/* 5. Tautan Salinan Google Drive */}
           <div className="space-y-1.5">
-            <Label htmlFor="driveUrl" className="text-xs font-medium">
+            <Label htmlFor="driveUrl" className="text-xs font-medium text-foreground">
               Tautan Berkas Google Drive / Cloud (Opsional)
             </Label>
             <Input
@@ -256,10 +254,10 @@ export function AddDocumentModal({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs px-3">
               Batal
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs">
+            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs px-3">
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               <span>{documentToEdit ? "Simpan Perubahan" : "Simpan ke Brankas"}</span>
             </Button>

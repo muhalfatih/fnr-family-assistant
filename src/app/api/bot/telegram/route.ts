@@ -834,7 +834,7 @@ export async function POST(req: NextRequest) {
     if (parsed.items && parsed.items.length > 0) {
       replyText += `\n\n🧾 *Rincian Item (${parsed.items.length}):*\n`;
       parsed.items.slice(0, 5).forEach((item: any) => {
-        replyText += `• ${item.name} (${item.qty}x) — ${formatRupiah(item.price)}\n`;
+        replyText += `• ${item.name} (${item.qty}x): ${formatRupiah(item.price)}\n`;
       });
       if (parsed.items.length > 5) {
         replyText += `_...dan ${parsed.items.length - 5} item lainnya_\n`;

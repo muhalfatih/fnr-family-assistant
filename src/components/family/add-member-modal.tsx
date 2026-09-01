@@ -112,7 +112,7 @@ export function AddMemberModal({
           <DialogTitle>
             {memberToEdit ? "Edit Profil Anggota" : "Tambah Anggota Keluarga"}
           </DialogTitle>
-          <DialogDescription className="text-xs">
+          <DialogDescription className="text-xs text-muted-foreground">
             Kelola profil anggota keluarga, dompet pengeluaran default, dan tautan akun bot Telegram.
           </DialogDescription>
         </DialogHeader>
@@ -126,8 +126,8 @@ export function AddMemberModal({
 
           {/* 1. Nama Lengkap */}
           <div className="space-y-1.5">
-            <Label htmlFor="fullName" className="text-xs font-medium">
-              Nama Lengkap <span className="text-destructive">*</span>
+            <Label htmlFor="fullName" className="text-xs font-medium text-foreground">
+              Nama Lengkap <span className="text-destructive ml-0.5">*</span>
             </Label>
             <Input
               id="fullName"
@@ -142,11 +142,11 @@ export function AddMemberModal({
           {/* 2. Role dan Dompet Default */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">
-                Peran (Role)
+              <Label className="text-xs font-medium text-foreground">
+                Peran (Role) <span className="text-destructive ml-0.5">*</span>
               </Label>
               <Select value={role} onValueChange={setRole}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-9 text-xs w-full">
                   <SelectValue placeholder="Pilih Peran" />
                 </SelectTrigger>
                 <SelectContent>
@@ -159,11 +159,11 @@ export function AddMemberModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">
-                Dompet Pengeluaran Default
+              <Label className="text-xs font-medium text-foreground">
+                Dompet Default <span className="text-destructive ml-0.5">*</span>
               </Label>
               <Select value={defaultWalletId} onValueChange={setDefaultWalletId}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-9 text-xs w-full">
                   <SelectValue placeholder="Pilih Dompet" />
                 </SelectTrigger>
                 <SelectContent>
@@ -182,7 +182,7 @@ export function AddMemberModal({
           {/* 3. Tautan Telegram Chat ID */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="tgId" className="text-xs font-medium">
+              <Label htmlFor="tgId" className="text-xs font-medium text-foreground">
                 Telegram Chat ID (Opsional)
               </Label>
               <span className="text-[11px] text-muted-foreground flex items-center gap-1" title="Untuk mendapatkan Chat ID, kirim /start ke bot @fnr_assistant_bot">
@@ -198,14 +198,14 @@ export function AddMemberModal({
               onChange={(e) => setTelegramChatId(e.target.value)}
               className="text-xs font-mono h-9"
             />
-            <p className="text-[10px] text-muted-foreground">
-              Jika diisi, semua transaksi foto struk / chat yang dikirim nomor Telegram ini akan otomatis diatribusikan ke anggota ini.
+            <p className="text-[11px] text-muted-foreground">
+              Jika diisi, semua transaksi foto struk atau chat yang dikirim nomor Telegram ini akan otomatis diatribusikan ke anggota ini.
             </p>
           </div>
 
           {/* 4. Nomor WhatsApp */}
           <div className="space-y-1.5">
-            <Label htmlFor="wa" className="text-xs font-medium">
+            <Label htmlFor="wa" className="text-xs font-medium text-foreground">
               Nomor WhatsApp (Opsional)
             </Label>
             <Input
@@ -218,10 +218,10 @@ export function AddMemberModal({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs px-3">
               Batal
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs">
+            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs px-3">
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               <span>{memberToEdit ? "Simpan Perubahan" : "Tambah Anggota"}</span>
             </Button>

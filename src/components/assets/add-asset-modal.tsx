@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Asset, AssetCategory } from "@/lib/types/database";
 
 interface AddAssetModalProps {
@@ -37,62 +38,65 @@ export function AddAssetModal({
   const [category, setCategory] = useState<AssetCategory>("gold");
   const [displayValue, setDisplayValue] = useState("");
   const [rawValue, setRawValue] = useState(0);
-  const [acquisitionDate, setAcquisitionDate] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
   const [notes, setNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawVal = e.target.value.replace(/[^0-9]/g, "");
-    if (!rawVal) {
+    const clean = e.target.value.replace(/[^0-9]/g, "");
+    if (!clean) {
       setDisplayValue("");
       setRawValue(0);
       return;
     }
-    const num = parseInt(rawVal, 10);
+    const num = parseInt(clean, 10);
     setRawValue(num);
-    setDisplayValue(num.toLocaleString("id-ID"));
+    setDisplayValue(new Intl.NumberFormat("id-ID").format(num));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setErrorMsg("Mohon masukkan nama aset.");
+      setErrorMsg("Nama aset wajib diisi");
       return;
     }
     if (rawValue <= 0) {
-      setErrorMsg("Mohon masukkan estimasi nilai aset.");
+      setErrorMsg("Nilai pasar aset harus lebih besar dari 0");
       return;
     }
 
     const newAsset: Asset = {
-      id: `asset-${Date.now()}`,
+      id: `ast-${Date.now()}`,
       family_id: "fam-1",
       name: name.trim(),
       category,
       estimated_value: rawValue,
-      acquisition_date: acquisitionDate || new Date().toISOString(),
-      notes: notes.trim() || undefined,
+      acquisition_date: purchaseDate || null,
+      notes: notes.trim() || null,
       metadata: {},
       created_at: new Date().toISOString(),
     };
 
     onAddAsset(newAsset);
     onClose();
+
+    // Reset Form
     setName("");
+    setCategory("gold");
     setDisplayValue("");
     setRawValue(0);
-    setAcquisitionDate("");
+    setPurchaseDate("");
     setNotes("");
     setErrorMsg(null);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="sm:max-w-[480px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Tambah Aset Keluarga</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs text-muted-foreground">
               Catat kepemilikan aset berharga keluarga (emas, properti, kendaraan, dll.).
             </DialogDescription>
           </DialogHeader>
@@ -105,26 +109,27 @@ export function AddAssetModal({
             )}
 
             <div className="grid gap-1.5">
-              <Label htmlFor="assetName" className="text-xs font-medium">
-                Nama Aset
+              <Label htmlFor="assetName" className="text-xs font-medium text-foreground">
+                Nama Aset <span className="text-destructive ml-0.5">*</span>
               </Label>
               <Input
                 id="assetName"
                 placeholder="Contoh: Logam Mulia Antam 50g, Rumah Cinere, Honda HR-V"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="h-9 text-xs"
                 required
                 autoFocus
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5 min-w-0">
-                <Label htmlFor="assetCategory" className="text-xs font-medium">
-                  Kategori Aset
+                <Label htmlFor="assetCategory" className="text-xs font-medium text-foreground">
+                  Kategori Aset <span className="text-destructive ml-0.5">*</span>
                 </Label>
                 <Select value={category} onValueChange={(val: any) => setCategory(val)}>
-                  <SelectTrigger id="assetCategory" aria-label="Pilih Kategori Aset">
+                  <SelectTrigger id="assetCategory" className="h-9 text-xs w-full">
                     <SelectValue placeholder="Pilih kategori" />
                   </SelectTrigger>
                   <SelectContent>
@@ -141,8 +146,8 @@ export function AddAssetModal({
               </div>
 
               <div className="grid gap-1.5 min-w-0">
-                <Label htmlFor="assetValue" className="text-xs font-medium">
-                  Estimasi Nilai Pasar (Rp)
+                <Label htmlFor="assetValue" className="text-xs font-medium text-foreground">
+                  Estimasi Nilai Pasar (Rp) <span className="text-destructive ml-0.5">*</span>
                 </Label>
                 <div className="relative flex items-center">
                   <span className="absolute left-3 font-semibold text-muted-foreground text-xs select-none">Rp</span>
@@ -152,43 +157,55 @@ export function AddAssetModal({
                     placeholder="0"
                     value={displayValue}
                     onChange={handleValueChange}
-                    className="pl-8 tabular-nums font-medium"
+                    className="pl-8 h-9 text-xs tabular-nums font-medium"
                     required
                   />
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-1.5">
-              <Label htmlFor="assetDate" className="text-xs font-medium">
-                Tanggal Perolehan (Opsional)
-              </Label>
-              <Input
-                id="assetDate"
-                type="date"
-                value={acquisitionDate}
-                onChange={(e) => setAcquisitionDate(e.target.value)}
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid gap-1.5 min-w-0">
+                <Label className="text-xs font-medium text-foreground">
+                  Tanggal Perolehan (Opsional)
+                </Label>
+                <DatePicker
+                  value={purchaseDate}
+                  onChange={setPurchaseDate}
+                  placeholder="Pilih tanggal perolehan"
+                />
+              </div>
 
-            <div className="grid gap-1.5">
-              <Label htmlFor="assetNotes" className="text-xs font-medium">
-                Catatan / Lokasi Penyimpanan
-              </Label>
-              <Input
-                id="assetNotes"
-                placeholder="Contoh: Safe Deposit Box BCA, Atas nama Ibu"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+              <div className="grid gap-1.5 min-w-0">
+                <Label htmlFor="assetNotes" className="text-xs font-medium text-foreground">
+                  Catatan / Lokasi Simpan
+                </Label>
+                <Input
+                  id="assetNotes"
+                  placeholder="Contoh: Brankas Rumah / Safe Deposit Box BCA"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="h-9 text-xs"
+                />
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="h-9 text-xs px-3"
+            >
               Batal
             </Button>
-            <Button type="submit">
+            <Button
+              type="submit"
+              size="sm"
+              className="gap-1.5 h-9 text-xs px-3"
+            >
               Simpan Aset
             </Button>
           </DialogFooter>

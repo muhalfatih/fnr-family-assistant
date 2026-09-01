@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from "react";
 import { Navbar } from "@/components/dashboard/navbar";
 import { VaultDocument } from "@/app/api/documents/route";
-import { VaultSummaryCards } from "@/components/vault/vault-summary-cards";
 import { DocumentCard } from "@/components/vault/document-card";
 import { AddDocumentModal } from "@/components/vault/add-document-modal";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,8 @@ import {
   RefreshCw,
   FolderLock,
   CheckCircle2,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import { useDocuments } from "@/lib/hooks/use-family-data";
 
@@ -54,13 +55,13 @@ export default function VaultPage() {
     setIsSendingReminder(true);
     setReminderNotification(null);
     try {
-      const res = await fetch("/api/documents/remind");
+      const res = await fetch("/api/documents/remind", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setReminderNotification(data.message || "Pemeriksaan dokumen selesai.");
         mutate();
       } else {
-        setReminderNotification(`Gagal: ${data.error}`);
+        setReminderNotification(`Gagal: ${data.error || "Terjadi kesalahan pada server."}`);
       }
     } catch (err: any) {
       setReminderNotification("Terjadi kesalahan saat memicu pengingat.");
@@ -68,6 +69,16 @@ export default function VaultPage() {
       setIsSendingReminder(false);
     }
   };
+
+  // Status counts for integrated filters
+  const counts = useMemo(() => {
+    const total = documents.length;
+    const expiringSoon = documents.filter((d) => d.status === "expiring_soon").length;
+    const expired = documents.filter((d) => d.status === "expired").length;
+    const active = documents.filter((d) => d.status === "active").length;
+    const permanent = documents.filter((d) => d.status === "permanent").length;
+    return { total, expiringSoon, expired, active, permanent };
+  }, [documents]);
 
   // Categories list
   const categories = [
@@ -84,15 +95,12 @@ export default function VaultPage() {
   // Filter and search logic
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
-      // Category filter
       if (selectedCategory !== "all" && doc.category !== selectedCategory) {
         return false;
       }
-      // Status filter
       if (selectedStatus !== "all" && doc.status !== selectedStatus) {
         return false;
       }
-      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchTitle = doc.title.toLowerCase().includes(q);
@@ -110,35 +118,37 @@ export default function VaultPage() {
       {/* Top Navbar */}
       <Navbar familyName="Keluarga F&R" />
 
-      {/* Main Container */}
+      {/* Main Container with Standard Shadcn Dashboard Layout */}
       <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <FolderLock className="size-7 text-primary" aria-hidden="true" />
-              <h1 className="text-3xl font-bold tracking-tight">
+              <FolderLock className="size-7 text-primary shrink-0" aria-hidden="true" />
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
                 Brankas Dokumen & Legalitas
               </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Arsip digital keluarga, pelacakan masa berlaku berkas, dan notifikasi pengingat otomatis ke Telegram.
+              </p>
               {isValidating && !isLoading && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse">
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sinkronisasi...</span>
+                  <span>Sinkronisasi</span>
                 </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Penyimpanan arsip digital keluarga, pelacakan masa berlaku berkas, dan notifikasi pengingat otomatis.
-            </p>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={() => mutate()}
-              className="gap-1.5 h-9 text-xs"
+              className="gap-1.5 h-9 text-xs px-3 rounded-md"
               title="Segarkan data dokumen"
             >
               <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -150,7 +160,7 @@ export default function VaultPage() {
               size="sm"
               onClick={handleTriggerReminder}
               disabled={isSendingReminder}
-              className="gap-1.5 h-9 text-xs"
+              className="gap-1.5 h-9 text-xs px-3 rounded-md"
               title="Picu scanner pengingat dokumen kedaluwarsa ke bot Telegram"
             >
               {isSendingReminder ? (
@@ -167,7 +177,7 @@ export default function VaultPage() {
                 setDocumentToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="gap-1.5 h-9 text-xs"
+              className="gap-1.5 h-9 text-xs px-3 rounded-md"
             >
               <Plus className="size-4" aria-hidden="true" />
               <span>Tambah Dokumen</span>
@@ -177,25 +187,36 @@ export default function VaultPage() {
 
         {/* Reminder Notification Toast/Banner */}
         {reminderNotification && (
-          <div className="p-3.5 rounded-lg border border-primary/20 bg-primary/10 text-xs font-medium text-foreground flex items-center gap-2 animate-in fade-in">
+          <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/10 text-xs font-medium text-foreground flex items-center gap-2 animate-in fade-in">
             <CheckCircle2 className="size-4 text-primary shrink-0" aria-hidden="true" />
             <span>{reminderNotification}</span>
           </div>
         )}
 
-        {/* Summary Stat Cards */}
-        {isInitialLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-[106px] rounded-xl" />
-            ))}
+        {/* Integrated Status Alert Bars if Expiring or Expired */}
+        {(counts.expiringSoon > 0 || counts.expired > 0) && (
+          <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-xl border bg-muted/30 text-xs">
+            <span className="font-semibold text-foreground flex items-center gap-1.5">
+              <AlertTriangle className="size-4 text-amber-500" aria-hidden="true" />
+              <span>Perhatian Dokumen:</span>
+            </span>
+            {counts.expired > 0 && (
+              <Badge variant="destructive" className="gap-1 text-[11px]">
+                <XCircle className="size-3" aria-hidden="true" />
+                <span>{counts.expired} Berkas Sudah Kedaluwarsa</span>
+              </Badge>
+            )}
+            {counts.expiringSoon > 0 && (
+              <Badge variant="secondary" className="gap-1 text-[11px] bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                <AlertTriangle className="size-3" aria-hidden="true" />
+                <span>{counts.expiringSoon} Berkas Segera Habis (&le; 30 Hari)</span>
+              </Badge>
+            )}
           </div>
-        ) : (
-          <VaultSummaryCards documents={documents} />
         )}
 
         {/* Filters and Search Bar */}
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3">
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             {/* Search Input */}
             <div className="relative flex-1 max-w-sm">
@@ -204,29 +225,38 @@ export default function VaultPage() {
                 placeholder="Cari nama atau nomor dokumen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 text-xs h-9"
+                className="pl-8 text-xs h-9 rounded-md"
               />
             </div>
 
-            {/* Status Filter Tabs */}
-            <div className="flex items-center rounded-lg border p-0.5 bg-muted/40 text-xs">
+            {/* Status Filter Tabs with Integrated Badge Counters */}
+            <div className="flex items-center rounded-lg border p-1 bg-muted/40 text-xs gap-1 overflow-x-auto">
               {[
-                { id: "all", label: "Semua" },
-                { id: "active", label: "Aktif" },
-                { id: "expiring_soon", label: "Segera Habis" },
-                { id: "expired", label: "Kedaluwarsa" },
-                { id: "permanent", label: "Permanen" },
+                { id: "all", label: "Semua", count: counts.total },
+                { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
+                { id: "expired", label: "Kedaluwarsa", count: counts.expired, danger: counts.expired > 0 },
+                { id: "active", label: "Aktif", count: counts.active },
+                { id: "permanent", label: "Permanen", count: counts.permanent },
               ].map((st) => (
                 <button
                   key={st.id}
                   onClick={() => setSelectedStatus(st.id)}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                  className={`px-3 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                     selectedStatus === st.id
-                      ? "bg-background text-foreground font-medium shadow-sm"
+                      ? "bg-background text-foreground font-semibold shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {st.label}
+                  <span>{st.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full tabular-nums font-mono ${
+                    st.danger
+                      ? "bg-destructive text-destructive-foreground"
+                      : st.alert
+                      ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {st.count}
+                  </span>
                 </button>
               ))}
             </div>
@@ -238,7 +268,7 @@ export default function VaultPage() {
               <button
                 key={c.id}
                 onClick={() => setSelectedCategory(c.id)}
-                className={`px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${
+                className={`px-3 py-1 rounded-full border transition-colors whitespace-nowrap text-xs ${
                   selectedCategory === c.id
                     ? "bg-primary text-primary-foreground font-medium border-primary"
                     : "bg-background text-muted-foreground hover:text-foreground border-border"
@@ -254,7 +284,7 @@ export default function VaultPage() {
         {isInitialLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="h-[210px] rounded-xl" />
+              <Skeleton key={i} className="h-[180px] rounded-xl" />
             ))}
           </div>
         ) : filteredDocuments.length === 0 ? (
@@ -273,7 +303,7 @@ export default function VaultPage() {
                 setSearchQuery("");
                 setIsAddModalOpen(true);
               }}
-              className="mt-4 text-xs gap-1.5"
+              className="mt-4 text-xs gap-1.5 h-9"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Dokumen Sekarang</span>

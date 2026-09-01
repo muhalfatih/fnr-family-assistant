@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { format, parseISO } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -20,17 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Wallet, Category } from "@/lib/types/database";
-import { cn } from "@/lib/utils";
+import { formatRupiah } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -53,10 +47,23 @@ export function AddTransactionModal({
   const [description, setDescription] = useState<string>("");
   const [walletId, setWalletId] = useState<string>(wallets[0]?.id || "");
   const [categoryId, setCategoryId] = useState<string>(categories[0]?.id || "");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [dateString, setDateString] = useState<string>(
+    new Date().toISOString().substring(0, 10)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (wallets.length > 0 && !walletId) {
+      setWalletId(wallets[0].id);
+    }
+  }, [wallets, walletId]);
+
+  useEffect(() => {
+    if (categories.length > 0 && !categoryId) {
+      setCategoryId(categories[0].id);
+    }
+  }, [categories, categoryId]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value.replace(/[^0-9]/g, "");
@@ -67,18 +74,22 @@ export function AddTransactionModal({
     }
     const num = parseInt(rawVal, 10);
     setRawAmount(num);
-    setDisplayAmount(num.toLocaleString("id-ID"));
+    setDisplayAmount(new Intl.NumberFormat("id-ID").format(num));
   };
 
-  const handleQuickAmount = (val: number) => {
-    setRawAmount(val);
-    setDisplayAmount(val.toLocaleString("id-ID"));
+  const handleQuickAmount = (amount: number) => {
+    setRawAmount(amount);
+    setDisplayAmount(new Intl.NumberFormat("id-ID").format(amount));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rawAmount || rawAmount <= 0) {
-      setErrorMsg("Mohon masukkan nominal yang valid.");
+    if (rawAmount <= 0) {
+      setErrorMsg("Nominal transaksi harus lebih besar dari 0");
+      return;
+    }
+    if (!walletId) {
+      setErrorMsg("Pilih dompet / rekening transaksi");
       return;
     }
 
@@ -86,62 +97,57 @@ export function AddTransactionModal({
     setErrorMsg(null);
 
     try {
+      const payload = {
+        wallet_id: walletId,
+        category_id: categoryId || null,
+        amount: rawAmount,
+        type,
+        description: description.trim() || (type === "expense" ? "Pengeluaran Manual" : "Pemasukan Manual"),
+        transaction_date: dateString,
+      };
+
       const res = await fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          amount: rawAmount,
-          description: description.trim() || undefined,
-          wallet_id: walletId || wallets[0]?.id,
-          category_id: categoryId || undefined,
-          transaction_date: selectedDate.toISOString(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Gagal menyimpan transaksi.");
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Gagal mencatat transaksi");
       }
 
       onSuccess();
       onClose();
+
       setDisplayAmount("");
       setRawAmount(0);
       setDescription("");
+      setErrorMsg(null);
     } catch (err: any) {
-      setErrorMsg(err.message || "Terjadi kesalahan.");
+      setErrorMsg(err.message || "Terjadi kesalahan sistem saat menyimpan transaksi");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const filteredCategories = categories.filter((c) => c.type === type);
-  const quickAmounts = [50000, 100000, 250000, 500000, 1000000, 2500000, 5000000];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[480px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>
-              Catat Transaksi Manual
-            </DialogTitle>
-            <DialogDescription>
-              Catat mutasi keuangan yang otomatis disinkronkan ke database & Google Sheets.
+            <DialogTitle>Catat Transaksi Baru</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Catat mutasi arus kas secara manual ke dalam pembukuan keluarga.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Type Toggle Tabs */}
-          <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-xs">
+          {/* Type Segmented Controls */}
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-center font-medium text-xs mt-3">
             <button
               type="button"
-              onClick={() => {
-                setType("expense");
-                const defaultCat = categories.find((c) => c.type === "expense");
-                if (defaultCat) setCategoryId(defaultCat.id);
-              }}
-              className={`flex items-center justify-center rounded-md py-1.5 font-medium transition-colors ${
+              onClick={() => setType("expense")}
+              className={`rounded-md py-1.5 transition-all ${
                 type === "expense"
                   ? "bg-background text-destructive shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -151,12 +157,8 @@ export function AddTransactionModal({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setType("income");
-                const defaultCat = categories.find((c) => c.type === "income");
-                if (defaultCat) setCategoryId(defaultCat.id);
-              }}
-              className={`flex items-center justify-center rounded-md py-1.5 font-medium transition-colors ${
+              onClick={() => setType("income")}
+              className={`rounded-md py-1.5 transition-all ${
                 type === "income"
                   ? "bg-background text-emerald-600 shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -176,8 +178,8 @@ export function AddTransactionModal({
 
             {/* Amount Field */}
             <div className="grid gap-1.5">
-              <Label htmlFor="displayAmount" className="text-xs font-medium">
-                Nominal Transaksi (Rp)
+              <Label htmlFor="displayAmount" className="text-xs font-medium text-foreground">
+                Nominal Transaksi (Rp) <span className="text-destructive ml-0.5">*</span>
               </Label>
               <div className="relative flex items-center">
                 <span className="absolute left-3 font-semibold text-muted-foreground text-sm select-none">Rp</span>
@@ -198,34 +200,35 @@ export function AddTransactionModal({
 
               {/* Quick Amount Pills */}
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {quickAmounts.map((q) => (
+                {[50000, 100000, 250000, 500000, 1000000].map((amt) => (
                   <button
-                    key={q}
+                    key={amt}
                     type="button"
-                    onClick={() => handleQuickAmount(q)}
-                    className="h-7 rounded-md border bg-muted/40 px-2.5 text-xs font-medium hover:bg-muted transition-colors"
+                    onClick={() => handleQuickAmount(amt)}
+                    className="rounded-md border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors tabular-nums"
                   >
-                    {q >= 1000000 ? `${q / 1000000} jt` : `${q / 1000} rb`}
+                    +{formatRupiah(amt)}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* 2-Column Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-1.5 min-w-0">
-                <Label htmlFor="walletSelect" className="text-xs font-medium">
-                  Dompet / Rekening
+            {/* Wallet & Category 2-Column Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Wallet Select */}
+              <div className="grid gap-1.5">
+                <Label htmlFor="wallet" className="text-xs font-medium text-foreground">
+                  Rekening / Dompet <span className="text-destructive ml-0.5">*</span>
                 </Label>
                 <Select value={walletId} onValueChange={setWalletId}>
-                  <SelectTrigger id="walletSelect" aria-label="Pilih Dompet">
-                    <SelectValue placeholder="Pilih rekening" />
+                  <SelectTrigger id="wallet" className="h-9 text-xs w-full">
+                    <SelectValue placeholder="Pilih Dompet" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
                       {wallets.map((w) => (
                         <SelectItem key={w.id} value={w.id}>
-                          <span className="truncate">{w.name}</span>
+                          {w.name}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -233,19 +236,20 @@ export function AddTransactionModal({
                 </Select>
               </div>
 
-              <div className="grid gap-1.5 min-w-0">
-                <Label htmlFor="categorySelect" className="text-xs font-medium">
+              {/* Category Select */}
+              <div className="grid gap-1.5">
+                <Label htmlFor="category" className="text-xs font-medium text-foreground">
                   Kategori
                 </Label>
                 <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger id="categorySelect" aria-label="Pilih Kategori">
-                    <SelectValue placeholder="Pilih kategori" />
+                  <SelectTrigger id="category" className="h-9 text-xs w-full">
+                    <SelectValue placeholder="Pilih Kategori" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {filteredCategories.map((c) => (
+                      {categories.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          <span className="truncate">{c.name}</span>
+                          {c.name}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -256,7 +260,7 @@ export function AddTransactionModal({
 
             {/* Description Field */}
             <div className="grid gap-1.5">
-              <Label htmlFor="description" className="text-xs font-medium">
+              <Label htmlFor="description" className="text-xs font-medium text-foreground">
                 Keterangan / Catatan
               </Label>
               <Input
@@ -264,72 +268,44 @@ export function AddTransactionModal({
                 name="description"
                 autoComplete="off"
                 type="text"
+                className="h-9 text-xs"
                 placeholder="Contoh: Makan siang, Bensin Shell, Token PLN"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
 
-            {/* Date Field with Calendar Popover */}
+            {/* Date Field with DatePicker */}
             <div className="grid gap-1.5">
-              <Label className="text-xs font-medium">
-                Tanggal Transaksi
+              <Label className="text-xs font-medium text-foreground">
+                Tanggal Transaksi <span className="text-destructive ml-0.5">*</span>
               </Label>
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground"
-                    )}
-                    aria-label="Pilih Tanggal Transaksi"
-                  >
-                    <CalendarIcon className="mr-2 size-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                    <span className="font-medium truncate">
-                      {selectedDate
-                        ? format(selectedDate, "EEEE, dd MMMM yyyy", { locale: localeId })
-                        : "Pilih tanggal"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => {
-                      if (date) {
-                        setSelectedDate(date);
-                        setIsCalendarOpen(false);
-                      }
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <DatePicker
+                value={dateString}
+                onChange={setDateString}
+                placeholder="Pilih tanggal transaksi"
+              />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={onClose}
+              className="h-9 text-xs px-3"
             >
               Batal
             </Button>
             <Button
               type="submit"
+              size="sm"
               disabled={isSubmitting}
-              className="gap-2"
+              className="gap-1.5 h-9 text-xs px-3"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  <span>Menyimpan…</span>
-                </>
-              ) : (
-                "Simpan Transaksi"
-              )}
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
+              <span>Simpan Transaksi</span>
             </Button>
           </DialogFooter>
         </form>

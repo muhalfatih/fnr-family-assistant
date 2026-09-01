@@ -3,8 +3,8 @@
 import React from "react";
 import { formatRupiah } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { ShieldCheck, Gem, Landmark, PieChart } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ShieldCheck, Gem, Landmark, Wallet, ArrowUpRight } from "lucide-react";
 
 interface NetWorthSummaryProps {
   totalCash: number;
@@ -20,92 +20,97 @@ export function NetWorthSummary({
   const grossAssets = totalCash + totalAssets;
   const netWorth = Math.max(0, grossAssets - totalLiabilities);
   const debtToAssetRatio = grossAssets > 0 ? Math.round((totalLiabilities / grossAssets) * 100) : 0;
+  const assetRatio = 100 - Math.min(100, debtToAssetRatio);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {/* 1. Total Kekayaan Bersih (Net Worth) */}
-      <Card>
-        <CardContent className="p-5 flex items-center justify-between">
-          <div className="space-y-1 min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">Kekayaan Bersih (Net Worth)</p>
-            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-emerald-600 dark:text-emerald-400">
+    <Card className="rounded-xl border border-border/80 bg-card text-card-foreground">
+      <CardContent className="p-5 space-y-5">
+        {/* Top: Net Worth Hero & Visual Asset vs Debt Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Total Kekayaan Bersih (Net Worth)
+              </span>
+              <Badge variant="outline" className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                Aset Bersih Keluarga
+              </Badge>
+            </div>
+            <p className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
               {formatRupiah(netWorth)}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
-              Total aset dikurangi kewajiban
-            </p>
           </div>
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <ShieldCheck className="size-5" aria-hidden="true" />
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* 2. Total Nilai Aset */}
-      <Card>
-        <CardContent className="p-5 flex items-center justify-between">
-          <div className="space-y-1 min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">Total Nilai Aset</p>
-            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-foreground">
-              {formatRupiah(grossAssets)}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              Kas `{formatRupiah(totalCash)}` + Fisik `{formatRupiah(totalAssets)}`
-            </p>
+          {/* Asset vs Debt Health Indicator */}
+          <div className="min-w-[240px] space-y-1.5 text-right md:text-left">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Komposisi Neraca:</span>
+              <span className="font-mono font-medium text-foreground">
+                Hutang {debtToAssetRatio}% / Ekuitas {assetRatio}%
+              </span>
+            </div>
+            {/* Visual Balance Bar */}
+            <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
+              <div
+                style={{ width: `${assetRatio}%` }}
+                className="bg-emerald-600 dark:bg-emerald-500 h-full transition-all duration-500"
+                title={`Aset Bersih: ${assetRatio}%`}
+              />
+              <div
+                style={{ width: `${Math.min(100, debtToAssetRatio)}%` }}
+                className="bg-destructive h-full transition-all duration-500"
+                title={`Kewajiban Hutang: ${debtToAssetRatio}%`}
+              />
+            </div>
           </div>
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Gem className="size-5" aria-hidden="true" />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* 3. Total Liabilitas / Hutang */}
-      <Card>
-        <CardContent className="p-5 flex items-center justify-between">
-          <div className="space-y-1 min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">Total Sisa Hutang</p>
-            <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-destructive">
+        {/* Bottom: 3-Pillar Ledger Strip (Kas + Aset Fisik - Hutang) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t">
+          {/* Pillar 1: Kas */}
+          <div className="p-3 rounded-lg bg-muted/40 border space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Wallet className="size-3.5 text-blue-500" aria-hidden="true" />
+                <span>Saldo Kas Aktif</span>
+              </span>
+            </div>
+            <p className="text-lg font-bold tracking-tight tabular-nums text-foreground">
+              {formatRupiah(totalCash)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">Rekening bank & tunai</p>
+          </div>
+
+          {/* Pillar 2: Aset Fisik & Investasi */}
+          <div className="p-3 rounded-lg bg-muted/40 border space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Gem className="size-3.5 text-amber-500" aria-hidden="true" />
+                <span>Nilai Aset Fisik</span>
+              </span>
+            </div>
+            <p className="text-lg font-bold tracking-tight tabular-nums text-foreground">
+              {formatRupiah(totalAssets)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">Properti, emas & kendaraan</p>
+          </div>
+
+          {/* Pillar 3: Kewajiban / Hutang */}
+          <div className="p-3 rounded-lg bg-muted/40 border space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Landmark className="size-3.5 text-destructive" aria-hidden="true" />
+                <span>Total Sisa Hutang</span>
+              </span>
+            </div>
+            <p className="text-lg font-bold tracking-tight tabular-nums text-destructive">
               {formatRupiah(totalLiabilities)}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
-              KPR, pinjaman & cicilan aktif
-            </p>
+            <p className="text-[11px] text-muted-foreground">KPR & cicilan aktif</p>
           </div>
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-            <Landmark className="size-5" aria-hidden="true" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 4. Rasio Beban Hutang */}
-      <Card>
-        <CardContent className="p-5 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-muted-foreground">Rasio Hutang terhadap Aset</p>
-              <p className="text-2xl font-bold tracking-tight tabular-nums truncate text-foreground">
-                {debtToAssetRatio}%
-              </p>
-            </div>
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <PieChart className="size-5" aria-hidden="true" />
-            </div>
-          </div>
-          <div>
-            <Progress
-              value={Math.min(100, debtToAssetRatio)}
-              className="h-1.5"
-              indicatorClassName={
-                debtToAssetRatio > 50
-                  ? "bg-destructive"
-                  : debtToAssetRatio > 30
-                  ? "bg-amber-500"
-                  : "bg-emerald-600"
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -14,7 +14,8 @@ function getBotToken(): string {
 export async function sendTelegramMessage(
   chatId: number | string,
   text: string,
-  replyMarkup?: any
+  replyMarkup?: any,
+  parseMode: "Markdown" | "HTML" = "Markdown"
 ): Promise<any> {
   const token = getBotToken();
   const url = `${TELEGRAM_API_BASE}/bot${token}/sendMessage`;
@@ -22,7 +23,7 @@ export async function sendTelegramMessage(
   const payload: any = {
     chat_id: chatId,
     text: text,
-    parse_mode: "Markdown",
+    parse_mode: parseMode,
   };
 
   if (replyMarkup) {
