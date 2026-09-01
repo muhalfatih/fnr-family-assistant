@@ -13,6 +13,7 @@ import {
   downloadTelegramFile,
   sendTelegramChatAction,
   deleteTelegramMessage,
+  withContinuousChatAction,
 } from "@/lib/telegram/bot";
 import { formatRupiah, formatDateIndo } from "@/lib/utils";
 
@@ -475,8 +476,6 @@ export async function POST(req: NextRequest) {
       const downloaded = await downloadTelegramFile(photo.file_id);
 
       if (downloaded) {
-        sendTelegramChatAction(chatId, "typing").catch(() => {});
-
         // Upload to Google Drive if configured
         const driveResult = await uploadReceiptToDrive(
           downloaded.buffer,
@@ -488,11 +487,13 @@ export async function POST(req: NextRequest) {
           driveViewUrl = driveResult.webViewLink;
         }
 
-        // Parse with Gemini 3.7 Flash
-        parsed = await parseFinancialInputWithGemini({
-          text: message.caption,
-          imageBuffer: downloaded.buffer,
-          imageMimeType: downloaded.mimeType,
+        // Parse with Gemini 3.7 Flash with continuous typing pulse
+        parsed = await withContinuousChatAction(chatId, "typing", async () => {
+          return await parseFinancialInputWithGemini({
+            text: message.caption,
+            imageBuffer: downloaded.buffer,
+            imageMimeType: downloaded.mimeType,
+          });
         });
       }
     } else if (message.voice || message.audio) {
@@ -512,11 +513,11 @@ export async function POST(req: NextRequest) {
       const downloaded = await downloadTelegramFile(audioFile.file_id);
 
       if (downloaded) {
-        sendTelegramChatAction(chatId, "typing").catch(() => {});
-
-        parsed = await parseFinancialInputWithGemini({
-          audioBuffer: downloaded.buffer,
-          audioMimeType: downloaded.mimeType,
+        parsed = await withContinuousChatAction(chatId, "typing", async () => {
+          return await parseFinancialInputWithGemini({
+            audioBuffer: downloaded.buffer,
+            audioMimeType: downloaded.mimeType,
+          });
         });
         rawPrompt = parsed?.transcription || "[Pesan Suara]";
       }
@@ -525,7 +526,6 @@ export async function POST(req: NextRequest) {
 
       // If it is a conversational financial question, handle with Gemini AI Q&A
       if (isQuestion) {
-        sendTelegramChatAction(chatId, "typing").catch(() => {});
         const tempMsg = await sendTelegramMessage(
           chatId,
           "🤖 *Menganalisis data keuangan Anda...*\n⏳ _Menghitung saldo, anggaran & mutasi transaksi terkini..._"
@@ -534,8 +534,11 @@ export async function POST(req: NextRequest) {
           loadingMessageId = tempMsg.result.message_id;
         }
 
-        const finData = await getFamilyFinancialData(familyId);
-        const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
+        // Continuous typing indicator in chat header until Gemini finishes
+        const aiAnswer = await withContinuousChatAction(chatId, "typing", async () => {
+          const finData = await getFamilyFinancialData(familyId);
+          return await answerFinancialQuestionWithGemini(message.text, finData);
+        });
 
         // Smooth in-place edit: loading message transforms directly into final AI answer!
         await replyOrEditLoading(
@@ -548,16 +551,18 @@ export async function POST(req: NextRequest) {
       }
 
       // Fast typing feedback for transaction text
-      sendTelegramChatAction(chatId, "typing").catch(() => {});
-      parsed = await parseFinancialInputWithGemini({ text: message.text });
+      parsed = await withContinuousChatAction(chatId, "typing", async () => {
+        return await parseFinancialInputWithGemini({ text: message.text });
+      });
     }
 
     if (!parsed || !parsed.amount || parsed.amount <= 0) {
       // If unable to parse transaction, try answering as conversational prompt
       if (message.text) {
-        sendTelegramChatAction(chatId, "typing").catch(() => {});
-        const finData = await getFamilyFinancialData(familyId);
-        const aiAnswer = await answerFinancialQuestionWithGemini(message.text, finData);
+        const aiAnswer = await withContinuousChatAction(chatId, "typing", async () => {
+          const finData = await getFamilyFinancialData(familyId);
+          return await answerFinancialQuestionWithGemini(message.text, finData);
+        });
         await replyOrEditLoading(chatId, loadingMessageId, `🤖 *F&R Assistant:*\n\n${aiAnswer}`, MAIN_KEYBOARD);
         return NextResponse.json({ ok: true });
       }

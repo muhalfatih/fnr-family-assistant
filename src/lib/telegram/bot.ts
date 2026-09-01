@@ -191,3 +191,28 @@ export async function deleteTelegramMessage(
   }
 }
 
+/**
+ * Keeps Telegram chat action ('typing', 'upload_photo', etc.) continuously
+ * pulsing in the chat header every 4 seconds until the async operation completes.
+ */
+export async function withContinuousChatAction<T>(
+  chatId: number | string,
+  action: "typing" | "upload_photo" | "record_voice" | "upload_document",
+  operation: () => Promise<T>
+): Promise<T> {
+  // Fire first action immediately
+  sendTelegramChatAction(chatId, action).catch(() => {});
+
+  // Pulse every 4 seconds (Telegram action timeout is 5s)
+  const interval = setInterval(() => {
+    sendTelegramChatAction(chatId, action).catch(() => {});
+  }, 4000);
+
+  try {
+    return await operation();
+  } finally {
+    clearInterval(interval);
+  }
+}
+
+
