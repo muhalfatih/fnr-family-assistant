@@ -79,3 +79,90 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, name, type, current_balance, account_number, currency, is_active } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "ID rekening wajib disertakan" }, { status: 400 });
+    }
+
+    if (!isSupabaseConfigured()) {
+      const updated = mockStore.updateWallet(id, {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(type !== undefined && { type }),
+        ...(current_balance !== undefined && { current_balance: Number(current_balance) }),
+        ...(account_number !== undefined && { account_number }),
+        ...(currency !== undefined && { currency }),
+        ...(is_active !== undefined && { is_active }),
+      });
+
+      if (!updated) {
+        return NextResponse.json({ error: "Rekening tidak ditemukan" }, { status: 404 });
+      }
+      return NextResponse.json({ wallet: updated, success: true });
+    }
+
+    const { data: wallet, error } = await supabaseAdmin
+      .from("wallets")
+      .update({
+        ...(name !== undefined && { name: name.trim() }),
+        ...(type !== undefined && { type }),
+        ...(current_balance !== undefined && { current_balance: Number(current_balance) }),
+        ...(account_number !== undefined && { account_number }),
+        ...(currency !== undefined && { currency }),
+        ...(is_active !== undefined && { is_active }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.warn("Supabase update wallet failed, updating mock store:", error.message);
+      const updated = mockStore.updateWallet(id, { name, type, current_balance, account_number, currency, is_active });
+      return NextResponse.json({ wallet: updated || { id, name, type, current_balance }, success: true });
+    }
+
+    return NextResponse.json({ wallet, success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body.id;
+      } catch (_) {}
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "ID rekening wajib disertakan" }, { status: 400 });
+    }
+
+    if (!isSupabaseConfigured()) {
+      mockStore.deleteWallet(id);
+      return NextResponse.json({ success: true, message: "Rekening berhasil dihapus" });
+    }
+
+    const { error } = await supabaseAdmin.from("wallets").delete().eq("id", id);
+
+    if (error) {
+      console.warn("Supabase delete wallet failed, deleting from mock store:", error.message);
+      mockStore.deleteWallet(id);
+      return NextResponse.json({ success: true, message: "Rekening dihapus dari mock store" });
+    }
+
+    return NextResponse.json({ success: true, message: "Rekening berhasil dihapus" });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  }
+}

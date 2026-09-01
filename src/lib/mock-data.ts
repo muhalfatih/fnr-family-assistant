@@ -844,6 +844,26 @@ class MockDataStore {
     this.data.wallets.unshift(newWallet);
     return newWallet;
   }
+  public updateWallet(id: string, updates: Partial<Wallet>) {
+    const idx = this.data.wallets.findIndex((w) => w.id === id);
+    if (idx !== -1) {
+      this.data.wallets[idx] = {
+        ...this.data.wallets[idx],
+        ...updates,
+        current_balance:
+          updates.current_balance !== undefined
+            ? Number(updates.current_balance)
+            : this.data.wallets[idx].current_balance,
+        updated_at: new Date().toISOString(),
+      };
+      return this.data.wallets[idx];
+    }
+    return null;
+  }
+  public deleteWallet(id: string) {
+    this.data.wallets = this.data.wallets.filter((w) => w.id !== id);
+    return true;
+  }
 
   // Categories
   public getCategories() {

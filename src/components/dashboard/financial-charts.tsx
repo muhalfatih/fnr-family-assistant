@@ -42,9 +42,9 @@ export function FinancialCharts({
   const hasCashFlowData = cashFlowData.some((f) => f.income > 0 || f.expense > 0);
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-      {/* 1. Bar Chart: Arus Kas Bulanan (4 Cols) */}
-      <Card className="col-span-4 flex flex-col justify-between rounded-xl border border-border/80 bg-card">
+    <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+      {/* 1. Bar Chart: Arus Kas Bulanan (50% Column) */}
+      <Card className="flex flex-col justify-between rounded-xl border border-border/80 bg-card h-full">
         <CardHeader className="p-5 pb-3">
           <CardTitle className="text-base font-semibold">Tren Arus Kas</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
@@ -115,8 +115,8 @@ export function FinancialCharts({
         </CardContent>
       </Card>
 
-      {/* 2. Donut Chart: Proporsi Belanja per Kategori (3 Cols) */}
-      <Card className="col-span-3 flex flex-col justify-between rounded-xl border border-border/80 bg-card">
+      {/* 2. Donut Chart: Proporsi Belanja per Kategori (50% Column) */}
+      <Card className="flex flex-col justify-between rounded-xl border border-border/80 bg-card h-full">
         <CardHeader className="p-5 pb-3">
           <CardTitle className="text-base font-semibold">Distribusi Belanja</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">

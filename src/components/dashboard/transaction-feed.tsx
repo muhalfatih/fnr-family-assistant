@@ -168,7 +168,8 @@ export function TransactionFeed({ transactions, onDeleteTransaction }: Transacti
                             {tx.wallet && (
                               <Badge
                                 variant="outline"
-                                className="hidden sm:inline-flex text-[10px] font-normal px-1.5 py-0"
+                                className="inline-flex shrink-0 whitespace-nowrap text-nowrap max-w-[130px] truncate text-[10px] font-medium px-1.5 py-0 border-border/80 bg-muted/30 text-muted-foreground"
+                                title={tx.wallet.name}
                               >
                                 {tx.wallet.name}
                               </Badge>
