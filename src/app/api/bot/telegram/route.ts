@@ -842,7 +842,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (driveViewUrl) {
-      replyText += `\n📁 [Buka Foto di Google Drive](${driveViewUrl})`;
+      if (driveViewUrl.startsWith("http")) {
+        replyText += `\n📁 [Buka Foto di Google Drive](${driveViewUrl})`;
+      } else {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:1000";
+        replyText += `\n📁 [Buka Salinan Foto Struk](${appUrl}${driveViewUrl})`;
+      }
     }
 
     const inlineKeyboard = [
