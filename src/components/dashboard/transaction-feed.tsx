@@ -284,59 +284,66 @@ export function TransactionFeed({
                       </div>
                     </div>
 
-                    {/* Receipt Items Accordion */}
+                    {/* Seamless Nested Receipt Items (Guide Thread & Enhanced Spacing) */}
                     {isExpanded && hasItems && tx.parsed_metadata?.items && (
-                      <div className="mt-3 pt-3 border-t border-border/60">
-                        <div className="rounded-xl bg-muted/30 p-3.5 sm:p-4 space-y-3 border border-border/80">
-                          {/* Receipt Header Banner */}
-                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border/60">
-                            <div className="flex items-center gap-2">
-                              <ShoppingBag className="size-4 text-primary shrink-0" aria-hidden="true" />
-                              <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
-                                {tx.parsed_metadata?.merchant ? `Struk: ${tx.parsed_metadata.merchant}` : "Rincian Nota Belanja"}
-                              </span>
-                            </div>
-
-                            {tx.parsed_metadata?.drive_view_url && (
-                              <a
-                                href={tx.parsed_metadata.drive_view_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline bg-background border border-border px-2.5 py-1 rounded-md transition-colors"
-                              >
-                                <FileText className="size-3.5" aria-hidden="true" />
-                                <span>Lihat Nota Asli</span>
-                                <ExternalLink className="size-3 text-muted-foreground" aria-hidden="true" />
-                              </a>
-                            )}
+                      <div className="mt-4 pt-1 ml-3 sm:ml-4 border-l-2 border-primary/25 pl-4 pr-1 pb-1 space-y-3">
+                        {/* Sub-Header: Store & Drive Link */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs text-foreground font-semibold">
+                            <ShoppingBag className="size-3.5 text-primary shrink-0" aria-hidden="true" />
+                            <span className="tracking-tight">
+                              {tx.parsed_metadata?.merchant ? tx.parsed_metadata.merchant : "Rincian Item Belanja"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              ({tx.parsed_metadata.items.length} item)
+                            </span>
                           </div>
 
-                          {/* Itemized Table List */}
-                          <div className="divide-y divide-border/60">
-                            {tx.parsed_metadata.items.map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between gap-3 py-2.5">
-                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                  <span className="inline-flex items-center justify-center font-semibold text-[11px] bg-background border border-border px-1.5 py-0.5 rounded text-foreground shrink-0 tabular-nums">
-                                    {item.qty && Number(item.qty) > 0 ? `${item.qty}x` : "1x"}
+                          {tx.parsed_metadata?.drive_view_url && (
+                            <a
+                              href={tx.parsed_metadata.drive_view_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline hover:text-primary/80 transition-colors"
+                              title="Lihat Nota Asli di Google Drive"
+                            >
+                              <span>Foto Struk</span>
+                              <ExternalLink className="size-2.5" aria-hidden="true" />
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Itemized List */}
+                        <div className="space-y-1.5">
+                          {tx.parsed_metadata.items.map((item: any, idx: number) => {
+                            const qty = item.qty && Number(item.qty) > 0 ? Number(item.qty) : 1;
+                            return (
+                              <div
+                                key={idx}
+                                className="flex items-baseline justify-between gap-3 text-xs leading-relaxed"
+                              >
+                                <div className="flex items-baseline gap-2 min-w-0 flex-1">
+                                  <span className="text-[10px] font-semibold text-muted-foreground tabular-nums shrink-0 px-1.5 py-0.5 rounded bg-muted/60 leading-none">
+                                    {qty}×
                                   </span>
-                                  <span className="font-medium text-sm text-foreground leading-snug break-words">
+                                  <span className="text-foreground text-xs font-medium truncate">
                                     {item.name}
                                   </span>
                                 </div>
-                                <span className="font-mono text-sm font-semibold text-foreground tabular-nums shrink-0 pl-2">
+                                <span className="text-xs font-semibold text-foreground tabular-nums shrink-0 pl-2">
                                   {formatRupiah(item.price)}
                                 </span>
                               </div>
-                            ))}
-                          </div>
+                            );
+                          })}
+                        </div>
 
-                          {/* Receipt Summary Footer */}
-                          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs font-medium text-muted-foreground">
-                            <span>Total {tx.parsed_metadata.items.length} item tercatat</span>
-                            <span className="font-semibold text-foreground tabular-nums">
-                              {formatRupiah(tx.amount)}
-                            </span>
-                          </div>
+                        {/* Sub-Footer Summary */}
+                        <div className="flex items-center justify-between pt-1 border-t border-border/40 text-xs text-muted-foreground">
+                          <span>Total Rincian</span>
+                          <span className="font-semibold text-foreground tabular-nums">
+                            {formatRupiah(tx.amount)}
+                          </span>
                         </div>
                       </div>
                     )}
