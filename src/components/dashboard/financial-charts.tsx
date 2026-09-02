@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatCompactRupiah, formatCompactNumber } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import {
   ResponsiveContainer,
@@ -14,6 +14,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  CartesianGrid,
 } from "recharts";
 
 export interface MonthlyFlowData {
@@ -64,6 +65,12 @@ export function FinancialCharts({
                   data={cashFlowData}
                   margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
                 >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="hsl(var(--border))"
+                    opacity={0.6}
+                  />
                   <XAxis
                     dataKey="month"
                     stroke="#888888"
@@ -76,7 +83,7 @@ export function FinancialCharts({
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(val) => `${val / 1000000}jt`}
+                    tickFormatter={(val) => formatCompactRupiah(val)}
                   />
                   <Tooltip
                     formatter={(val: any) => [
@@ -131,15 +138,15 @@ export function FinancialCharts({
             </div>
           ) : (
             <>
-              <div className="h-[190px] w-full relative flex items-center justify-center">
+              <div className="h-[200px] w-full relative flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={filteredCategoryData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
+                      innerRadius={58}
+                      outerRadius={82}
                       paddingAngle={3}
                       dataKey="value"
                     >
@@ -148,44 +155,60 @@ export function FinancialCharts({
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(val: any) => [
-                        formatRupiah(Number(val) || 0),
-                        "",
-                      ]}
+                      formatter={(val: any, name: any) => {
+                        const numericVal = Number(val) || 0;
+                        const percent = totalExpense > 0 ? Math.round((numericVal / totalExpense) * 100) : 0;
+                        return [`${formatRupiah(numericVal)} (${percent}%)`, name];
+                      }}
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         borderColor: "hsl(var(--border))",
                         borderRadius: "0.5rem",
                         fontSize: "12px",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                       }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
                 {/* Center Label */}
-                <div className="absolute flex flex-col items-center pointer-events-none">
-                  <span className="text-[11px] text-muted-foreground uppercase font-semibold">Total</span>
-                  <span className="text-xs font-bold tabular-nums text-foreground">
-                    {formatRupiah(totalExpense)}
+                <div className="absolute flex flex-col items-center pointer-events-none text-center">
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                    Total
+                  </span>
+                  <span className="text-xl sm:text-2xl font-bold tracking-tight tabular-nums text-foreground">
+                    {formatCompactNumber(totalExpense)}
                   </span>
                 </div>
               </div>
 
-              {/* Category Legend List */}
-              <div className="mt-3 w-full grid grid-cols-1 gap-1.5 text-xs">
+              {/* Enhanced Full-Width Category Row List (Direct Numbers Without Rp, Geist Sans) */}
+              <div className="mt-4 w-full divide-y divide-border/60 text-xs">
                 {filteredCategoryData.map((cat) => {
                   const percent = totalExpense > 0 ? Math.round((cat.value / totalExpense) * 100) : 0;
                   return (
-                    <div key={cat.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      key={cat.name}
+                      className="flex items-center justify-between py-2.5 px-1 hover:bg-muted/30 transition-colors rounded-md"
+                    >
+                      {/* Left: Indicator, Name & Percentage */}
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div
                           className="size-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <span className="text-muted-foreground truncate">{cat.name}</span>
+                        <span className="text-foreground font-medium text-xs sm:text-sm truncate">
+                          {cat.name}
+                        </span>
+                        <span className="text-muted-foreground text-[11px] font-medium tabular-nums shrink-0">
+                          {percent}%
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 tabular-nums">
-                        <span className="font-semibold text-foreground">{formatRupiah(cat.value)}</span>
-                        <span className="text-muted-foreground text-[11px] w-7 text-right">{percent}%</span>
+
+                      {/* Right: Direct Compact Number (No "Rp", Geist Sans) */}
+                      <div className="flex items-center shrink-0 pl-3">
+                        <span className="font-bold text-sm sm:text-base text-foreground tabular-nums tracking-tight">
+                          {formatCompactNumber(cat.value)}
+                        </span>
                       </div>
                     </div>
                   );
