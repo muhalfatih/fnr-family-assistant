@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { google } from "googleapis";
 
 export interface ServiceDiagnosticResult {
-  id: "gemini" | "telegram" | "supabase" | "google_cloud";
+  id: "gemini" | "telegram" | "whatsapp" | "supabase" | "google_cloud";
   name: string;
   category: string;
   status: "connected" | "missing_config" | "error";
@@ -112,7 +112,61 @@ export async function GET() {
     }
   }
 
-  // 3. Check Supabase & PostgreSQL Database (Supports Vercel Auto-Integration)
+  // 3. Check WhatsApp Cloud API (Meta Graph API)
+  const waStart = Date.now();
+  const waToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const waPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (!waToken || !waPhoneId) {
+    results.push({
+      id: "whatsapp",
+      name: "WhatsApp Cloud API (Meta)",
+      category: "Chat & Notification",
+      status: "missing_config",
+      message: "WHATSAPP_ACCESS_TOKEN atau WHATSAPP_PHONE_NUMBER_ID belum diatur pada .env.local",
+    });
+  } else {
+    try {
+      const waRes = await fetch(`https://graph.facebook.com/v21.0/${waPhoneId}`, {
+        headers: {
+          Authorization: `Bearer ${waToken}`,
+        },
+        cache: "no-store",
+      });
+      const waData = await waRes.json();
+      const latency = Date.now() - waStart;
+
+      if (waRes.ok && waData.id) {
+        results.push({
+          id: "whatsapp",
+          name: "WhatsApp Cloud API (Meta)",
+          category: "Chat & Notification",
+          status: "connected",
+          message: `Bot WhatsApp aktif: ${waData.display_phone_number || waData.verified_name || waPhoneId}`,
+          latencyMs: latency,
+          details: {
+            phoneNumberId: waData.id,
+            verifiedName: waData.verified_name,
+            displayPhoneNumber: waData.display_phone_number,
+            qualityRating: waData.quality_rating,
+          },
+        });
+      } else {
+        throw new Error(waData.error?.message || "Kredensial WhatsApp API tidak valid");
+      }
+    } catch (err: any) {
+      results.push({
+        id: "whatsapp",
+        name: "WhatsApp Cloud API (Meta)",
+        category: "Chat & Notification",
+        status: "error",
+        message: err.message || "Gagal menghubungi WhatsApp Cloud API",
+        latencyMs: Date.now() - waStart,
+      });
+    }
+  }
+
+  // 4. Check Supabase & PostgreSQL Database (Supports Vercel Auto-Integration)
   const supabaseStart = Date.now();
   const supabaseUrl =
     process.env.SUPABASE_URL ||

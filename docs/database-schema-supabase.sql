@@ -173,6 +173,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_family_date ON public.transactions(f
 CREATE INDEX IF NOT EXISTS idx_transactions_wallet ON public.transactions(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON public.transactions(category_id);
 CREATE INDEX IF NOT EXISTS idx_family_members_tg ON public.family_members(telegram_chat_id);
+CREATE INDEX IF NOT EXISTS idx_family_members_wa ON public.family_members(whatsapp_number);
 CREATE INDEX IF NOT EXISTS idx_budgets_lookup ON public.budgets(family_id, month_year);
 
 -- ==============================================================================

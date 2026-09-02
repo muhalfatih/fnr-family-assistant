@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Clock,
   ExternalLink,
+  MessageSquare,
 } from "lucide-react";
 import { ServiceDiagnosticResult } from "@/app/api/diagnostics/route";
 
@@ -65,6 +66,8 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
         return <Sparkles className="size-4 text-purple-600" aria-hidden="true" />;
       case "telegram":
         return <Bot className="size-4 text-blue-600" aria-hidden="true" />;
+      case "whatsapp":
+        return <MessageSquare className="size-4 text-emerald-600" aria-hidden="true" />;
       case "supabase":
         return <Database className="size-4 text-emerald-600" aria-hidden="true" />;
       case "google_cloud":
