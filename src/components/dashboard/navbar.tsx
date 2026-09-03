@@ -206,7 +206,7 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                   <DropdownMenuItem className="cursor-pointer">Profil & Anggota Keluarga</DropdownMenuItem>
                 </Link>
                 <DropdownMenuItem>Pengaturan Bot & Webhook</DropdownMenuItem>
-                <DropdownMenuItem>Integrasi Google Drive & Sheets</DropdownMenuItem>
+                <DropdownMenuItem>Integrasi Cloudflare R2 & Google Sheets</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

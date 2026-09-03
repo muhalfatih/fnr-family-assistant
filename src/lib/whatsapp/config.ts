@@ -5,7 +5,7 @@
 export interface WhatsAppBotConfig {
   enableInstantAck: boolean;
   enableFastPathRegex: boolean;
-  enableAsyncDriveUpload: boolean;
+  enableAsyncMediaUpload: boolean;
   receiptAckMessage: string;
   audioAckMessage: string;
 }
@@ -17,8 +17,10 @@ export const whatsAppConfig: WhatsAppBotConfig = {
   // Flag to enable fast-path regex parsing for common Indonesian transactions
   enableFastPathRegex: process.env.WHATSAPP_ENABLE_FAST_PATH !== "false",
 
-  // Flag to enable non-blocking background upload to Google Drive
-  enableAsyncDriveUpload: process.env.WHATSAPP_ENABLE_ASYNC_DRIVE !== "false",
+  // Flag to enable non-blocking background upload to Cloudflare R2 / Media Storage
+  enableAsyncMediaUpload:
+    process.env.WHATSAPP_ENABLE_ASYNC_R2 !== "false" &&
+    process.env.WHATSAPP_ENABLE_ASYNC_DRIVE !== "false",
 
   // Customizable instant acknowledgment message when receiving a receipt photo
   receiptAckMessage:

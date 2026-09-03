@@ -449,7 +449,7 @@ async function processWhatsAppMessage(
       `   _Contoh: 'Beli beras 120rb pake BCA'_\n` +
       `   _Contoh: 'Bensin motor 35k tunai'_\n\n` +
       `2️⃣ *Foto Struk Belanja*\n` +
-      `   _Kirim foto nota supermarket/restoran, AI akan otomatis membaca rincian item, toko, total, dan mengunggahnya ke Google Drive._\n\n` +
+      `   _Kirim foto nota supermarket/restoran, AI akan otomatis membaca rincian item, toko, total, dan mengarsipkan buktinya._\n\n` +
       `3️⃣ *Pesan Suara (Voice Note)*\n` +
       `   _Rekam dan kirim suara Anda saat belanja._\n\n` +
       `4️⃣ *Tanya Keuangan & Dokumen Legalitas*\n` +
@@ -682,7 +682,7 @@ async function processWhatsAppMessage(
       }
 
       // Background: Asynchronous non-blocking upload to Cloudflare R2
-      if (whatsAppConfig.enableAsyncDriveUpload) {
+      if (whatsAppConfig.enableAsyncMediaUpload) {
         uploadReceiptToR2(
           media.buffer,
           `Struk_WA_${Date.now()}.jpg`,
@@ -726,7 +726,7 @@ async function processWhatsAppMessage(
         `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
         `💳 Dompet: *${newTx.wallet?.name || "Dompet Utama"}*\n` +
         itemSummary +
-        `\n📁 Bukti struk sedang diarsipkan ke Google Drive.`;
+        `\n📁 Bukti struk berhasil diarsipkan.`;
 
       completeBotProcess(taskId, "success", undefined, {
         aiModel: "Gemini 2.5 Flash OCR",

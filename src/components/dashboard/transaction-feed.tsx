@@ -234,7 +234,7 @@ export function TransactionFeed({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hidden sm:inline-flex items-center gap-1 text-[11px] text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded-full"
-                            title="Lihat Nota Asli di Google Drive"
+                            title="Lihat Nota Asli"
                           >
                             <FileText className="size-3" aria-hidden="true" />
                             <span>Nota</span>
@@ -305,7 +305,7 @@ export function TransactionFeed({
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline hover:text-primary/80 transition-colors"
-                              title="Lihat Nota Asli di Google Drive"
+                              title="Lihat Nota Asli"
                             >
                               <span>Foto Struk</span>
                               <ExternalLink className="size-2.5" aria-hidden="true" />

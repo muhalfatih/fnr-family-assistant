@@ -843,10 +843,10 @@ export async function POST(req: NextRequest) {
 
     if (driveViewUrl) {
       if (driveViewUrl.startsWith("http")) {
-        replyText += `\n📁 [Buka Foto di Google Drive](${driveViewUrl})`;
+        replyText += `\n📁 [Lihat Foto Struk](${driveViewUrl})`;
       } else {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:1000";
-        replyText += `\n📁 [Buka Salinan Foto Struk](${appUrl}${driveViewUrl})`;
+        replyText += `\n📁 [Lihat Foto Struk](${appUrl}${driveViewUrl})`;
       }
     }
 
