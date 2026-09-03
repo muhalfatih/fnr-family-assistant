@@ -51,15 +51,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ error: "Forbidden: verification token mismatch" }, { status: 403 });
 }
 
-// Helper to wrap external queries with a 2-second timeout to prevent webhook hanging
-async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 2000): Promise<T> {
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("Supabase query timeout")), timeoutMs)
-    ),
-  ]);
-}
 
 /**
  * Helper to fetch live financial data for a family with instant mock fallback
@@ -95,11 +86,11 @@ async function getFamilyFinancialData(familyId: string) {
 
   try {
     const [walletsRes, categoriesRes, budgetsRes, monthTxRes, recentTxRes] = await Promise.all([
-      withTimeout(supabaseAdmin.from("wallets").select("*").eq("family_id", familyId).eq("is_active", true), 2000).catch(() => ({ data: mockStore.getWallets() })),
-      withTimeout(supabaseAdmin.from("categories").select("*").eq("family_id", familyId), 2000).catch(() => ({ data: mockStore.getCategories() })),
-      withTimeout(supabaseAdmin.from("budgets").select("*, category:categories(*)").eq("family_id", familyId).eq("month_year", currentMonth), 2000).catch(() => ({ data: mockStore.getBudgets() })),
-      withTimeout(supabaseAdmin.from("transactions").select("amount, type, category_id").eq("family_id", familyId).gte("transaction_date", startDate).lte("transaction_date", endDate), 2000).catch(() => ({ data: [] })),
-      withTimeout(supabaseAdmin.from("transactions").select("*, category:categories(name, color), wallet:wallets(name)").eq("family_id", familyId).order("transaction_date", { ascending: false }).limit(5), 2000).catch(() => ({ data: [] })),
+      supabaseAdmin.from("wallets").select("*").eq("family_id", familyId).eq("is_active", true),
+      supabaseAdmin.from("categories").select("*").eq("family_id", familyId),
+      supabaseAdmin.from("budgets").select("*, category:categories(*)").eq("family_id", familyId).eq("month_year", currentMonth),
+      supabaseAdmin.from("transactions").select("amount, type, category_id").eq("family_id", familyId).gte("transaction_date", startDate).lte("transaction_date", endDate),
+      supabaseAdmin.from("transactions").select("*, category:categories(name, color), wallet:wallets(name)").eq("family_id", familyId).order("transaction_date", { ascending: false }).limit(5),
     ]);
 
     const wallets = walletsRes?.data || mockStore.getWallets();
@@ -154,10 +145,15 @@ async function resolveWallet(
   }
 
   try {
-    const { data: wallets } = await withTimeout<any>(
-      supabaseAdmin.from("wallets").select("*").eq("family_id", familyId).eq("is_active", true),
-      2000
-    );
+    const { data: wallets, error: fetchErr } = await supabaseAdmin
+      .from("wallets")
+      .select("*")
+      .eq("family_id", familyId)
+      .eq("is_active", true);
+
+    if (fetchErr) {
+      console.error("[WhatsApp] Error fetching wallets from Supabase:", fetchErr);
+    }
 
     let chosenWallet = wallets?.find((w: any) =>
       walletHint && w.name.toLowerCase().includes(walletHint.toLowerCase())
@@ -171,9 +167,30 @@ async function resolveWallet(
       chosenWallet = wallets[0];
     }
 
-    return chosenWallet || mockStore.getWallets()[0];
+    // Auto-create Dompet Tunai in Supabase if family doesn't have an active wallet yet
+    if (!chosenWallet) {
+      const { data: newWallet, error: createWalletErr } = await supabaseAdmin
+        .from("wallets")
+        .insert({
+          family_id: familyId,
+          name: "Dompet Tunai",
+          type: "cash",
+          current_balance: 0,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (createWalletErr) {
+        console.error("[WhatsApp] Failed to auto-create wallet in Supabase:", createWalletErr);
+      }
+      chosenWallet = newWallet;
+    }
+
+    return chosenWallet || { id: "wal-cash", name: "Dompet Tunai" };
   } catch (e) {
-    return mockStore.getWallets()[0];
+    console.error("[WhatsApp] Exception in resolveWallet:", e);
+    return { id: "wal-cash", name: "Dompet Tunai" };
   }
 }
 
@@ -249,38 +266,62 @@ async function processWhatsAppMessage(
   }
 
   // 2. Resolve Family and Member with instant fallback
-  let familyId = "fam-001";
+  let familyId: string | null = null;
   let defaultWalletId: string | null = null;
   let member: any = null;
 
   if (isSupabaseConfigured()) {
     try {
-      const { data } = await withTimeout<any>(
-        supabaseAdmin
-          .from("family_members")
-          .select("*, family:families(*)")
-          .or(`whatsapp_number.eq.${normalizedPhone},whatsapp_number.eq.0${normalizedPhone.replace(/^62/, "")},whatsapp_number.eq.+${normalizedPhone}`)
-          .maybeSingle(),
-        2000
-      );
+      const cleanWithoutCountry = normalizedPhone.replace(/^62/, "");
+      const { data: memberData, error: memberErr } = await supabaseAdmin
+        .from("family_members")
+        .select("*, family:families(*)")
+        .or(`whatsapp_number.eq.${normalizedPhone},whatsapp_number.eq.0${cleanWithoutCountry},whatsapp_number.eq.+${normalizedPhone},whatsapp_number.eq.${cleanWithoutCountry}`)
+        .maybeSingle();
 
-      if (data) {
-        member = data;
-        familyId = data.family_id || "fam-001";
-        defaultWalletId = data.default_wallet_id || null;
-      } else {
-        const { data: families } = await withTimeout<any>(
-          supabaseAdmin.from("families").select("id").limit(1),
-          2000
-        );
+      if (memberErr) {
+        console.warn("[WhatsApp] Member lookup notice:", memberErr.message);
+      }
+
+      if (memberData) {
+        member = memberData;
+        familyId = memberData.family_id || null;
+        defaultWalletId = memberData.default_wallet_id || null;
+      }
+
+      // If family is not linked or member not found, query or create primary family in Supabase
+      if (!familyId) {
+        const { data: families, error: famErr } = await supabaseAdmin
+          .from("families")
+          .select("id")
+          .limit(1);
+
+        if (famErr) {
+          console.error("[WhatsApp] Error fetching families from Supabase:", famErr);
+        }
+
         if (families && families.length > 0) {
           familyId = families[0].id;
+        } else {
+          const { data: newFamily, error: createFamErr } = await supabaseAdmin
+            .from("families")
+            .insert({ name: "Keluarga F&R", currency: "IDR" })
+            .select()
+            .single();
+
+          if (createFamErr) {
+            console.error("[WhatsApp] Failed to auto-create family in Supabase:", createFamErr);
+          }
+          familyId = newFamily?.id || null;
         }
       }
     } catch (e) {
-      familyId = mockStore.getFamily().id;
+      console.error("[WhatsApp] Supabase family resolution exception:", e);
     }
-  } else {
+  }
+
+  // Pure mock mode fallback ONLY if Supabase is genuinely not configured or unavailable
+  if (!isSupabaseConfigured() || !familyId) {
     const members = mockStore.getMembers();
     member = members.find((m: any) => m.whatsapp_number?.includes(normalizedPhone)) || members[0];
     familyId = mockStore.getFamily().id;
@@ -615,10 +656,30 @@ async function processWhatsAppMessage(
         return;
       }
 
-      // Resolve Wallet
+      // 1. Upload to Cloudflare R2 first so the URL is available for atomic transaction insert
+      let r2FileId: string | null = null;
+      let r2ViewUrl: string | null = null;
+
+      if (whatsAppConfig.enableAsyncMediaUpload) {
+        try {
+          const r2Result = await uploadReceiptToR2(
+            media.buffer,
+            `Struk_WA_${Date.now()}.jpg`,
+            media.mimeType || "image/jpeg"
+          );
+          if (r2Result) {
+            r2FileId = r2Result.fileId;
+            r2ViewUrl = r2Result.url;
+          }
+        } catch (r2Err) {
+          console.error("[WhatsApp] Error uploading receipt to Cloudflare R2:", r2Err);
+        }
+      }
+
+      // 2. Resolve Wallet
       const chosenWallet = await resolveWallet(familyId, parsed.wallet_hint, defaultWalletId);
 
-      // Resolve Category & Budget
+      // 3. Resolve Category & Budget
       const budgetSync = await matchCategoryAndSyncBudget(
         familyId,
         parsed.category,
@@ -628,40 +689,42 @@ async function processWhatsAppMessage(
       );
       const categoryId = budgetSync?.categoryId || null;
 
-      // Insert Transaction
+      // 4. Insert Transaction into Supabase
       let newTx: any = null;
       if (isSupabaseConfigured()) {
         try {
-          const { data, error: txErr } = await withTimeout<any>(
-            supabaseAdmin
-              .from("transactions")
-              .insert({
-                family_id: familyId,
-                member_id: member?.id || null,
-                wallet_id: chosenWallet.id,
-                category_id: categoryId,
-                type: parsed.type,
-                amount: parsed.amount,
-                transaction_date: parsed.transaction_date ? new Date(parsed.transaction_date).toISOString() : new Date().toISOString(),
-                description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
-                raw_prompt: caption || "Struk Foto WhatsApp",
-                media_type: "image",
-                drive_file_id: null,
-                drive_view_url: null,
-                parsed_metadata: {
-                  merchant: parsed.merchant_name,
-                  items: parsed.items,
-                  confidence: parsed.confidence,
-                  source: "whatsapp",
-                },
-              })
-              .select("*, category:categories(name), wallet:wallets(name)")
-              .single(),
-            2000
-          );
-          if (!txErr && data) newTx = data;
+          const { data, error: txErr } = await supabaseAdmin
+            .from("transactions")
+            .insert({
+              family_id: familyId,
+              member_id: member?.id || null,
+              wallet_id: chosenWallet.id,
+              category_id: categoryId,
+              type: parsed.type,
+              amount: parsed.amount,
+              transaction_date: parsed.transaction_date ? new Date(parsed.transaction_date).toISOString() : new Date().toISOString(),
+              description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
+              raw_prompt: caption || "Struk Foto WhatsApp",
+              media_type: "image",
+              drive_file_id: r2FileId,
+              drive_view_url: r2ViewUrl,
+              parsed_metadata: {
+                merchant: parsed.merchant_name,
+                items: parsed.items,
+                confidence: parsed.confidence,
+                source: "whatsapp",
+              },
+            })
+            .select("*, category:categories(name), wallet:wallets(name)")
+            .single();
+
+          if (txErr) {
+            console.error("[WhatsApp] Supabase image insert error:", txErr);
+          } else if (data) {
+            newTx = data;
+          }
         } catch (e) {
-          console.warn("[WhatsApp] Supabase image insert timeout, falling back to mockStore");
+          console.error("[WhatsApp] Supabase image insert exception:", e);
         }
       }
 
@@ -679,29 +742,8 @@ async function processWhatsAppMessage(
         });
         newTx.wallet = chosenWallet;
         newTx.category = { name: parsed.category };
-      }
-
-      // Background: Asynchronous non-blocking upload to Cloudflare R2
-      if (whatsAppConfig.enableAsyncMediaUpload) {
-        uploadReceiptToR2(
-          media.buffer,
-          `Struk_WA_${Date.now()}.jpg`,
-          media.mimeType || "image/jpeg"
-        )
-          .then(async (r2Result) => {
-            if (r2Result?.url && newTx?.id) {
-              await supabaseAdmin
-                .from("transactions")
-                .update({
-                  drive_view_url: r2Result.url,
-                  drive_file_id: r2Result.fileId,
-                })
-                .eq("id", newTx.id);
-            }
-          })
-          .catch((r2Err) => {
-            console.error("[WhatsApp] Background R2 upload failed:", r2Err);
-          });
+        newTx.drive_view_url = r2ViewUrl;
+        newTx.drive_file_id = r2FileId;
       }
 
       // Sync to Google Sheets
@@ -719,14 +761,18 @@ async function processWhatsAppMessage(
         }
       }
 
+      const receiptArchiveNote = r2ViewUrl
+        ? `\n📁 Bukti struk berhasil diarsipkan.`
+        : "";
+
       const replySuccess =
         `✅ *STRUK BERHASIL DICATAT!*\n\n` +
         `🏪 Toko: *${parsed.merchant_name || "Struk Belanja"}*\n` +
         `💰 Total: *${formatRupiah(parsed.amount)}*\n` +
         `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
-        `💳 Dompet: *${newTx.wallet?.name || "Dompet Utama"}*\n` +
+        `💳 Dompet: *${newTx.wallet?.name || chosenWallet.name || "Dompet Utama"}*\n` +
         itemSummary +
-        `\n📁 Bukti struk berhasil diarsipkan.`;
+        receiptArchiveNote;
 
       completeBotProcess(taskId, "success", undefined, {
         aiModel: "Gemini 2.5 Flash OCR",
@@ -942,34 +988,36 @@ async function processWhatsAppMessage(
       let newTx: any = null;
       if (isSupabaseConfigured()) {
         try {
-          const { data, error: txErr } = await withTimeout<any>(
-            supabaseAdmin
-              .from("transactions")
-              .insert({
-                family_id: familyId,
-                member_id: member?.id || null,
-                wallet_id: chosenWallet.id,
-                category_id: categoryId,
-                type: parsed.type,
-                amount: parsed.amount,
-                transaction_date: new Date().toISOString(),
-                description: parsed.description,
-                raw_prompt: text,
-                media_type: "text",
-                parsed_metadata: {
-                  items: parsed.items,
-                  confidence: parsed.confidence,
-                  source: "whatsapp",
-                  engine: usedFastPath ? "fast_path_regex" : "gemini_ai",
-                },
-              })
-              .select("*, category:categories(name), wallet:wallets(name)")
-              .single(),
-            2000
-          );
-          if (!txErr && data) newTx = data;
+          const { data, error: txErr } = await supabaseAdmin
+            .from("transactions")
+            .insert({
+              family_id: familyId,
+              member_id: member?.id || null,
+              wallet_id: chosenWallet.id,
+              category_id: categoryId,
+              type: parsed.type,
+              amount: parsed.amount,
+              transaction_date: new Date().toISOString(),
+              description: parsed.description,
+              raw_prompt: text,
+              media_type: "text",
+              parsed_metadata: {
+                items: parsed.items,
+                confidence: parsed.confidence,
+                source: "whatsapp",
+                engine: usedFastPath ? "fast_path_regex" : "gemini_ai",
+              },
+            })
+            .select("*, category:categories(name), wallet:wallets(name)")
+            .single();
+
+          if (txErr) {
+            console.error("[WhatsApp] Supabase text insert error:", txErr);
+          } else if (data) {
+            newTx = data;
+          }
         } catch (e) {
-          console.warn("[WhatsApp] Supabase text insert timeout, falling back to mockStore");
+          console.error("[WhatsApp] Supabase text insert exception:", e);
         }
       }
 
