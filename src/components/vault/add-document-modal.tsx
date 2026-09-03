@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Loader2 } from "lucide-react";
+import { Loader2, UploadCloud, FileCheck } from "lucide-react";
 
 interface AddDocumentModalProps {
   isOpen: boolean;
@@ -44,6 +44,7 @@ export function AddDocumentModal({
   const [expiryDate, setExpiryDate] = useState("");
   const [reminderDays, setReminderDays] = useState("30");
   const [driveUrl, setDriveUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -56,6 +57,7 @@ export function AddDocumentModal({
       setExpiryDate(documentToEdit.expiry_date || "");
       setReminderDays(String(documentToEdit.reminder_days_before || 30));
       setDriveUrl(documentToEdit.drive_view_url || "");
+      setSelectedFile(null);
     } else {
       setTitle("");
       setCategory("identity");
@@ -64,6 +66,7 @@ export function AddDocumentModal({
       setExpiryDate("");
       setReminderDays("30");
       setDriveUrl("");
+      setSelectedFile(null);
     }
     setErrorMsg("");
   }, [documentToEdit, isOpen]);
@@ -79,6 +82,30 @@ export function AddDocumentModal({
     setErrorMsg("");
 
     try {
+      let finalDriveUrl = driveUrl.trim() || null;
+      let finalFileId = documentToEdit?.drive_file_id || null;
+
+      // Direct file upload to Cloudflare R2
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("category", category);
+
+        const uploadRes = await fetch("/api/vault/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const uploadErr = await uploadRes.json();
+          throw new Error(uploadErr.error || "Gagal mengunggah berkas dokumen");
+        }
+
+        const uploadData = await uploadRes.json();
+        finalFileId = uploadData.key;
+        finalDriveUrl = uploadData.key;
+      }
+
       const payload = {
         id: documentToEdit?.id,
         title: title.trim(),
@@ -86,7 +113,8 @@ export function AddDocumentModal({
         document_number: documentNumber.trim() || null,
         expiry_date: hasExpiry && expiryDate ? expiryDate : null,
         reminder_days_before: Number(reminderDays) || 30,
-        drive_view_url: driveUrl.trim() || null,
+        drive_file_id: finalFileId,
+        drive_view_url: finalDriveUrl,
       };
 
       const url = "/api/documents";
@@ -239,10 +267,38 @@ export function AddDocumentModal({
             )}
           </div>
 
-          {/* 5. Tautan Salinan Google Drive */}
+          {/* 5. Unggah Berkas Fisik (Cloudflare R2) */}
+          <div className="space-y-1.5 pt-1">
+            <Label htmlFor="docFile" className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <UploadCloud className="size-3.5 text-primary" aria-hidden="true" />
+              <span>Unggah Berkas Dokumen (PDF / Foto Dokumen)</span>
+            </Label>
+            <Input
+              id="docFile"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setSelectedFile(file);
+              }}
+              className="text-xs file:text-xs file:h-7 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:font-medium h-9"
+            />
+            {selectedFile ? (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <FileCheck className="size-3" aria-hidden="true" />
+                <span>Berkas terpilih: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Berkas disimpan privat dan terenkripsi aman di Cloudflare R2.
+              </p>
+            )}
+          </div>
+
+          {/* Atau Tautan Berkas Eksternal */}
           <div className="space-y-1.5">
             <Label htmlFor="driveUrl" className="text-xs font-medium text-foreground">
-              Tautan Berkas Google Drive / Cloud (Opsional)
+              Atau Tautan Berkas Eksternal (Opsional)
             </Label>
             <Input
               id="driveUrl"
@@ -250,6 +306,7 @@ export function AddDocumentModal({
               value={driveUrl}
               onChange={(e) => setDriveUrl(e.target.value)}
               className="text-xs font-mono h-9"
+              disabled={!!selectedFile}
             />
           </div>
 

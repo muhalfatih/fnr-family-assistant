@@ -126,10 +126,13 @@ export function DocumentCard({ document: doc, onEdit, onDelete }: DocumentCardPr
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-2 border-t text-xs">
-          <div>
-            {doc.drive_view_url ? (
+            {doc.drive_view_url || doc.drive_file_id ? (
               <a
-                href={doc.drive_view_url}
+                href={
+                  (doc.drive_view_url || "").startsWith("http://") || (doc.drive_view_url || "").startsWith("https://")
+                    ? doc.drive_view_url!
+                    : `/api/vault/view?key=${encodeURIComponent(doc.drive_file_id || doc.drive_view_url || "")}&redirect=true`
+                }
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 text-primary hover:underline text-xs font-medium"
@@ -140,7 +143,6 @@ export function DocumentCard({ document: doc, onEdit, onDelete }: DocumentCardPr
             ) : (
               <span className="text-muted-foreground text-xs">Tidak ada salinan</span>
             )}
-          </div>
 
           <div className="flex items-center gap-1">
             <Button

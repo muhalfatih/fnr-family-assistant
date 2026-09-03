@@ -5,7 +5,7 @@ import {
   parseFinancialInputWithGemini,
   answerFinancialQuestionWithGemini,
 } from "@/lib/gemini/parser";
-import { uploadReceiptToDrive } from "@/lib/google/drive";
+import { uploadReceiptToR2 } from "@/lib/storage/r2";
 import { appendTransactionToSheet } from "@/lib/google/sheets";
 import {
   sendWhatsAppTextMessage,
@@ -681,26 +681,26 @@ async function processWhatsAppMessage(
         newTx.category = { name: parsed.category };
       }
 
-      // Background: Asynchronous non-blocking upload to Google Drive
+      // Background: Asynchronous non-blocking upload to Cloudflare R2
       if (whatsAppConfig.enableAsyncDriveUpload) {
-        uploadReceiptToDrive(
+        uploadReceiptToR2(
           media.buffer,
           `Struk_WA_${Date.now()}.jpg`,
           media.mimeType || "image/jpeg"
         )
-          .then(async (driveResult) => {
-            if (driveResult?.webViewLink && newTx?.id) {
+          .then(async (r2Result) => {
+            if (r2Result?.url && newTx?.id) {
               await supabaseAdmin
                 .from("transactions")
                 .update({
-                  drive_view_url: driveResult.webViewLink,
-                  drive_file_id: driveResult.fileId,
+                  drive_view_url: r2Result.url,
+                  drive_file_id: r2Result.fileId,
                 })
                 .eq("id", newTx.id);
             }
           })
-          .catch((driveErr) => {
-            console.error("[WhatsApp] Background Drive upload failed:", driveErr);
+          .catch((r2Err) => {
+            console.error("[WhatsApp] Background R2 upload failed:", r2Err);
           });
       }
 

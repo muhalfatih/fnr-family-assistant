@@ -4,7 +4,7 @@ import {
   parseFinancialInputWithGemini,
   answerFinancialQuestionWithGemini,
 } from "@/lib/gemini/parser";
-import { uploadReceiptToDrive } from "@/lib/google/drive";
+import { uploadReceiptToR2 } from "@/lib/storage/r2";
 import { appendTransactionToSheet } from "@/lib/google/sheets";
 import {
   sendTelegramMessage,
@@ -602,15 +602,15 @@ export async function POST(req: NextRequest) {
       const downloaded = await downloadTelegramFile(photo.file_id);
 
       if (downloaded) {
-        // Upload to Google Drive if configured
-        const driveResult = await uploadReceiptToDrive(
+        // Upload to Cloudflare R2 (with resilient local storage fallback)
+        const r2Result = await uploadReceiptToR2(
           downloaded.buffer,
           `struk_${Date.now()}.jpg`,
           downloaded.mimeType
         );
-        if (driveResult) {
-          driveFileId = driveResult.fileId;
-          driveViewUrl = driveResult.webViewLink;
+        if (r2Result) {
+          driveFileId = r2Result.fileId;
+          driveViewUrl = r2Result.url;
         }
 
         // Parse with Gemini 3 Flash Lite with continuous typing pulse
