@@ -21,6 +21,8 @@ import {
 import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
 import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from "@/lib/bot/relevance-guard";
 import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
+import { whatsAppConfig, getReceiptAckMessage, getAudioAckMessage } from "@/lib/whatsapp/config";
+import { fastParseIndonesianFinancialText } from "@/lib/bot/fast-parser";
 
 // Standard quick action buttons for WhatsApp interactive messages
 const DEFAULT_WHATSAPP_BUTTONS = [
@@ -291,6 +293,19 @@ async function processWhatsAppMessage(
     }
   );
 
+  // Send Instant Acknowledgment (<400ms) for heavy media inputs to eliminate silence
+  if (whatsAppConfig.enableInstantAck) {
+    if (msgType === "image") {
+      sendWhatsAppTextMessage(senderPhone, getReceiptAckMessage()).catch((e) => {
+        console.error("[WhatsApp] Error sending receipt instant ack:", e);
+      });
+    } else if (msgType === "audio") {
+      sendWhatsAppTextMessage(senderPhone, getAudioAckMessage()).catch((e) => {
+        console.error("[WhatsApp] Error sending audio instant ack:", e);
+      });
+    }
+  }
+
   // 5. Handle Quick Actions / Menu Commands
   const lowerText = text.toLowerCase();
 
@@ -545,19 +560,7 @@ async function processWhatsAppMessage(
         return;
       }
 
-      // Upload to Google Drive
-      let driveResult: { fileId: string; webViewLink: string } | null = null;
-      try {
-        driveResult = await uploadReceiptToDrive(
-          media.buffer,
-          `Struk_WA_${Date.now()}.jpg`,
-          media.mimeType || "image/jpeg"
-        );
-      } catch (driveErr) {
-        console.error("[WhatsApp] Drive upload failed (continuing without drive link):", driveErr);
-      }
-
-      // Parse with Gemini OCR
+      // Parse immediately with Gemini OCR without blocking on Google Drive
       const parsed = await parseFinancialInputWithGemini({
         imageBuffer: media.buffer,
         imageMimeType: media.mimeType || "image/jpeg",
@@ -600,8 +603,8 @@ async function processWhatsAppMessage(
           description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
           raw_prompt: caption || "Struk Foto WhatsApp",
           media_type: "image",
-          drive_file_id: driveResult?.fileId || null,
-          drive_view_url: driveResult?.webViewLink || null,
+          drive_file_id: null,
+          drive_view_url: null,
           parsed_metadata: {
             merchant: parsed.merchant_name,
             items: parsed.items,
@@ -616,6 +619,29 @@ async function processWhatsAppMessage(
         completeBotProcess(taskId, "failed", txErr?.message || "Gagal menyimpan transaksi");
         await sendWhatsAppTextMessage(senderPhone, "⚠️ Gagal menyimpan data transaksi ke database.");
         return;
+      }
+
+      // Background: Asynchronous non-blocking upload to Google Drive
+      if (whatsAppConfig.enableAsyncDriveUpload) {
+        uploadReceiptToDrive(
+          media.buffer,
+          `Struk_WA_${Date.now()}.jpg`,
+          media.mimeType || "image/jpeg"
+        )
+          .then(async (driveResult) => {
+            if (driveResult?.webViewLink && newTx?.id) {
+              await supabaseAdmin
+                .from("transactions")
+                .update({
+                  drive_view_url: driveResult.webViewLink,
+                  drive_file_id: driveResult.fileId,
+                })
+                .eq("id", newTx.id);
+            }
+          })
+          .catch((driveErr) => {
+            console.error("[WhatsApp] Background Drive upload failed:", driveErr);
+          });
       }
 
       // Sync to Google Sheets
@@ -640,19 +666,12 @@ async function processWhatsAppMessage(
         `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
         `💳 Dompet: *${newTx.wallet?.name || "Dompet Utama"}*\n` +
         itemSummary +
-        (driveResult?.webViewLink ? `\n📁 Bukti struk tersimpan di Google Drive.` : "");
+        `\n📁 Bukti struk sedang diarsipkan ke Google Drive.`;
 
-      completeBotProcess(taskId, "success");
-      recordChatLog({
-        id: taskId,
-        channel: "whatsapp",
-        chat_id: senderPhone,
-        sender_name: senderName,
-        input_type: "image",
-        raw_prompt: caption || "[Foto Struk]",
-        parsed_metadata: parsed,
-        status: "success",
-        created_at: new Date().toISOString(),
+      completeBotProcess(taskId, "success", undefined, {
+        aiModel: "Gemini 2.5 Flash OCR",
+        transactionId: newTx.id,
+        parsedMetadata: parsed,
       });
 
       await sendWhatsAppInteractiveButtons(
@@ -811,8 +830,30 @@ async function processWhatsAppMessage(
         return;
       }
 
-      // Parse as Financial Transaction
-      const parsed = await parseFinancialInputWithGemini({ text });
+      // 1. Fast-Path Regex Parsing (<0.8s) for common Indonesian transaction patterns
+      let parsed: any = null;
+      let usedFastPath = false;
+
+      if (whatsAppConfig.enableFastPathRegex) {
+        const fastResult = fastParseIndonesianFinancialText(text);
+        if (fastResult && fastResult.amount > 0 && fastResult.confidence >= 0.85) {
+          parsed = {
+            confidence: fastResult.confidence,
+            type: fastResult.type,
+            amount: fastResult.amount,
+            category: fastResult.category,
+            wallet_hint: fastResult.wallet_hint,
+            description: fastResult.description,
+            items: [],
+          };
+          usedFastPath = true;
+        }
+      }
+
+      // 2. Fallback to Gemini AI if not parsed via Fast-Path
+      if (!parsed) {
+        parsed = await parseFinancialInputWithGemini({ text });
+      }
 
       if (!parsed || parsed.amount <= 0) {
         // If not parsed as clear transaction, answer intelligently with Gemini
@@ -855,6 +896,7 @@ async function processWhatsAppMessage(
             items: parsed.items,
             confidence: parsed.confidence,
             source: "whatsapp",
+            engine: usedFastPath ? "fast_path_regex" : "gemini_ai",
           },
         })
         .select("*, category:categories(name), wallet:wallets(name)")
@@ -875,7 +917,14 @@ async function processWhatsAppMessage(
         `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
         `💳 Dompet: *${newTx.wallet?.name || "Dompet Utama"}*`;
 
-      completeBotProcess(taskId, "success");
+      completeBotProcess(taskId, "success", undefined, {
+        aiModel: usedFastPath ? "Fast-Path Regex (<0.8s)" : "Gemini 2.5 Flash",
+        transactionId: newTx.id,
+        parsedMetadata: {
+          ...parsed,
+          usedFastPath,
+        },
+      });
       recordChatLog({
         id: taskId,
         channel: "whatsapp",
