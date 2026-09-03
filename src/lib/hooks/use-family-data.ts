@@ -189,7 +189,7 @@ export function useFamilyContributions(period?: string) {
 
 // 10. Chat Logs hook
 export function useChatLogs() {
-  const { data, error, isLoading, isValidating, mutate } = useSWR<{ logs: any[] }>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<{ logs: any[]; isMockMode?: boolean }>(
     "/api/logs",
     fetcher,
     { ...defaultConfig, refreshInterval: 5000 } // Logs auto-sync every 5s
@@ -197,6 +197,7 @@ export function useChatLogs() {
 
   return {
     logs: data?.logs || [],
+    isMockMode: Boolean(data?.isMockMode),
     isLoading,
     isValidating,
     isError: error,

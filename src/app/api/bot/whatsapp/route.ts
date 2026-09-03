@@ -263,10 +263,38 @@ async function processWhatsAppMessage(
     }
   }
 
-  // 4. Handle Quick Actions / Menu Commands
+  // 4. Register Bot Process Safeguard & Initial Processing Log
+  const taskId = `wa_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const inputType = msgType === "image" ? "image" : msgType === "audio" ? "audio" : actionId ? "command" : "text";
+
+  registerBotProcess(
+    taskId,
+    {
+      channel: "whatsapp",
+      chatId: senderPhone,
+      senderName,
+      inputType,
+      rawPrompt: text || `[Media WhatsApp ${msgType}]`,
+    },
+    {
+      timeoutMs: 15000,
+      onTimeout: async () => {
+        try {
+          await sendWhatsAppTextMessage(
+            senderPhone,
+            "⏳ Permintaan sedang membutuhkan waktu lebih lama. Sistem tetap memproses pencatatan transaksi Anda di latar belakang."
+          );
+        } catch (e) {
+          console.error("Failed to send WhatsApp timeout notification:", e);
+        }
+      },
+    }
+  );
+
+  // 5. Handle Quick Actions / Menu Commands
   const lowerText = text.toLowerCase();
 
-  // 4a. Summary Action
+  // 5a. Summary Action
   if (actionId === "action_summary" || lowerText.includes("ringkasan") || lowerText === "summary") {
     const data = await getFamilyFinancialData(familyId);
     const netCashflow = data.monthlyTotalIncome - data.monthlyTotalExpense;
@@ -284,10 +312,15 @@ async function processWhatsAppMessage(
       DEFAULT_WHATSAPP_BUTTONS,
       "F&R Family Hub"
     );
+
+    completeBotProcess(taskId, "success", undefined, {
+      aiModel: "Cashflow Engine",
+      parsedMetadata: { action: "summary", month: currentMonth, income: data.monthlyTotalIncome, expense: data.monthlyTotalExpense },
+    });
     return;
   }
 
-  // 4b. Balance Action
+  // 5b. Balance Action
   if (actionId === "action_balance" || lowerText.includes("saldo") || lowerText === "rekening") {
     const data = await getFamilyFinancialData(familyId);
     let totalBalance = 0;
@@ -309,10 +342,15 @@ async function processWhatsAppMessage(
       DEFAULT_WHATSAPP_BUTTONS,
       "F&R Family Hub"
     );
+
+    completeBotProcess(taskId, "success", undefined, {
+      aiModel: "Multi-Wallet Engine",
+      parsedMetadata: { action: "balance", totalBalance, walletCount: data.wallets.length },
+    });
     return;
   }
 
-  // 4c. Budget Action
+  // 5c. Budget Action
   if (actionId === "action_budget" || lowerText.includes("anggaran") || lowerText === "budget") {
     const data = await getFamilyFinancialData(familyId);
     let budgetText = "";
@@ -340,10 +378,15 @@ async function processWhatsAppMessage(
       DEFAULT_WHATSAPP_BUTTONS,
       "F&R Family Hub"
     );
+
+    completeBotProcess(taskId, "success", undefined, {
+      aiModel: "Budget Allocation Engine",
+      parsedMetadata: { action: "budget", budgetCount: data.budgets.length },
+    });
     return;
   }
 
-  // 4d. Help Action
+  // 5d. Help Action
   if (actionId === "action_help" || lowerText === "bantuan" || lowerText === "help" || lowerText === "halo" || lowerText === "hi") {
     const helpMsg =
       `👋 *Halo, ${senderName}! Selamat Datang di F&R Family Hub WhatsApp*\n\n` +
@@ -365,10 +408,15 @@ async function processWhatsAppMessage(
       DEFAULT_WHATSAPP_BUTTONS,
       "Panduan Penggunaan"
     );
+
+    completeBotProcess(taskId, "success", undefined, {
+      aiModel: "System Assistant Guide",
+      parsedMetadata: { action: "help" },
+    });
     return;
   }
 
-  // 4e. Document Vault / Expiry Status Action
+  // 5e. Document Vault / Expiry Status Action
   if (
     actionId === "action_vault" ||
     lowerText === "dokumen" ||
@@ -398,6 +446,10 @@ async function processWhatsAppMessage(
         DEFAULT_WHATSAPP_BUTTONS,
         "Brankas Dokumen"
       );
+      completeBotProcess(taskId, "success", undefined, {
+        aiModel: "Vault Legal Engine",
+        parsedMetadata: { action: "vault", documentCount: 0 },
+      });
       return;
     }
 
@@ -466,32 +518,13 @@ async function processWhatsAppMessage(
       DEFAULT_WHATSAPP_BUTTONS,
       "Brankas Dokumen"
     );
+
+    completeBotProcess(taskId, "success", undefined, {
+      aiModel: "Vault Legal Engine",
+      parsedMetadata: { action: "vault", documentCount: targetDocs.length },
+    });
     return;
   }
-
-  // 5. Register Bot Process Safeguard (15s Timeout)
-  const taskId = `wa_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const inputType = msgType === "image" ? "image" : msgType === "audio" ? "audio" : "text";
-
-  registerBotProcess(
-    taskId,
-    {
-      channel: "whatsapp",
-      chatId: senderPhone,
-      senderName,
-      inputType,
-      rawPrompt: text || `[Media ${msgType}]`,
-    },
-    {
-      timeoutMs: 15000,
-      onTimeout: async () => {
-        await sendWhatsAppTextMessage(
-          senderPhone,
-          "⏳ Permintaan sedang membutuhkan waktu lebih lama. Sistem tetap memproses pencatatan transaksi Anda di latar belakang."
-        );
-      },
-    }
-  );
 
   try {
     // 6. Handle Image (Receipt / Struk OCR)

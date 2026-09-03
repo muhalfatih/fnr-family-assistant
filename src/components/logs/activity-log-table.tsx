@@ -195,8 +195,8 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
             {filteredLogs.length === 0 ? (
               <div className="py-12 px-4 text-center">
                 <p className="text-sm font-medium text-foreground">Tidak ada riwayat log chat yang sesuai.</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Kirim pesan atau foto nota ke bot Telegram untuk melihat rekaman aktivitas.
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                  Kirim pesan teks transaksi, foto struk belanja, atau voice note ke bot WhatsApp (+62 851-1131-4440) atau Telegram untuk melihat rekaman aktivitas real-time di sini.
                 </p>
               </div>
             ) : (

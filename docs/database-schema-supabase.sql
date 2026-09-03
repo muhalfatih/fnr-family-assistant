@@ -166,6 +166,24 @@ CREATE TABLE IF NOT EXISTS public.bot_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.chat_activity_logs (
+    id VARCHAR(100) PRIMARY KEY,
+    family_id UUID REFERENCES public.families(id) ON DELETE SET NULL,
+    channel VARCHAR(20) NOT NULL CHECK (channel IN ('telegram', 'whatsapp', 'web')),
+    chat_id VARCHAR(100),
+    sender_name VARCHAR(150) NOT NULL,
+    input_type VARCHAR(20) NOT NULL CHECK (input_type IN ('text', 'image', 'audio', 'command')),
+    raw_prompt TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'processing',
+    error_message TEXT,
+    ai_model VARCHAR(50),
+    latency_ms INT,
+    parsed_metadata JSONB DEFAULT '{}'::jsonb,
+    transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
 -- ==============================================================================
 -- INDEXES FOR HIGH-PERFORMANCE QUERYING
 -- ==============================================================================

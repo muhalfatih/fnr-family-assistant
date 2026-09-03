@@ -19,7 +19,7 @@ const globalForBot = globalThis as unknown as {
 export const activeProcesses = globalForBot.activeBotProcesses || new Map<string, RegisteredProcess>();
 globalForBot.activeBotProcesses = activeProcesses;
 
-export const inMemoryLogs = globalForBot.inMemoryLogs || [...mockStore.getLogs()];
+export const inMemoryLogs: ChatActivityLog[] = globalForBot.inMemoryLogs || [];
 globalForBot.inMemoryLogs = inMemoryLogs;
 
 const DEFAULT_TIMEOUT_MS = 15000; // 15 seconds strict timeout
@@ -161,13 +161,15 @@ export async function completeBotProcess(
     };
   }
 
-  // Attempt async sync to Supabase chat_activity_logs (gracefully ignores if table doesn't exist)
+  // Attempt async sync to Supabase (supports both chat_activity_logs and bot_logs tables)
   try {
     const logItem = inMemoryLogs.find((l) => l.id === taskId);
     if (logItem) {
-      await supabaseAdmin.from("chat_activity_logs").upsert(
+      // 1. Try upserting to chat_activity_logs
+      const { error: calErr } = await supabaseAdmin.from("chat_activity_logs").upsert(
         {
           id: logItem.id,
+          family_id: logItem.family_id || null,
           channel: logItem.channel,
           chat_id: logItem.chat_id,
           sender_name: logItem.sender_name,
@@ -184,6 +186,26 @@ export async function completeBotProcess(
         },
         { onConflict: "id" }
       );
+
+      // 2. If chat_activity_logs isn't available or errored, try saving to bot_logs
+      if (calErr) {
+        await supabaseAdmin.from("bot_logs").insert({
+          channel: logItem.channel,
+          sender_id: logItem.chat_id || logItem.sender_name,
+          message_type: logItem.input_type === "command" ? "text" : logItem.input_type,
+          raw_content: logItem.raw_prompt,
+          ai_response: {
+            status: logItem.status,
+            ai_model: logItem.ai_model,
+            latency_ms: logItem.latency_ms,
+            error_message: logItem.error_message,
+            metadata: logItem.parsed_metadata,
+            transaction_id: logItem.transaction_id,
+          },
+          status: logItem.status === "failed" ? "failed" : "success",
+          created_at: logItem.created_at,
+        });
+      }
     }
   } catch (err) {
     // Non-blocking fallback to in-memory logs
@@ -218,29 +240,127 @@ export function getActiveBotProcesses(): ActiveProcessInfo[] {
   return list;
 }
 
-/**
- * Get chat activity logs (combining memory and Supabase)
- */
-export async function getChatActivityLogs(limit = 50): Promise<ChatActivityLog[]> {
-  try {
-    const { data: dbLogs } = await supabaseAdmin
-      .from("chat_activity_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
+// Helper to wrap external queries with a 2-second timeout to prevent UI hanging
+async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 2000): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("Supabase query timeout")), timeoutMs)
+    ),
+  ]);
+}
 
-    if (dbLogs && dbLogs.length > 0) {
-      // Merge memory logs (most up-to-date) with DB logs
-      const mergedMap = new Map<string, ChatActivityLog>();
-      dbLogs.forEach((l: any) => mergedMap.set(l.id, l));
-      inMemoryLogs.forEach((l) => mergedMap.set(l.id, l));
-      return Array.from(mergedMap.values())
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, limit);
+/**
+ * Detects whether any backend or bot credentials have been configured
+ */
+export function isAnyBotOrDbConfigured(): boolean {
+  const hasSupabase = isSupabaseConfigured();
+  const waToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const hasWhatsApp = Boolean(
+    waToken &&
+    process.env.WHATSAPP_PHONE_NUMBER_ID &&
+    !waToken.includes("placeholder") &&
+    waToken.length > 20
+  );
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  const hasTelegram = Boolean(
+    tgToken &&
+    !tgToken.includes("placeholder") &&
+    tgToken.length > 20
+  );
+
+  return hasSupabase || hasWhatsApp || hasTelegram;
+}
+
+/**
+ * Get chat activity logs (combining memory, chat_activity_logs, and bot_logs from Supabase)
+ * Falls back to mock data only when environment is not yet configured (clean local/staging).
+ */
+export async function getChatActivityLogs(
+  limit = 50
+): Promise<{ logs: ChatActivityLog[]; isMockMode: boolean }> {
+  const configured = isAnyBotOrDbConfigured();
+
+  // If environment has ANY configuration (Supabase, WhatsApp, or Telegram), use REAL logs
+  if (configured) {
+    const mergedMap = new Map<string, ChatActivityLog>();
+
+    // 1. First add in-memory live logs (most up-to-date)
+    inMemoryLogs.forEach((l) => mergedMap.set(l.id, l));
+
+    // 2. Try fetching from Supabase chat_activity_logs with 2s timeout
+    try {
+      const result = await withTimeout<any>(
+        supabaseAdmin
+          .from("chat_activity_logs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(limit),
+        2000
+      );
+      const dbLogs = result?.data;
+      const dbErr = result?.error;
+
+      if (!dbErr && dbLogs && dbLogs.length > 0) {
+        dbLogs.forEach((l: any) => {
+          if (!mergedMap.has(l.id)) {
+            mergedMap.set(l.id, l);
+          }
+        });
+      } else {
+        // 3. Fallback query to bot_logs if chat_activity_logs is empty or doesn't exist
+        const botResult = await withTimeout<any>(
+          supabaseAdmin
+            .from("bot_logs")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(limit),
+          2000
+        );
+        const botLogs = botResult?.data;
+        const botErr = botResult?.error;
+
+        if (!botErr && botLogs && botLogs.length > 0) {
+          botLogs.forEach((b: any) => {
+            if (!mergedMap.has(b.id)) {
+              mergedMap.set(b.id, {
+                id: b.id,
+                family_id: b.family_id,
+                channel: (b.channel === "whatsapp" || b.channel === "telegram") ? b.channel : "whatsapp",
+                chat_id: b.sender_id,
+                sender_name: b.sender_id,
+                input_type: (b.message_type as any) || "text",
+                raw_prompt: b.raw_content,
+                status: b.status === "failed" ? "failed" : "success",
+                ai_model: b.ai_response?.ai_model || "gemini-3.5-flash-lite",
+                latency_ms: b.ai_response?.latency_ms || null,
+                error_message: b.ai_response?.error_message || null,
+                parsed_metadata: b.ai_response?.metadata || {},
+                transaction_id: b.ai_response?.transaction_id || null,
+                created_at: b.created_at,
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {
+      // Non-blocking fallback to in-memory logs
     }
-  } catch (e) {
-    // Fallback to in-memory logs
+
+    // Sort chronologically descending and exclude legacy static dummy mock items (log-001..log-008)
+    const realLogs = Array.from(mergedMap.values())
+      .filter((l) => !/^log-00\d$/.test(l.id))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return { logs: realLogs.slice(0, limit), isMockMode: false };
   }
 
-  return inMemoryLogs.slice(0, limit);
+  // Environment is NOT configured (Clean local or staging environment without env setup)
+  // If inMemoryLogs has live items created during this session, use them
+  if (inMemoryLogs.length > 0) {
+    return { logs: inMemoryLogs.slice(0, limit), isMockMode: true };
+  }
+
+  // Otherwise return mockStore logs for staging/demo presentation
+  return { logs: mockStore.getLogs().slice(0, limit), isMockMode: true };
 }

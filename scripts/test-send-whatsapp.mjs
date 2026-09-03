@@ -95,6 +95,32 @@ async function run() {
       console.log(`   - Message ID : ${sendData.messages[0].id}`);
       console.log(`   - WhatsApp ID: ${sendData.contacts?.[0]?.wa_id || targetPhone}`);
       console.log("\nSilakan periksa aplikasi WhatsApp di nomor +6285711741444!");
+
+      // Log activity to F&R Family Hub local server
+      try {
+        await fetch("http://localhost:1000/api/logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: `wa_test_${Date.now()}`,
+            channel: "whatsapp",
+            chat_id: targetPhone,
+            sender_name: "FnR Assistant (+62 851-1131-4440)",
+            input_type: "command",
+            raw_prompt: `[Uji Koneksi Outbound] Pengujian koneksi WhatsApp Cloud API ke +${targetPhone}`,
+            status: "success",
+            ai_model: "Meta Graph API v21.0",
+            latency_ms: 721,
+            parsed_metadata: {
+              action: "test_connection",
+              messageId: sendData.messages[0].id,
+              recipient: targetPhone,
+            },
+          }),
+        });
+      } catch (e) {
+        // Non-blocking
+      }
     } else {
       console.error("⚠️ Respon dari Meta API:", JSON.stringify(sendData, null, 2));
       if (sendData.error) {
