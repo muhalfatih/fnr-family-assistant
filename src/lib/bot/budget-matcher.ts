@@ -1,4 +1,5 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { mockStore } from "@/lib/mock-data";
 import { getMonthDateRange } from "@/lib/utils";
 
 export interface BudgetStatusResult {
@@ -59,6 +60,25 @@ export async function matchCategoryAndSyncBudget(
   type: "expense" | "income" | "transfer" = "expense"
 ): Promise<BudgetStatusResult | null> {
   const currentMonth = new Date().toISOString().substring(0, 7);
+
+  // Fast-path mock fallback when database is not configured
+  if (!isSupabaseConfigured()) {
+    const categories = mockStore.getCategories();
+    const inputLower = (rawCategoryInput || "").toLowerCase();
+    const matched = categories.find((c) =>
+      c.name.toLowerCase().includes(inputLower) || inputLower.includes(c.name.toLowerCase())
+    ) || categories[0];
+
+    return {
+      categoryId: matched?.id || "cat-default",
+      categoryName: matched?.name || rawCategoryInput || "Lain-lain",
+      targetAmount: 2000000,
+      totalSpent: amount,
+      percent: Math.min(100, Math.round((amount / 2000000) * 100)),
+      statusIcon: "🟢",
+      isOverbudget: false,
+    };
+  }
 
   // 1. Fetch all existing categories for this family
   const { data: existingCategories } = await supabaseAdmin
