@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { sendTelegramMessage } from "@/lib/telegram/bot";
+import {
+  sendWhatsAppInteractiveButtons,
+  sendWhatsAppTextMessage,
+  normalizeWhatsAppNumber,
+} from "@/lib/whatsapp/client";
 import { formatDateIndo } from "@/lib/utils";
 import { mockStore } from "@/lib/mock-data";
 
@@ -12,25 +17,36 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
-async function processReminders() {
+interface UrgentDocItem {
+  title: string;
+  docNumber: string;
+  expiryDate: string;
+  daysRemaining: number;
+  isExpired: boolean;
+  driveLink?: string | null;
+}
+
+interface MemberItem {
+  full_name: string;
+  telegram_chat_id?: any;
+  whatsapp_number?: string | null;
+}
+
+async function processReminders(targetChannel: "all" | "whatsapp" | "telegram" = "all") {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const urgentDocs: Array<{
-      title: string;
-      docNumber: string;
-      expiryDate: string;
-      daysRemaining: number;
-      isExpired: boolean;
-      driveLink?: string | null;
-    }> = [];
-
-    let members: Array<{ full_name: string; telegram_chat_id?: any }> = [];
+    const urgentDocs: UrgentDocItem[] = [];
+    let tgMembers: MemberItem[] = [];
+    let waMembers: MemberItem[] = [];
 
     if (!isSupabaseConfigured()) {
       const mockDocs = mockStore.getDocuments();
-      members = mockStore.getMembers().filter((m: any) => Boolean(m.telegram_chat_id));
+      const allMembers = mockStore.getMembers();
+
+      tgMembers = allMembers.filter((m: any) => Boolean(m.telegram_chat_id));
+      waMembers = allMembers.filter((m: any) => Boolean(m.whatsapp_number));
 
       mockDocs.forEach((doc: any) => {
         if (doc.expiry_date) {
@@ -64,18 +80,28 @@ async function processReminders() {
           success: true,
           message: "Simulasi Pengingat Selesai (Mode Mock Dev).",
           count: 0,
+          whatsappSent: false,
           telegramSent: false,
         });
       }
 
-      // Find all family members with Telegram chat IDs
-      const { data: dbMembers } = await supabaseAdmin
+      // Find family members with Telegram chat IDs
+      const { data: dbTgMembers } = await supabaseAdmin
         .from("family_members")
-        .select("full_name, telegram_chat_id")
+        .select("full_name, telegram_chat_id, whatsapp_number")
         .eq("family_id", familyId)
         .not("telegram_chat_id", "is", null);
 
-      members = dbMembers || [];
+      tgMembers = dbTgMembers || [];
+
+      // Find family members with WhatsApp numbers
+      const { data: dbWaMembers } = await supabaseAdmin
+        .from("family_members")
+        .select("full_name, telegram_chat_id, whatsapp_number")
+        .eq("family_id", familyId)
+        .not("whatsapp_number", "is", null);
+
+      waMembers = dbWaMembers || [];
 
       // Fetch all documents with expiry date for this family
       const { data: docs } = await supabaseAdmin
@@ -110,15 +136,17 @@ async function processReminders() {
         success: true,
         message: "Pemeriksaan selesai: Semua berkas keluarga masih dalam masa berlaku aman.",
         count: 0,
+        whatsappSent: false,
         telegramSent: false,
+        urgentDocuments: [],
       });
     }
 
     // Sort by days remaining (expired first, then nearest expiry)
     urgentDocs.sort((a, b) => a.daysRemaining - b.daysRemaining);
 
-    // Format HTML Telegram message safely
-    let msg = `🔔 <b>Pengingat Masa Berlaku Dokumen Keluarga</b>\n` +
+    // 1. Format Telegram Message (HTML Safe)
+    let tgMsg = `🔔 <b>Pengingat Masa Berlaku Dokumen Keluarga</b>\n` +
       `📅 Tanggal Cek: ${escapeHtml(formatDateIndo(new Date()))}\n` +
       `━━━━━━━━━━━━━━━━━━━\n\n`;
 
@@ -128,61 +156,143 @@ async function processReminders() {
         ? `(lewat ${Math.abs(d.daysRemaining)} hari yang lalu)`
         : `(${d.daysRemaining} hari lagi)`;
 
-      msg += `${idx + 1}. <b>${escapeHtml(d.title)}</b>\n`;
-      msg += `   └ Status: ${statusIcon} ${escapeHtml(countdownText)}\n`;
-      msg += `   └ No. Dokumen: <code>${escapeHtml(d.docNumber)}</code>\n`;
-      msg += `   └ Jatuh Tempo: 📅 ${escapeHtml(formatDateIndo(d.expiryDate))}\n`;
+      tgMsg += `${idx + 1}. <b>${escapeHtml(d.title)}</b>\n`;
+      tgMsg += `   └ Status: ${statusIcon} ${escapeHtml(countdownText)}\n`;
+      tgMsg += `   └ No. Dokumen: <code>${escapeHtml(d.docNumber)}</code>\n`;
+      tgMsg += `   └ Jatuh Tempo: 📅 ${escapeHtml(formatDateIndo(d.expiryDate))}\n`;
       if (d.driveLink) {
-        msg += `   └ 📁 <a href="${escapeHtml(d.driveLink)}">Buka Salinan Dokumen</a>\n`;
+        tgMsg += `   └ 📁 <a href="${escapeHtml(d.driveLink)}">Buka Salinan Dokumen</a>\n`;
       }
-      msg += `\n`;
+      tgMsg += `\n`;
     });
 
-    msg += `━━━━━━━━━━━━━━━━━━━\n` +
+    tgMsg += `━━━━━━━━━━━━━━━━━━━\n` +
       `<i>💡 Segera lakukan perpanjangan ke instansi terkait agar tidak terkena denda atau pembatalan layanan.</i>`;
 
-    // Send to all registered members
-    const sentNames: string[] = [];
-    const failedNames: string[] = [];
+    // 2. Format WhatsApp Message (Markdown & Emoji)
+    let waMsg = `🔔 *PENGINGAT MASA BERLAKU DOKUMEN KELUARGA*\n` +
+      `📅 Tanggal Cek: ${formatDateIndo(new Date())}\n` +
+      `━━━━━━━━━━━━━━━━━━━\n\n`;
 
-    if (process.env.TELEGRAM_BOT_TOKEN && !process.env.TELEGRAM_BOT_TOKEN.includes("placeholder")) {
-      for (const member of members) {
-        try {
-          const tgRes = await sendTelegramMessage(member.telegram_chat_id, msg, undefined, "HTML");
-          if (tgRes && tgRes.ok) {
-            sentNames.push(member.full_name);
-          } else {
-            failedNames.push(`${member.full_name}`);
-          }
-        } catch (err: any) {
-          failedNames.push(`${member.full_name}`);
-        }
+    urgentDocs.forEach((d, idx) => {
+      const statusBadge = d.isExpired ? "🔴 *KEDALUWARSA*" : "🟡 *SEGERA HABIS*";
+      const countdownText = d.isExpired
+        ? `(lewat ${Math.abs(d.daysRemaining)} hari yang lalu)`
+        : `(${d.daysRemaining} hari lagi)`;
+
+      waMsg += `${idx + 1}. *${d.title}*\n`;
+      waMsg += `   └ Status: ${statusBadge} ${countdownText}\n`;
+      waMsg += `   └ No. Dokumen: *${d.docNumber}*\n`;
+      waMsg += `   └ Jatuh Tempo: 📅 ${formatDateIndo(d.expiryDate)}\n`;
+      if (d.driveLink) {
+        waMsg += `   └ 📁 Salinan: ${d.driveLink}\n`;
       }
-    } else {
-      // Mock / Dev Mode
-      sentNames.push(...members.map((m) => m.full_name));
+      waMsg += `\n`;
+    });
+
+    waMsg += `━━━━━━━━━━━━━━━━━━━\n` +
+      `_💡 Segera lakukan perpanjangan ke instansi terkait agar tidak terkena denda atau kendala administrasi._`;
+
+    // 3. Dispatch Reminders
+    const tgSentNames: string[] = [];
+    const tgFailedNames: string[] = [];
+    const waSentNames: string[] = [];
+    const waFailedNames: string[] = [];
+
+    // 3a. Send Telegram
+    const shouldSendTelegram = targetChannel === "all" || targetChannel === "telegram";
+    if (shouldSendTelegram) {
+      if (process.env.TELEGRAM_BOT_TOKEN && !process.env.TELEGRAM_BOT_TOKEN.includes("placeholder")) {
+        for (const member of tgMembers) {
+          try {
+            const tgRes = await sendTelegramMessage(member.telegram_chat_id, tgMsg, undefined, "HTML");
+            if (tgRes && tgRes.ok) {
+              tgSentNames.push(member.full_name);
+            } else {
+              tgFailedNames.push(member.full_name);
+            }
+          } catch (err: any) {
+            tgFailedNames.push(member.full_name);
+          }
+        }
+      } else {
+        tgSentNames.push(...tgMembers.map((m) => m.full_name));
+      }
     }
 
-    const successMessage = `Pengingat berhasil dikirim (${sentNames.join(", ")}) untuk ${urgentDocs.length} berkas yang mendekati kedaluwarsa.`;
+    // 3b. Send WhatsApp
+    const shouldSendWhatsApp = targetChannel === "all" || targetChannel === "whatsapp";
+    if (shouldSendWhatsApp) {
+      if (process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) {
+        for (const member of waMembers) {
+          if (!member.whatsapp_number) continue;
+          try {
+            const waRes = await sendWhatsAppInteractiveButtons(
+              member.whatsapp_number,
+              waMsg,
+              [
+                { id: "action_summary", title: "📊 Ringkasan" },
+                { id: "action_balance", title: "💳 Saldo" },
+                { id: "action_help", title: "❓ Bantuan" },
+              ],
+              "Brankas Dokumen F&R Hub"
+            );
+            if (waRes && waRes.ok) {
+              waSentNames.push(member.full_name);
+            } else {
+              waFailedNames.push(member.full_name);
+            }
+          } catch (err: any) {
+            waFailedNames.push(member.full_name);
+          }
+        }
+      } else {
+        waSentNames.push(...waMembers.map((m) => m.full_name));
+      }
+    }
+
+    // Build friendly summary message
+    const allSentNames = [...new Set([...tgSentNames, ...waSentNames])];
+    const channelSummaries: string[] = [];
+    if (waSentNames.length > 0) channelSummaries.push(`WhatsApp (${waSentNames.join(", ")})`);
+    if (tgSentNames.length > 0) channelSummaries.push(`Telegram (${tgSentNames.join(", ")})`);
+
+    const summaryText = channelSummaries.length > 0
+      ? `Pengingat berhasil dikirim via ${channelSummaries.join(" & ")} untuk ${urgentDocs.length} berkas yang mendekati kedaluwarsa.`
+      : `Pemeriksaan selesai. Ditemukan ${urgentDocs.length} berkas yang memerlukan perhatian.`;
 
     return NextResponse.json({
       success: true,
-      message: successMessage,
+      message: summaryText,
       count: urgentDocs.length,
-      telegramSent: sentNames.length > 0,
-      sentTo: sentNames,
-      failedRecipients: failedNames.length > 0 ? failedNames : undefined,
+      whatsappSent: waSentNames.length > 0,
+      telegramSent: tgSentNames.length > 0,
+      whatsappRecipients: waSentNames,
+      telegramRecipients: tgSentNames,
+      sentTo: allSentNames,
+      failedRecipients: [...tgFailedNames, ...waFailedNames],
       urgentDocuments: urgentDocs,
     });
   } catch (err: any) {
+    console.error("[Document Reminder API] Error:", err);
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
 
 export async function GET(req: NextRequest) {
-  return processReminders();
+  const channel = (req.nextUrl.searchParams.get("channel") || "all") as "all" | "whatsapp" | "telegram";
+  return processReminders(channel);
 }
 
 export async function POST(req: NextRequest) {
-  return processReminders();
+  let channel: "all" | "whatsapp" | "telegram" = "all";
+  try {
+    const body = await req.json();
+    if (body.channel && ["all", "whatsapp", "telegram"].includes(body.channel)) {
+      channel = body.channel;
+    }
+  } catch (e) {
+    // Body is optional
+  }
+  return processReminders(channel);
 }

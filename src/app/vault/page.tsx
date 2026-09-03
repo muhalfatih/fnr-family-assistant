@@ -22,6 +22,7 @@ import {
   Plus,
   Search,
   Send,
+  Bell,
   Loader2,
   RefreshCw,
   FolderLock,
@@ -43,7 +44,7 @@ export default function VaultPage() {
   const { documents, isLoading, isValidating, mutate } = useDocuments();
 
   const handleDeleteDocument = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus arsip dokumen ini?")) return;
+    if (!confirm("Apakah Anda yakin ingin menghapus dokumen ini dari brankas?")) return;
     try {
       const res = await fetch(`/api/documents?id=${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -64,10 +65,14 @@ export default function VaultPage() {
   const handleTriggerReminder = async () => {
     setIsSendingReminder(true);
     try {
-      const res = await fetch("/api/documents/remind", { method: "POST" });
+      const res = await fetch("/api/documents/remind", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: "all" }),
+      });
       const data = await res.json();
       if (res.ok) {
-        toast.success(data.message || "Pemeriksaan dokumen & pengingat selesai dikirim ke Telegram.");
+        toast.success(data.message || "Pengingat dokumen berhasil dikirim ke WhatsApp & Telegram.");
         mutate();
       } else {
         toast.error(`Gagal: ${data.error || "Terjadi kesalahan pada server."}`);
@@ -166,14 +171,14 @@ export default function VaultPage() {
               onClick={handleTriggerReminder}
               disabled={isSendingReminder}
               className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
-              title="Picu scanner pengingat dokumen kedaluwarsa ke bot Telegram"
+              title="Picu scanner pengingat dokumen jatuh tempo ke WhatsApp & Telegram"
             >
               {isSendingReminder ? (
                 <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden="true" />
               ) : (
-                <Send className="size-3.5 text-blue-500" aria-hidden="true" />
+                <Bell className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
               )}
-              <span>Pengingat Telegram</span>
+              <span>Kirim Pengingat Bot</span>
             </Button>
 
             <Button

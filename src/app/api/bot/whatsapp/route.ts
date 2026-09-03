@@ -20,7 +20,7 @@ import {
 } from "@/lib/bot/process-manager";
 import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
 import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from "@/lib/bot/relevance-guard";
-import { formatRupiah, getMonthDateRange } from "@/lib/utils";
+import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
 
 // Standard quick action buttons for WhatsApp interactive messages
 const DEFAULT_WHATSAPP_BUTTONS = [
@@ -347,7 +347,7 @@ async function processWhatsAppMessage(
   if (actionId === "action_help" || lowerText === "bantuan" || lowerText === "help" || lowerText === "halo" || lowerText === "hi") {
     const helpMsg =
       `👋 *Halo, ${senderName}! Selamat Datang di F&R Family Hub WhatsApp*\n\n` +
-      `Saya asisten keuangan keluarga berbasis AI. Anda dapat langsung mengirimkan:\n\n` +
+      `Saya asisten keuangan & legalitas keluarga berbasis AI. Anda dapat langsung mengirimkan:\n\n` +
       `1️⃣ *Pesan Teks Transaksi*\n` +
       `   _Contoh: 'Beli beras 120rb pake BCA'_\n` +
       `   _Contoh: 'Bensin motor 35k tunai'_\n\n` +
@@ -355,14 +355,116 @@ async function processWhatsAppMessage(
       `   _Kirim foto nota supermarket/restoran, AI akan otomatis membaca rincian item, toko, total, dan mengunggahnya ke Google Drive._\n\n` +
       `3️⃣ *Pesan Suara (Voice Note)*\n` +
       `   _Rekam dan kirim suara Anda saat belanja._\n\n` +
-      `4️⃣ *Tanya AI Keuangan*\n` +
-      `   _Contoh: 'Berapa total belanja saya minggu ini?'_`;
+      `4️⃣ *Tanya Keuangan & Dokumen Legalitas*\n` +
+      `   _Contoh: 'Berapa total belanja saya minggu ini?'_\n` +
+      `   _Contoh: 'Kapan STNK mobil habis?' atau 'Cek berkas'_`;
 
     await sendWhatsAppInteractiveButtons(
       senderPhone,
       helpMsg,
       DEFAULT_WHATSAPP_BUTTONS,
       "Panduan Penggunaan"
+    );
+    return;
+  }
+
+  // 4e. Document Vault / Expiry Status Action
+  if (
+    actionId === "action_vault" ||
+    lowerText === "dokumen" ||
+    lowerText === "berkas" ||
+    lowerText === "cek dokumen" ||
+    lowerText === "cek berkas" ||
+    lowerText === "brankas" ||
+    lowerText.includes("stnk") ||
+    lowerText.includes("sim") ||
+    lowerText.includes("paspor") ||
+    lowerText.includes("pajak") ||
+    lowerText.includes("kedaluwarsa") ||
+    lowerText.includes("kapan habis")
+  ) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const { data: docs } = await supabaseAdmin
+      .from("documents")
+      .select("*")
+      .eq("family_id", familyId);
+
+    if (!docs || docs.length === 0) {
+      await sendWhatsAppInteractiveButtons(
+        senderPhone,
+        `📁 *BRANKAS DOKUMEN KELUARGA*\n\n_Belum ada berkas atau dokumen yang diarsipkan di brankas keluarga._`,
+        DEFAULT_WHATSAPP_BUTTONS,
+        "Brankas Dokumen"
+      );
+      return;
+    }
+
+    // If query mentions a specific keyword (e.g. STNK, SIM, Paspor)
+    const specificKeyword = ["stnk", "sim", "paspor", "pajak", "bpjs", "ijazah", "sertifikat"].find(
+      (k) => lowerText.includes(k)
+    );
+
+    let targetDocs = docs;
+    if (specificKeyword) {
+      const filtered = docs.filter(
+        (d: any) =>
+          d.title.toLowerCase().includes(specificKeyword) ||
+          (d.document_number && d.document_number.toLowerCase().includes(specificKeyword))
+      );
+      if (filtered.length > 0) {
+        targetDocs = filtered;
+      }
+    }
+
+    let docListText = "";
+    targetDocs.slice(0, 7).forEach((d: any, idx: number) => {
+      let statusBadge = "🟢 *AKTIF*";
+      let expInfo = "";
+
+      if (d.is_permanent || !d.expiry_date) {
+        statusBadge = "📁 *PERMANEN*";
+        expInfo = "Masa berlaku seumur hidup";
+      } else {
+        const exp = new Date(d.expiry_date);
+        exp.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+          statusBadge = "🔴 *KEDALUWARSA*";
+          expInfo = `Kedaluwarsa ${Math.abs(diffDays)} hari lalu (${formatDateIndo(d.expiry_date)})`;
+        } else if (diffDays <= (d.reminder_days_before || 30)) {
+          statusBadge = "🟡 *SEGERA HABIS*";
+          expInfo = `Jatuh tempo dlm ${diffDays} hari (${formatDateIndo(d.expiry_date)})`;
+        } else {
+          statusBadge = "🟢 *AKTIF*";
+          expInfo = `Berlaku s/d ${formatDateIndo(d.expiry_date)} (${diffDays} hari lagi)`;
+        }
+      }
+
+      docListText += `${idx + 1}. *${d.title}*\n`;
+      docListText += `   └ Status: ${statusBadge}\n`;
+      docListText += `   └ Info: ${expInfo}\n`;
+      if (d.document_number) {
+        docListText += `   └ No: ${d.document_number}\n`;
+      }
+      docListText += `\n`;
+    });
+
+    const vaultMsg =
+      `📁 *STATUS DOKUMEN & LEGALITAS KELUARGA*\n` +
+      `📅 Per Tanggal: ${formatDateIndo(new Date())}\n` +
+      `━━━━━━━━━━━━━━━━━━━\n\n` +
+      docListText +
+      `━━━━━━━━━━━━━━━━━━━\n` +
+      `_💡 Pengingat otomatis akan dikirim ke WhatsApp saat masa berlaku dokumen mendekati jatuh tempo._`;
+
+    await sendWhatsAppInteractiveButtons(
+      senderPhone,
+      vaultMsg,
+      DEFAULT_WHATSAPP_BUTTONS,
+      "Brankas Dokumen"
     );
     return;
   }
