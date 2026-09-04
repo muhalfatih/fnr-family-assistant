@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -26,7 +26,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Activity, Bot, ShieldCheck } from "lucide-react";
+import { Activity, Bot, LogOut, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
 
@@ -39,8 +40,75 @@ const pageTitleMap: Record<string, { title: string; category: string }> = {
 };
 
 export function AppHeader() {
+  const router = useRouter();
   const pathname = usePathname();
   const [isApiModalOpen, setIsApiModalOpen] = React.useState(false);
+
+  const [activeUser, setActiveUser] = React.useState<{
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  }>({
+    name: "Ayah (Fatih)",
+    email: "ayah@keluarga.hub",
+    role: "admin",
+  });
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("fnr_user");
+      if (stored) {
+        setActiveUser(JSON.parse(stored));
+      } else {
+        fetch("/api/auth/me")
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.authenticated && data?.user) {
+              setActiveUser(data.user);
+              localStorage.setItem("fnr_user", JSON.stringify(data.user));
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {}
+  }, []);
+
+  const avatarInitials = React.useMemo(() => {
+    const name = activeUser.name || "Ayah";
+    if (
+      name.toLowerCase().includes("ibu") ||
+      name.toLowerCase().includes("bunda") ||
+      name.toLowerCase().includes("rania")
+    )
+      return "IB";
+    if (
+      name.toLowerCase().includes("ayah") ||
+      name.toLowerCase().includes("fatih")
+    )
+      return "AY";
+    if (
+      name.toLowerCase().includes("kakak") ||
+      name.toLowerCase().includes("zaid")
+    )
+      return "ZK";
+    if (
+      name.toLowerCase().includes("adik") ||
+      name.toLowerCase().includes("maryam")
+    )
+      return "MY";
+    return name.substring(0, 2).toUpperCase();
+  }, [activeUser.name]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    localStorage.removeItem("fnr_user");
+    toast.success("Anda telah berhasil keluar.");
+    router.replace("/login");
+    router.refresh();
+  };
 
   const currentPage = pageTitleMap[pathname] || {
     title: "Dashboard",
@@ -94,7 +162,7 @@ export function AppHeader() {
               >
                 <Avatar className="size-8 rounded-full border border-border shrink-0 aspect-square">
                   <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground select-none">
-                    AY
+                    {avatarInitials}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -102,8 +170,12 @@ export function AppHeader() {
             <DropdownMenuContent align="end" className="w-56 text-xs">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-0.5">
-                  <p className="font-semibold text-xs text-foreground">Ayah (Admin)</p>
-                  <p className="text-[11px] text-muted-foreground">ayah@keluarga.hub</p>
+                  <p className="font-semibold text-xs text-foreground truncate">
+                    {activeUser.name || "Ayah (Admin)"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {activeUser.email || "ayah@keluarga.hub"}
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -115,6 +187,14 @@ export function AppHeader() {
                 <DropdownMenuItem className="cursor-pointer text-xs">Profil & Roster Keluarga</DropdownMenuItem>
               </Link>
               <DropdownMenuItem className="text-xs">Pengaturan Webhook Telegram</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 font-medium text-xs"
+              >
+                <LogOut className="size-3.5 text-destructive" aria-hidden="true" />
+                <span>Keluar (Logout)</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
