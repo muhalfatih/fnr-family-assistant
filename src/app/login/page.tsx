@@ -90,7 +90,7 @@ function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Tautan login tidak valid atau kadaluwarsa.");
+        throw new Error(data.error || "Tautan masuk ini sudah kadaluwarsa atau telah digunakan. Silakan minta kode baru.");
       }
 
       if (typeof window !== "undefined") {
@@ -100,7 +100,7 @@ function LoginForm() {
       router.replace(redirectTarget);
       router.refresh();
     } catch (err: any) {
-      setError(err.message || "Gagal memproses tautan login.");
+      setError(err.message || "Gagal memproses tautan masuk. Silakan minta kode baru.");
     } finally {
       setIsVerifyingMagic(false);
     }
@@ -243,7 +243,7 @@ function LoginForm() {
       router.replace(redirectTarget);
       router.refresh();
     } catch (err: any) {
-      setError(err.message || "Kode verifikasi tidak cocok.");
+      setError(err.message || "Kode verifikasi 6-digit tidak cocok. Silakan periksa kembali pesan WhatsApp/Telegram Anda.");
     } finally {
       setIsLoading(false);
     }
@@ -304,7 +304,7 @@ function LoginForm() {
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin text-primary" />
-            <span>Memverifikasi tautan masuk keluarga...</span>
+            <span>Memverifikasi tautan masuk instan...</span>
           </div>
         </div>
       </main>
@@ -342,7 +342,7 @@ function LoginForm() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Executive Ledger &amp; Family Assistant
+                  Buku Kas &amp; Asisten Finansial Keluarga
                 </p>
               </div>
             </div>
@@ -383,7 +383,7 @@ function LoginForm() {
                 className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
                 <KeyRound className="size-3.5 text-amber-500" />
-                <span>Sandi</span>
+                <span>Kata Sandi</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -415,7 +415,7 @@ function LoginForm() {
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Kode 6-digit &amp; tautan masuk instan akan dikirimkan ke nomor WhatsApp Anda.
+                  Kode 6-digit dan tautan masuk instan akan dikirimkan ke nomor WhatsApp Anda.
                 </p>
               </div>
             ) : (
@@ -480,7 +480,7 @@ function LoginForm() {
                 </>
               ) : (
                 <>
-                  <span>Kirim Kode &amp; Link Masuk</span>
+                  <span>Kirim Kode &amp; Tautan Masuk</span>
                   <ArrowRight className="size-3.5" />
                 </>
               )}
@@ -501,7 +501,7 @@ function LoginForm() {
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <ArrowLeft className="size-3.5" />
-                <span>Ganti nomor/ID</span>
+                <span>Ganti nomor atau ID</span>
               </button>
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-muted/70 text-muted-foreground border border-border/50">
                 {method === "whatsapp" ? "WhatsApp" : "Telegram"}
@@ -509,8 +509,8 @@ function LoginForm() {
             </div>
 
             <div className="text-center space-y-0.5 py-0.5">
-              <p className="text-xs font-medium text-foreground">
-                Masukkan 6-Digit Kode Verifikasi
+              <p className="text-xs font-semibold text-foreground">
+                Masukkan 6-Digit Kode Masuk
               </p>
               <p className="text-[11px] text-muted-foreground">
                 Telah dikirim ke <strong className="font-semibold text-foreground">{targetDisplay}</strong>
