@@ -93,3 +93,47 @@ export function getMonthDateRange(monthYear: string): { startDate: string; endDa
   };
 }
 
+/**
+ * Formats a phone number into a masked Indonesian/international format with privacy stars.
+ * Example:
+ * '08123456789' or '628123456789' -> '+62-812-****-789'
+ * '+6281234567890' -> '+62-812-****-7890'
+ */
+export function formatMaskedPhone(phone: string | null | undefined): string {
+  if (!phone) return "-";
+  const cleaned = phone.trim().replace(/[^\d+]/g, "");
+
+  let countryCode = "+62";
+  let rest = "";
+
+  if (cleaned.startsWith("+62")) {
+    countryCode = "+62";
+    rest = cleaned.slice(3);
+  } else if (cleaned.startsWith("62")) {
+    countryCode = "+62";
+    rest = cleaned.slice(2);
+  } else if (cleaned.startsWith("0")) {
+    countryCode = "+62";
+    rest = cleaned.slice(1);
+  } else if (cleaned.startsWith("+")) {
+    const match = cleaned.match(/^\+(\d{1,3})(.*)$/);
+    if (match) {
+      countryCode = `+${match[1]}`;
+      rest = match[2];
+    } else {
+      rest = cleaned.slice(1);
+    }
+  } else {
+    rest = cleaned;
+  }
+
+  if (rest.length <= 6) {
+    return `${countryCode}-${rest}`;
+  }
+
+  const prefix = rest.slice(0, 3);
+  const suffixLen = Math.min(4, Math.max(2, rest.length - 7));
+  const suffix = rest.slice(-suffixLen);
+
+  return `${countryCode}-${prefix}-****-${suffix}`;
+}

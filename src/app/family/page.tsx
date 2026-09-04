@@ -137,10 +137,10 @@ export default function FamilyPage() {
           </div>
         </div>
 
-        {/* 2-Column Split Section: Contribution Breakdown (4 Cols) & Member Roster (3 Cols) */}
-        <div className="grid gap-6 lg:grid-cols-7 items-start">
-          {/* Left: Spending Contribution Charts (4 Cols) */}
-          <div className="lg:col-span-4 space-y-4">
+        {/* 2-Column Balanced Section: Contribution Breakdown (6 Cols) & Member Roster (6 Cols) */}
+        <div className="grid gap-6 lg:grid-cols-12 items-start">
+          {/* Left: Spending Contribution Charts (6 Cols) */}
+          <div className="lg:col-span-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold tracking-tight text-foreground">
@@ -163,8 +163,8 @@ export default function FamilyPage() {
             )}
           </div>
 
-          {/* Right: Member Profiles Grid (3 Cols) */}
-          <div className="lg:col-span-3 space-y-4">
+          {/* Right: Member Profiles 2-Column Grid (6 Cols) */}
+          <div className="lg:col-span-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold tracking-tight text-foreground">
@@ -177,9 +177,9 @@ export default function FamilyPage() {
             </div>
 
             {isInitialLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-[160px] rounded-xl" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-[120px] rounded-xl" />
                 ))}
               </div>
             ) : members.length === 0 ? (
@@ -200,7 +200,7 @@ export default function FamilyPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {members.map((m) => (
                   <MemberCard
                     key={m.id}
