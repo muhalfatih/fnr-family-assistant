@@ -224,18 +224,17 @@ export async function GET() {
     }
   }
 
-  // 4. Check Google Cloud Service Account (Sheets & Drive)
+  // 4. Check Google Cloud Service Account (Google Sheets Sync)
   const googleStart = Date.now();
   const serviceEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-  const driveFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
   const sheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
 
   if (!serviceEmail || !privateKey || privateKey.includes("...") || privateKey.length < 300) {
     results.push({
       id: "google_cloud",
-      name: "Google Cloud (Drive & Sheets)",
-      category: "Cloud Storage & Backup",
+      name: "Google Cloud (Google Sheets Sync)",
+      category: "Spreadsheet Backup",
       status: "missing_config",
       message: "GOOGLE_SERVICE_ACCOUNT_EMAIL atau PRIVATE_KEY masih menggunakan contoh placeholder",
     });
@@ -260,22 +259,21 @@ export async function GET() {
 
       results.push({
         id: "google_cloud",
-        name: "Google Cloud (Drive & Sheets)",
-        category: "Cloud Storage & Backup",
+        name: "Google Cloud (Google Sheets Sync)",
+        category: "Spreadsheet Backup",
         status: "connected",
         message: "Autentikasi Service Account Google Cloud berhasil diverifikasi.",
         latencyMs: latency,
         details: {
           clientEmail: serviceEmail,
           spreadsheet: sheetId ? `ID: ${sheetId.substring(0, 8)}... (${sheetTitle})` : "Belum diisi",
-          driveFolder: driveFolderId ? `ID: ${driveFolderId.substring(0, 8)}...` : "Belum diisi",
         },
       });
     } catch (err: any) {
       results.push({
         id: "google_cloud",
-        name: "Google Cloud (Drive & Sheets)",
-        category: "Cloud Storage & Backup",
+        name: "Google Cloud (Google Sheets Sync)",
+        category: "Spreadsheet Backup",
         status: "error",
         message: err.message || "Gagal melakukan autentikasi Google Service Account",
         latencyMs: Date.now() - googleStart,

@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
       }
       mockStore.deleteTransaction(transactionId);
 
-      // 2. Clean up media storage (Cloudflare R2 / Local / Google Drive) to save space
+      // 2. Clean up media storage (Cloudflare R2 / Local) to save space
       if (targetTx && (targetTx.drive_file_id || targetTx.drive_view_url || targetTx.media_url)) {
         deleteReceiptMedia({
           fileId: targetTx.drive_file_id,

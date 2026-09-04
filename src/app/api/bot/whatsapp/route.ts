@@ -704,7 +704,7 @@ async function processWhatsAppMessage(
     }
 
     if (targetTx) {
-      // Clean up media storage (R2 / Local / Google Drive)
+      // Clean up media storage (R2 / Local)
       if (targetTx.drive_file_id || targetTx.drive_view_url || targetTx.media_url) {
         deleteReceiptMedia({
           fileId: targetTx.drive_file_id,
@@ -750,7 +750,7 @@ async function processWhatsAppMessage(
         return;
       }
 
-      // Parse immediately with Gemini OCR without blocking on Google Drive
+      // Parse immediately with Gemini OCR without blocking on storage upload
       const parsed = await parseFinancialInputWithGemini({
         imageBuffer: media.buffer,
         imageMimeType: media.mimeType || "image/jpeg",

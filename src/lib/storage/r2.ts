@@ -348,24 +348,5 @@ export async function deleteReceiptMedia(
     errors.push(`cloudflare_r2: ${err.message}`);
   }
 
-  // 3. Delete from Google Drive if stored as a Drive file ID
-  try {
-    const isGoogleDriveId =
-      candidateKeyOrId &&
-      !candidateKeyOrId.includes("/") &&
-      !candidateKeyOrId.startsWith("local_") &&
-      candidateKeyOrId.length >= 20;
-
-    if (isGoogleDriveId) {
-      const { deleteFileFromDrive } = await import("@/lib/google/drive");
-      const gdriveDeleted = await deleteFileFromDrive(candidateKeyOrId);
-      if (gdriveDeleted) {
-        deletedFrom.push(`google_drive:${candidateKeyOrId}`);
-      }
-    }
-  } catch (err: any) {
-    errors.push(`google_drive: ${err.message}`);
-  }
-
   return { deletedFrom, errors };
 }

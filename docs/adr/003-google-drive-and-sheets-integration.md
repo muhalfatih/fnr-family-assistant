@@ -1,7 +1,7 @@
 # ADR 003: Integrasi Google Drive untuk Media/Struk & Real-Time Sync Google Sheets
 
 ## Status
-**Accepted** (Disetujui) — 2026-08-31
+**Superseded Partially by Cloudflare R2** (Komponen Google Drive media storage digantikan sepenuhnya oleh Cloudflare R2; Sinkronisasi Google Sheets tetap aktif) — 2026-09-04
 
 ## Konteks
 Sistem **F&R Family Hub** memerlukan penyimpanan berkas media (foto nota/struk belanja, dokumen legal) dan replikasi data transaksi ke Google Sheets:

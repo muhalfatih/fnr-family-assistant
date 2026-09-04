@@ -19,7 +19,6 @@ export function getGoogleAuthClient() {
     email: clientEmail,
     key: privateKey,
     scopes: [
-      "https://www.googleapis.com/auth/drive",
       "https://www.googleapis.com/auth/spreadsheets",
     ],
   });

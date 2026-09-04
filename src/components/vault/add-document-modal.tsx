@@ -302,7 +302,7 @@ export function AddDocumentModal({
             </Label>
             <Input
               id="driveUrl"
-              placeholder="https://drive.google.com/file/d/..."
+              placeholder="https://example.com/dokumen.pdf atau tautan berkas..."
               value={driveUrl}
               onChange={(e) => setDriveUrl(e.target.value)}
               className="text-xs font-mono h-9"
