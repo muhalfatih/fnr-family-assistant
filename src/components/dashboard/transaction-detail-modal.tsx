@@ -57,6 +57,7 @@ export function TransactionDetailModal({
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMovedDuringDrag, setHasMovedDuringDrag] = useState(false);
 
   useEffect(() => {
     setImageLoading(true);
@@ -74,20 +75,25 @@ export function TransactionDetailModal({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoomLevel > 1) {
-      e.preventDefault();
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
-    }
+    setHasMovedDuringDrag(false);
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && zoomLevel > 1) {
-      e.preventDefault();
-      setPanPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
+    if (isDragging) {
+      const dx = Math.abs(e.clientX - (dragStart.x + panPosition.x));
+      const dy = Math.abs(e.clientY - (dragStart.y + panPosition.y));
+      if (dx > 4 || dy > 4) {
+        setHasMovedDuringDrag(true);
+      }
+      if (zoomLevel > 1) {
+        e.preventDefault();
+        setPanPosition({
+          x: e.clientX - dragStart.x,
+          y: e.clientY - dragStart.y,
+        });
+      }
     }
   };
 
@@ -95,8 +101,21 @@ export function TransactionDetailModal({
     setIsDragging(false);
   };
 
+  const handleImageClick = (e: React.MouseEvent) => {
+    // If dragged to pan, do not toggle zoom
+    if (hasMovedDuringDrag) return;
+    e.stopPropagation();
+    if (zoomLevel <= 1) {
+      setZoomLevel(2.25);
+    } else {
+      setZoomLevel(1);
+      setPanPosition({ x: 0, y: 0 });
+    }
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && zoomLevel > 1) {
+    setHasMovedDuringDrag(false);
+    if (e.touches.length === 1) {
       const touch = e.touches[0];
       setIsDragging(true);
       setDragStart({ x: touch.clientX - panPosition.x, y: touch.clientY - panPosition.y });
@@ -104,12 +123,19 @@ export function TransactionDetailModal({
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (isDragging && e.touches.length === 1 && zoomLevel > 1) {
+    if (isDragging && e.touches.length === 1) {
       const touch = e.touches[0];
-      setPanPosition({
-        x: touch.clientX - dragStart.x,
-        y: touch.clientY - dragStart.y,
-      });
+      const dx = Math.abs(touch.clientX - (dragStart.x + panPosition.x));
+      const dy = Math.abs(touch.clientY - (dragStart.y + panPosition.y));
+      if (dx > 4 || dy > 4) {
+        setHasMovedDuringDrag(true);
+      }
+      if (zoomLevel > 1) {
+        setPanPosition({
+          x: touch.clientX - dragStart.x,
+          y: touch.clientY - dragStart.y,
+        });
+      }
     }
   };
 
@@ -211,32 +237,43 @@ export function TransactionDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl gap-5">
-        <DialogHeader className="space-y-3 pb-3 border-b border-border/70">
-          <div className="flex flex-wrap items-center justify-between gap-2 pr-8 sm:pr-10">
-            <div className="flex items-center gap-2">
-              <Badge
-                variant={isExpense ? "destructive" : "default"}
-                className={`text-xs px-2.5 py-0.5 font-medium ${
-                  isIncome ? "bg-emerald-600 hover:bg-emerald-600 text-white" : ""
-                }`}
-              >
-                {isIncome ? "Pemasukan" : isExpense ? "Pengeluaran" : "Transfer"}
-              </Badge>
-              {channelBadge()}
-            </div>
-
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Calendar className="size-3.5" />
-              {formatDateIndo(transaction.transaction_date)}
-            </span>
+        <DialogHeader className="space-y-2.5 pb-3 border-b border-border/70">
+          <div className="flex items-center gap-2 pr-10">
+            <Badge
+              variant={isExpense ? "destructive" : "default"}
+              className={`text-xs px-2.5 py-0.5 font-medium ${
+                isIncome ? "bg-emerald-600 hover:bg-emerald-600 text-white" : ""
+              }`}
+            >
+              {isIncome ? "Pemasukan" : isExpense ? "Pengeluaran" : "Transfer"}
+            </Badge>
+            {channelBadge()}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
-            <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-              {transaction.description || (merchant ? `Belanja ${merchant}` : "Detail Transaksi")}
-            </DialogTitle>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0 flex-1 pr-2">
+              <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug">
+                {transaction.description || (merchant ? `Belanja ${merchant}` : "Detail Transaksi")}
+              </DialogTitle>
+              {/* Date & Sub-heading metadata */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1 font-medium text-foreground/85">
+                  <Calendar className="size-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                  <span>{formatDateIndo(transaction.transaction_date)}</span>
+                </span>
+                <span>•</span>
+                <span className="truncate">{transaction.category?.name || "Umum"}</span>
+                {transaction.wallet && (
+                  <>
+                    <span>•</span>
+                    <span className="font-medium text-foreground truncate">{transaction.wallet.name}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
             <span
-              className={`text-2xl sm:text-3xl font-bold tabular-nums ${
+              className={`text-2xl sm:text-3xl font-bold tabular-nums shrink-0 self-start sm:self-auto ${
                 isIncome
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-foreground"
@@ -602,8 +639,12 @@ export function TransactionDetailModal({
 
           {/* Center Image Canvas (Pan & Zoom) */}
           <div
-            className={`flex-1 overflow-hidden flex items-center justify-center p-4 relative ${
-              zoomLevel > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
+            className={`flex-1 overflow-hidden flex items-center justify-center p-4 relative select-none ${
+              zoomLevel > 1
+                ? isDragging && hasMovedDuringDrag
+                  ? "cursor-grabbing"
+                  : "cursor-grab"
+                : "cursor-default"
             }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -618,17 +659,25 @@ export function TransactionDetailModal({
               src={mediaUrl}
               alt={transaction.description || "Struk Belanja"}
               draggable={false}
+              onClick={handleImageClick}
               style={{
                 transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoomLevel})`,
-                transition: isDragging ? "none" : "transform 0.15s ease-out",
+                transition: isDragging ? "none" : "transform 0.18s ease-out",
               }}
-              className="max-h-[85vh] max-w-[90vw] object-contain select-none pointer-events-auto"
+              className={`max-h-[85vh] max-w-[90vw] object-contain select-none pointer-events-auto transition-transform ${
+                zoomLevel > 1
+                  ? isDragging && hasMovedDuringDrag
+                    ? "cursor-grabbing"
+                    : "cursor-zoom-out"
+                  : "cursor-zoom-in"
+              }`}
+              title={zoomLevel > 1 ? "Klik gambar untuk memperkecil (Zoom Out)" : "Klik gambar untuk memperbesar (Zoom In)"}
             />
           </div>
 
           {/* Bottom Hint */}
-          <div className="p-2 text-center bg-black/50 text-[11px] text-white/50 border-t border-white/10 shrink-0">
-            <span className="hidden sm:inline">Gunakan scroll mouse untuk zoom in/out, drag mouse untuk menggeser gambar • </span>
+          <div className="p-2.5 text-center bg-black/50 text-[11px] text-white/60 border-t border-white/10 shrink-0">
+            <span className="hidden sm:inline">Klik gambar atau scroll mouse untuk zoom in/out • Drag untuk menggeser • </span>
             <span>Tekan Esc atau klik di luar gambar untuk menutup</span>
           </div>
         </div>,
