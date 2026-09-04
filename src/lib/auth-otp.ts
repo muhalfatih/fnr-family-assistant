@@ -1,0 +1,296 @@
+import crypto from "crypto";
+import { mockStore } from "@/lib/mock-data";
+
+export interface AuthenticatedUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface OtpRecord {
+  id: string;
+  channel: "whatsapp" | "telegram";
+  identifier: string; // Normalized identifier
+  targetDisplay: string;
+  code: string; // 6-digit string
+  magicToken: string; // Cryptographic url-safe token
+  user: AuthenticatedUser;
+  createdAt: number;
+  expiresAt: number;
+  lastSentAt: number;
+  attempts: number;
+}
+
+const OTP_TTL_MS = 5 * 60 * 1000; // 5 menit
+const RESEND_COOLDOWN_MS = 60 * 1000; // 60 detik
+
+// Use global singleton to survive hot-module reloading in Next.js development
+const globalForOtp = globalThis as unknown as {
+  otpStore?: Map<string, OtpRecord>;
+  magicTokenIndex?: Map<string, string>; // magicToken -> identifier
+};
+
+if (!globalForOtp.otpStore) {
+  globalForOtp.otpStore = new Map<string, OtpRecord>();
+}
+if (!globalForOtp.magicTokenIndex) {
+  globalForOtp.magicTokenIndex = new Map<string, string>();
+}
+
+const otpStore = globalForOtp.otpStore;
+const magicTokenIndex = globalForOtp.magicTokenIndex;
+
+/**
+ * Normalize phone numbers to standard format (e.g. 6281234567890)
+ */
+export function normalizePhoneNumber(raw: string): string {
+  let cleaned = raw.replace(/\D/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = `62${cleaned.substring(1)}`;
+  } else if (cleaned.startsWith("8")) {
+    cleaned = `62${cleaned}`;
+  }
+  return cleaned;
+}
+
+/**
+ * Mask target for privacy display (e.g. +62 812-****-7890 or 123***789)
+ */
+export function maskTarget(identifier: string, channel: "whatsapp" | "telegram"): string {
+  if (channel === "whatsapp") {
+    const cleaned = normalizePhoneNumber(identifier);
+    if (cleaned.length >= 10) {
+      const prefix = cleaned.substring(0, 5);
+      const suffix = cleaned.substring(cleaned.length - 4);
+      return `+${prefix}****${suffix}`;
+    }
+    return `+${cleaned}`;
+  } else {
+    const clean = identifier.replace(/^@/, "").trim();
+    if (clean.length > 4) {
+      return `@${clean.substring(0, 2)}***${clean.substring(clean.length - 2)}`;
+    }
+    return clean;
+  }
+}
+
+/**
+ * Look up family member based on channel and identifier
+ */
+export function findMemberByIdentifier(
+  channel: "whatsapp" | "telegram",
+  identifier: string
+): AuthenticatedUser | null {
+  const members = mockStore.getMembers();
+
+  if (channel === "whatsapp") {
+    const normalizedInput = normalizePhoneNumber(identifier);
+    for (const m of members) {
+      if (m.whatsapp_number) {
+        const normalizedMember = normalizePhoneNumber(m.whatsapp_number);
+        if (normalizedMember === normalizedInput) {
+          return {
+            id: m.id,
+            name: m.full_name,
+            email: m.id === "mem-001" ? "ayah@keluarga.hub" : m.id === "mem-002" ? "ibu@keluarga.hub" : `${m.id}@keluarga.hub`,
+            role: m.role || "member",
+          };
+        }
+      }
+    }
+  } else if (channel === "telegram") {
+    const clean = identifier.replace(/^@/, "").trim().toLowerCase();
+    for (const m of members) {
+      const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id) : "";
+      const memberNameLower = m.full_name.toLowerCase();
+
+      // Cocokkan chat ID angka atau alias nama/username umum
+      const isChatIdMatch = chatIdStr && chatIdStr === clean;
+      const isNameMatch =
+        (clean === "ayah" || clean === "fatih") && m.id === "mem-001" ||
+        (clean === "ibu" || clean === "bunda" || clean === "rania") && m.id === "mem-002" ||
+        (clean === "kakak" || clean === "zaid") && m.id === "mem-003" ||
+        (clean === "adik" || clean === "maryam") && m.id === "mem-004";
+
+      if (isChatIdMatch || isNameMatch || memberNameLower.includes(clean)) {
+        return {
+          id: m.id,
+          name: m.full_name,
+          email: m.id === "mem-001" ? "ayah@keluarga.hub" : m.id === "mem-002" ? "ibu@keluarga.hub" : `${m.id}@keluarga.hub`,
+          role: m.role || "member",
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Generate 6-digit OTP code and random magic link token
+ */
+export function issueOtp(
+  channel: "whatsapp" | "telegram",
+  identifier: string,
+  user: AuthenticatedUser
+): {
+  success: boolean;
+  cooldownRemaining?: number;
+  record?: OtpRecord;
+  error?: string;
+} {
+  const normalizedKey = channel === "whatsapp" ? normalizePhoneNumber(identifier) : identifier.trim().toLowerCase();
+  const now = Date.now();
+
+  const existing = otpStore.get(normalizedKey);
+  if (existing && existing.expiresAt > now) {
+    const timeSinceLastSent = now - existing.lastSentAt;
+    if (timeSinceLastSent < RESEND_COOLDOWN_MS) {
+      const cooldownRemaining = Math.ceil((RESEND_COOLDOWN_MS - timeSinceLastSent) / 1000);
+      return {
+        success: false,
+        cooldownRemaining,
+        error: `Silakan tunggu ${cooldownRemaining} detik sebelum meminta kode baru.`,
+      };
+    }
+  }
+
+  // Generate cryptographically strong 6-digit code (e.g. 102938)
+  const randomNum = crypto.randomInt(100000, 999999);
+  const code = randomNum.toString();
+
+  // Generate 32-char url-safe magic token
+  const magicToken = crypto.randomBytes(24).toString("base64url");
+
+  const record: OtpRecord = {
+    id: `otp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    channel,
+    identifier: normalizedKey,
+    targetDisplay: maskTarget(identifier, channel),
+    code,
+    magicToken,
+    user,
+    createdAt: now,
+    expiresAt: now + OTP_TTL_MS,
+    lastSentAt: now,
+    attempts: 0,
+  };
+
+  otpStore.set(normalizedKey, record);
+  magicTokenIndex.set(magicToken, normalizedKey);
+
+  // Bersihkan token kadaluwarsa secara berkala
+  cleanupExpired();
+
+  return { success: true, record };
+}
+
+/**
+ * Verify 6-digit OTP code
+ */
+export function verifyOtpCode(
+  channel: "whatsapp" | "telegram",
+  identifier: string,
+  inputCode: string
+): { success: boolean; user?: AuthenticatedUser; error?: string } {
+  const normalizedKey = channel === "whatsapp" ? normalizePhoneNumber(identifier) : identifier.trim().toLowerCase();
+  const record = otpStore.get(normalizedKey);
+
+  if (!record) {
+    return {
+      success: false,
+      error: "Kode verifikasi tidak ditemukan atau telah kadaluwarsa. Silakan minta kode baru.",
+    };
+  }
+
+  if (Date.now() > record.expiresAt) {
+    otpStore.delete(normalizedKey);
+    magicTokenIndex.delete(record.magicToken);
+    return {
+      success: false,
+      error: "Kode verifikasi telah kadaluwarsa (lebih dari 5 menit). Silakan minta kode baru.",
+    };
+  }
+
+  record.attempts += 1;
+  if (record.attempts > 5) {
+    otpStore.delete(normalizedKey);
+    magicTokenIndex.delete(record.magicToken);
+    return {
+      success: false,
+      error: "Terlalu banyak percobaan salah. Silakan minta kode verifikasi baru.",
+    };
+  }
+
+  const cleanInput = inputCode.trim().replace(/\D/g, "");
+  if (record.code !== cleanInput) {
+    const remainingAttempts = 5 - record.attempts;
+    return {
+      success: false,
+      error: `Kode verifikasi salah. Sisa kesempatan: ${remainingAttempts} kali.`,
+    };
+  }
+
+  // Sukses, bersihkan record agar tidak bisa dipakai ulang
+  const user = record.user;
+  otpStore.delete(normalizedKey);
+  magicTokenIndex.delete(record.magicToken);
+
+  return { success: true, user };
+}
+
+/**
+ * Verify Magic Link Token
+ */
+export function verifyMagicToken(token: string): {
+  success: boolean;
+  user?: AuthenticatedUser;
+  error?: string;
+} {
+  if (!token || typeof token !== "string") {
+    return { success: false, error: "Tautan verifikasi tidak valid." };
+  }
+
+  const normalizedKey = magicTokenIndex.get(token);
+  if (!normalizedKey) {
+    return {
+      success: false,
+      error: "Tautan login telah kadaluwarsa atau sudah digunakan.",
+    };
+  }
+
+  const record = otpStore.get(normalizedKey);
+  if (!record || record.magicToken !== token) {
+    magicTokenIndex.delete(token);
+    return {
+      success: false,
+      error: "Tautan login tidak valid.",
+    };
+  }
+
+  if (Date.now() > record.expiresAt) {
+    otpStore.delete(normalizedKey);
+    magicTokenIndex.delete(token);
+    return {
+      success: false,
+      error: "Tautan login telah kadaluwarsa (lebih dari 5 menit). Silakan minta link baru.",
+    };
+  }
+
+  const user = record.user;
+  otpStore.delete(normalizedKey);
+  magicTokenIndex.delete(token);
+
+  return { success: true, user };
+}
+
+function cleanupExpired() {
+  const now = Date.now();
+  for (const [key, record] of otpStore.entries()) {
+    if (now > record.expiresAt) {
+      otpStore.delete(key);
+      magicTokenIndex.delete(record.magicToken);
+    }
+  }
+}

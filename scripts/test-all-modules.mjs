@@ -35,7 +35,7 @@ async function runAllTests() {
     const res = await fetch("http://localhost:1000/login");
     assert.strictEqual(res.status, 200, `Expected 200, got ${res.status}`);
     const text = await res.text();
-    assert.ok(text.includes("Family Hub") && text.includes("loginEmailInput"), "Login page should contain login form");
+    assert.ok(text.includes("Family Hub") && (text.includes("whatsappInput") || text.includes("loginEmailInput")), "Login page should contain login form");
   });
 
   // Login to obtain authenticated session
