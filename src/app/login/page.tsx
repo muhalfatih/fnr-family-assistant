@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Lock,
   Mail,
@@ -39,8 +40,11 @@ function LoginForm() {
   // Inputs
   const [phone, setPhone] = useState("");
   const [telegramId, setTelegramId] = useState("");
-  const [otpCode, setOtpCode] = useState("");
   const [targetDisplay, setTargetDisplay] = useState("");
+
+  // 6-digit OTP array state
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Email & Password inputs (Fallback tab)
   const [email, setEmail] = useState("");
@@ -136,7 +140,7 @@ function LoginForm() {
       setTargetDisplay(data.targetDisplay || identifier);
       setResendCooldown(data.resendCooldown || 60);
       setStep("verify");
-      setOtpCode("");
+      setOtpDigits(["", "", "", "", "", ""]);
 
       // Jika dalam mode simulasi / testing lokal, sediakan hint transparan
       if (data.simulation || data.devCode) {
@@ -150,6 +154,11 @@ function LoginForm() {
       }
 
       toast.success(data.message || "Kode verifikasi telah dikirim!");
+
+      // Focus ke kotak digit pertama
+      setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 100);
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan saat mengirim kode.");
     } finally {
@@ -157,10 +166,49 @@ function LoginForm() {
     }
   };
 
+  // Handler interaksi input OTP 6-slot individual
+  const handleDigitChange = (index: number, value: string) => {
+    const char = value.replace(/\D/g, "").slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = char;
+    setOtpDigits(newDigits);
+    if (error) setError(null);
+
+    if (char && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      if (!otpDigits[index] && index > 0) {
+        otpInputRefs.current[index - 1]?.focus();
+      }
+    }
+  };
+
+  const handleDigitPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pasted) return;
+
+    const newDigits = [...otpDigits];
+    for (let i = 0; i < 6; i++) {
+      newDigits[i] = pasted[i] || "";
+    }
+    setOtpDigits(newDigits);
+    if (error) setError(null);
+
+    const nextIndex = Math.min(pasted.length, 5);
+    otpInputRefs.current[nextIndex]?.focus();
+  };
+
+  const currentFullCode = otpDigits.join("");
+
   // Verifikasi Kode OTP 6-Digit
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpCode.trim() || otpCode.trim().length < 6) {
+    if (currentFullCode.length < 6) {
       setError("Masukkan 6 digit kode verifikasi secara lengkap.");
       return;
     }
@@ -177,7 +225,7 @@ function LoginForm() {
         body: JSON.stringify({
           channel: method,
           identifier: identifier.trim(),
-          code: otpCode.trim(),
+          code: currentFullCode,
           rememberMe,
         }),
       });
@@ -251,12 +299,12 @@ function LoginForm() {
     return (
       <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 select-none">
         <div className="flex flex-col items-center gap-3">
-          <div className="inline-flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-base shadow-xs ring-1 ring-primary/20 animate-pulse">
-            FR
+          <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs ring-1 ring-primary/20 animate-pulse">
+            <ShieldCheck className="size-5" />
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Loader2 className="size-4 animate-spin text-primary" />
-            <span>Memverifikasi tautan masuk Anda...</span>
+            <Loader2 className="size-3.5 animate-spin text-primary" />
+            <span>Memverifikasi tautan masuk keluarga...</span>
           </div>
         </div>
       </main>
@@ -275,406 +323,409 @@ function LoginForm() {
         }}
       />
 
-      {/* Main Centered Card */}
-      <div className="w-full max-w-[400px] z-10 space-y-5">
-        {/* Brand & App Identity Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base tracking-wider shadow-xs mx-auto ring-1 ring-primary/20">
-            FR
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              F&amp;R Family Hub
-            </h1>
-            <p className="text-xs text-muted-foreground pt-0.5">
-              Executive Ledger &amp; Family Assistant
-            </p>
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted/60 text-[11px] font-medium text-muted-foreground border border-border/50">
-            <ShieldCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
-            <span>Akses Privat Anggota Keluarga</span>
+      {/* Main Centered Card Container (Matching EditBudgetItemModal layout & typography) */}
+      <div className="sm:max-w-[420px] w-[95vw] rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-4 z-10 backdrop-blur-xs">
+        {/* Integrated Card Header */}
+        <div className="space-y-1 pb-3.5 border-b border-border/40 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <ShieldCheck className="size-4" strokeWidth={2.2} aria-hidden="true" />
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-base font-semibold tracking-tight text-foreground">
+                    F&amp;R Family Hub
+                  </h1>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    v2.0
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Executive Ledger &amp; Family Assistant
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Privat</span>
+            </span>
           </div>
         </div>
 
-        {/* Card Form */}
-        <div className="rounded-2xl border border-border/80 bg-card/95 p-6 sm:p-7 shadow-xs backdrop-blur-xs space-y-5">
-          {/* Method Switcher Tabs (Only visible on initial input step) */}
-          {step === "input" && (
-            <div className="grid grid-cols-3 gap-1 p-1 bg-muted/50 rounded-xl border border-border/50 text-[11px] font-medium">
-              <button
-                type="button"
-                onClick={() => {
-                  setMethod("whatsapp");
-                  setError(null);
-                }}
-                className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  method === "whatsapp"
-                    ? "bg-background text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+        {/* Method Switcher Tabs (shadcn Tabs component) */}
+        {step === "input" && (
+          <Tabs
+            value={method}
+            onValueChange={(val) => {
+              setMethod(val as LoginMethod);
+              setError(null);
+            }}
+            className="w-full"
+          >
+            <TabsList className="grid grid-cols-3 w-full h-9 bg-muted/70 p-1 rounded-lg border border-border/40">
+              <TabsTrigger
+                value="whatsapp"
+                className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
                 <Smartphone className="size-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>WhatsApp</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMethod("telegram");
-                  setError(null);
-                }}
-                className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  method === "telegram"
-                    ? "bg-background text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+              </TabsTrigger>
+              <TabsTrigger
+                value="telegram"
+                className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
                 <Send className="size-3.5 text-blue-500" />
                 <span>Telegram</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMethod("password");
-                  setError(null);
-                }}
-                className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  method === "password"
-                    ? "bg-background text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+              </TabsTrigger>
+              <TabsTrigger
+                value="password"
+                className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
                 <KeyRound className="size-3.5 text-amber-500" />
                 <span>Sandi</span>
-              </button>
-            </div>
-          )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
 
-          {/* TAB 1 & 2: WHATSAPP / TELEGRAM — STEP 1: INPUT IDENTIFIER */}
-          {step === "input" && (method === "whatsapp" || method === "telegram") && (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              {method === "whatsapp" ? (
-                <div className="space-y-1.5">
-                  <Label htmlFor="whatsappInput" className="text-xs font-medium text-foreground">
-                    Nomor WhatsApp Terdaftar
-                  </Label>
-                  <div className="relative flex items-center">
-                    <Smartphone className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id="whatsappInput"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(e.target.value);
-                        if (error) setError(null);
-                      }}
-                      placeholder="0812-3456-7890 atau +62812..."
-                      className="h-10 pl-9 text-xs bg-background/50 border-border/70 focus:border-primary/90"
-                      disabled={isLoading}
-                      autoFocus
-                      required
-                    />
-                  </div>
-                  <p className="text-[10.5px] text-muted-foreground pt-0.5">
-                    Kode 6-digit &amp; tautan masuk akan dikirimkan ke nomor WhatsApp Anda.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <Label htmlFor="telegramInput" className="text-xs font-medium text-foreground">
-                    ID Chat atau Username Telegram
-                  </Label>
-                  <div className="relative flex items-center">
-                    <Send className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id="telegramInput"
-                      type="text"
-                      value={telegramId}
-                      onChange={(e) => {
-                        setTelegramId(e.target.value);
-                        if (error) setError(null);
-                      }}
-                      placeholder="Contoh: 123456789 atau @fatih"
-                      className="h-10 pl-9 text-xs bg-background/50 border-border/70 focus:border-primary/90"
-                      disabled={isLoading}
-                      autoFocus
-                      required
-                    />
-                  </div>
-                  <p className="text-[10.5px] text-muted-foreground pt-0.5">
-                    Ketik ID Chat angka Anda atau kirim <code>/myid</code> ke bot Telegram keluarga.
-                  </p>
-                </div>
-              )}
-
-              {/* Error Alert */}
-              {error && (
-                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
-                  <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Remember Me */}
-              <div className="flex items-center justify-between pt-0.5">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="size-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
-                  />
-                  <span className="text-xs text-muted-foreground">Ingat sesi di perangkat ini</span>
-                </label>
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                disabled={isLoading || (method === "whatsapp" ? !phone.trim() : !telegramId.trim())}
-                className="w-full h-10 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl cursor-pointer gap-2 transition-all"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="size-3.5 animate-spin" />
-                    <span>Mengirimkan kode masuk...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Kirim Kode &amp; Link Masuk</span>
-                    <ArrowRight className="size-3.5" />
-                  </>
-                )}
-              </Button>
-            </form>
-          )}
-
-          {/* TAB 1 & 2: WHATSAPP / TELEGRAM — STEP 2: VERIFY OTP CODE */}
-          {step === "verify" && (method === "whatsapp" || method === "telegram") && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("input");
-                    setError(null);
-                  }}
-                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                >
-                  <ArrowLeft className="size-3" />
-                  <span>Ganti nomor/ID</span>
-                </button>
-                <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/50">
-                  {method === "whatsapp" ? "WhatsApp" : "Telegram"}
-                </span>
-              </div>
-
-              <div className="text-center space-y-1 py-1">
-                <p className="text-xs font-medium text-foreground">
-                  Masukkan 6-Digit Kode Verifikasi
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Telah dikirim ke <strong className="font-semibold text-foreground">{targetDisplay}</strong>
-                </p>
-              </div>
-
-              {/* Simulation/Dev Code Hint Alert */}
-              {simulationHint && simulationHint.code && (
-                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11.5px] text-amber-700 dark:text-amber-300 space-y-1">
-                  <div className="flex items-center gap-1.5 font-semibold">
-                    <Sparkles className="size-3.5 text-amber-500" />
-                    <span>Mode Pengujian / Simulasi</span>
-                  </div>
-                  <p className="text-[11px] leading-tight">
-                    Kode verifikasi Anda: <code className="font-bold text-xs bg-amber-500/20 px-1.5 py-0.5 rounded">{simulationHint.code}</code>
-                  </p>
-                  {simulationHint.magicLink && (
-                    <a
-                      href={simulationHint.magicLink}
-                      className="block text-[10.5px] text-primary underline truncate pt-0.5 hover:opacity-80"
-                    >
-                      Buka tautan instan (Magic Link)
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {/* Centered OTP Code Input */}
+        {/* STEP 1: WHATSAPP / TELEGRAM INPUT */}
+        {step === "input" && (method === "whatsapp" || method === "telegram") && (
+          <form onSubmit={handleSendOtp} className="space-y-3.5 pt-1">
+            {method === "whatsapp" ? (
               <div className="space-y-1.5">
-                <Input
-                  id="otpInput"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => {
-                    const clean = e.target.value.replace(/\D/g, "");
-                    setOtpCode(clean);
-                    if (error) setError(null);
-                  }}
-                  placeholder="••••••"
-                  className="h-12 text-center text-lg font-bold font-mono tracking-[0.35em] bg-background/50 border-border/70 focus:border-primary/90 max-w-[220px] mx-auto"
-                  autoFocus
-                  required
-                />
-              </div>
-
-              {/* Error Alert */}
-              {error && (
-                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
-                  <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Resend Cooldown Button */}
-              <div className="text-center pt-1">
-                {resendCooldown > 0 ? (
-                  <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
-                    <RefreshCw className="size-3 animate-spin text-muted-foreground" />
-                    <span>Kirim ulang kode dalam {resendCooldown} detik</span>
-                  </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleSendOtp()}
-                    disabled={isLoading}
-                    className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
-                  >
-                    Kirim ulang kode verifikasi
-                  </button>
-                )}
-              </div>
-
-              {/* Verify & Enter Button */}
-              <Button
-                type="submit"
-                disabled={isLoading || otpCode.length < 6}
-                className="w-full h-10 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl cursor-pointer gap-2 transition-all"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="size-3.5 animate-spin" />
-                    <span>Memverifikasi kode...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="size-3.5" />
-                    <span>Verifikasi &amp; Masuk</span>
-                  </>
-                )}
-              </Button>
-            </form>
-          )}
-
-          {/* TAB 3: EMAIL & SANDI (FALLBACK) */}
-          {step === "input" && method === "password" && (
-            <form onSubmit={handleEmailPasswordLogin} className="space-y-4">
-              {/* Email Input */}
-              <div className="space-y-1.5">
-                <Label htmlFor="loginEmailInput" className="text-xs font-medium text-foreground">
-                  Email Akun Keluarga
+                <Label htmlFor="whatsappInput" className="text-xs font-medium text-foreground">
+                  Nomor WhatsApp Terdaftar
                 </Label>
                 <div className="relative flex items-center">
-                  <Mail className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
+                  <Smartphone className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
                   <Input
-                    id="loginEmailInput"
-                    type="email"
-                    value={email}
+                    id="whatsappInput"
+                    type="tel"
+                    value={phone}
                     onChange={(e) => {
-                      setEmail(e.target.value);
+                      setPhone(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="contoh@keluarga.hub"
-                    className="h-10 pl-9 text-xs bg-background/50 border-border/70 focus:border-primary/90"
+                    placeholder="0812-3456-7890 atau +62812..."
+                    className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
-                    autoComplete="email"
                     autoFocus
                     required
                   />
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Kode 6-digit &amp; tautan masuk instan akan dikirimkan ke nomor WhatsApp Anda.
+                </p>
               </div>
-
-              {/* Password Input */}
+            ) : (
               <div className="space-y-1.5">
-                <Label htmlFor="loginPasswordInput" className="text-xs font-medium text-foreground">
-                  Kata Sandi
+                <Label htmlFor="telegramInput" className="text-xs font-medium text-foreground">
+                  ID Chat atau Username Telegram
                 </Label>
                 <div className="relative flex items-center">
-                  <Lock className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
+                  <Send className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
                   <Input
-                    id="loginPasswordInput"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
+                    id="telegramInput"
+                    type="text"
+                    value={telegramId}
                     onChange={(e) => {
-                      setPassword(e.target.value);
+                      setTelegramId(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="Masukkan kata sandi"
-                    className="h-10 pl-9 pr-9 text-xs bg-background/50 border-border/70 focus:border-primary/90"
+                    placeholder="Contoh: 123456789 atau @fatih"
+                    className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
-                    autoComplete="current-password"
+                    autoFocus
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 size-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded-md transition-colors"
-                    title={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
-                    aria-label={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
-                  >
-                    {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </button>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Ketik ID Chat angka Anda atau kirim <code>/myid</code> ke bot Telegram keluarga.
+                </p>
               </div>
+            )}
 
-              {/* Remember Me Checkbox */}
-              <div className="flex items-center justify-between pt-0.5">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="size-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
-                  />
-                  <span className="text-xs text-muted-foreground">Ingat sesi di perangkat ini</span>
-                </label>
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
+                <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                <span>{error}</span>
               </div>
+            )}
 
-              {/* Error Message */}
-              {error && (
-                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
-                  <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center justify-between pt-0.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="size-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                />
+                <span className="text-xs text-muted-foreground">Ingat sesi di perangkat ini</span>
+              </label>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={isLoading || (method === "whatsapp" ? !phone.trim() : !telegramId.trim())}
+              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs cursor-pointer gap-2 transition-all"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Mengirimkan kode masuk...</span>
+                </>
+              ) : (
+                <>
+                  <span>Kirim Kode &amp; Link Masuk</span>
+                  <ArrowRight className="size-3.5" />
+                </>
               )}
+            </Button>
+          </form>
+        )}
 
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                disabled={isLoading || !email.trim() || !password.trim()}
-                className="w-full h-10 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl cursor-pointer gap-2 transition-all"
+        {/* STEP 2: VERIFY 6-DIGIT OTP INDIVIDUAL SLOTS */}
+        {step === "verify" && (method === "whatsapp" || method === "telegram") && (
+          <form onSubmit={handleVerifyOtp} className="space-y-4 pt-1">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("input");
+                  setError(null);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="size-3.5 animate-spin" />
-                    <span>Memverifikasi kredensial...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Masuk ke Dashboard</span>
-                    <ArrowRight className="size-3.5" />
-                  </>
+                <ArrowLeft className="size-3.5" />
+                <span>Ganti nomor/ID</span>
+              </button>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-muted/70 text-muted-foreground border border-border/50">
+                {method === "whatsapp" ? "WhatsApp" : "Telegram"}
+              </span>
+            </div>
+
+            <div className="text-center space-y-0.5 py-0.5">
+              <p className="text-xs font-medium text-foreground">
+                Masukkan 6-Digit Kode Verifikasi
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Telah dikirim ke <strong className="font-semibold text-foreground">{targetDisplay}</strong>
+              </p>
+            </div>
+
+            {/* Simulation/Dev Code Hint Alert */}
+            {simulationHint && simulationHint.code && (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300 space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <Sparkles className="size-3.5 text-amber-500" />
+                  <span>Mode Pengujian / Simulasi</span>
+                </div>
+                <p className="text-[11px] leading-tight">
+                  Kode verifikasi Anda:{" "}
+                  <code className="font-bold text-xs bg-amber-500/20 px-1.5 py-0.5 rounded font-mono">
+                    {simulationHint.code}
+                  </code>
+                </p>
+                {simulationHint.magicLink && (
+                  <a
+                    href={simulationHint.magicLink}
+                    className="block text-[10.5px] text-primary underline truncate pt-0.5 hover:opacity-80"
+                  >
+                    Buka tautan instan (Magic Link)
+                  </a>
                 )}
-              </Button>
-            </form>
-          )}
-        </div>
+              </div>
+            )}
+
+            {/* 6-Slot Kotak Input OTP (Shadcn Native Style) */}
+            <div className="flex items-center justify-center gap-2 py-1">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <input
+                  key={index}
+                  ref={(el) => {
+                    otpInputRefs.current[index] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={1}
+                  value={otpDigits[index] || ""}
+                  onChange={(e) => handleDigitChange(index, e.target.value)}
+                  onKeyDown={(e) => handleDigitKeyDown(index, e)}
+                  onPaste={handleDigitPaste}
+                  className="size-10 rounded-lg border border-border/80 bg-background/50 text-center font-mono text-base font-bold text-foreground tabular-nums shadow-xs transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
+                  aria-label={`Digit ke ${index + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Hidden backup input for accessibility/tests */}
+            <input
+              id="otpInput"
+              type="hidden"
+              value={currentFullCode}
+              readOnly
+            />
+
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
+                <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Resend Cooldown Button */}
+            <div className="text-center pt-0.5">
+              {resendCooldown > 0 ? (
+                <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
+                  <RefreshCw className="size-3 animate-spin text-muted-foreground" />
+                  <span>Kirim ulang kode dalam {resendCooldown} detik</span>
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSendOtp()}
+                  disabled={isLoading}
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                >
+                  Kirim ulang kode verifikasi
+                </button>
+              )}
+            </div>
+
+            {/* Verify & Enter Button */}
+            <Button
+              type="submit"
+              disabled={isLoading || currentFullCode.length < 6}
+              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs cursor-pointer gap-2 transition-all"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Memverifikasi kode...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="size-3.5" />
+                  <span>Verifikasi &amp; Masuk</span>
+                </>
+              )}
+            </Button>
+          </form>
+        )}
+
+        {/* STEP 1: FALLBACK EMAIL & SANDI TAB */}
+        {step === "input" && method === "password" && (
+          <form onSubmit={handleEmailPasswordLogin} className="space-y-3.5 pt-1">
+            {/* Email Input */}
+            <div className="space-y-1.5">
+              <Label htmlFor="loginEmailInput" className="text-xs font-medium text-foreground">
+                Email Akun Keluarga
+              </Label>
+              <div className="relative flex items-center">
+                <Mail className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="loginEmailInput"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  placeholder="contoh@keluarga.hub"
+                  className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                  disabled={isLoading}
+                  autoComplete="email"
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-1.5">
+              <Label htmlFor="loginPasswordInput" className="text-xs font-medium text-foreground">
+                Kata Sandi
+              </Label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="loginPasswordInput"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  placeholder="Masukkan kata sandi"
+                  className="h-9 pl-9 pr-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 size-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded-md transition-colors"
+                  title={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                  aria-label={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                >
+                  {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center justify-between pt-0.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="size-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                />
+                <span className="text-xs text-muted-foreground">Ingat sesi di perangkat ini</span>
+              </label>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
+                <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={isLoading || !email.trim() || !password.trim()}
+              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs cursor-pointer gap-2 transition-all"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Memverifikasi kredensial...</span>
+                </>
+              ) : (
+                <>
+                  <span>Masuk ke Dashboard</span>
+                  <ArrowRight className="size-3.5" />
+                </>
+              )}
+            </Button>
+          </form>
+        )}
 
         {/* Footer Security Notice */}
-        <div className="text-center space-y-2">
-          <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[340px] mx-auto">
-            Aplikasi internal keluarga F&amp;R. Terenkripsi dan terintegrasi dengan Bot Keuangan Telegram &amp; WhatsApp.
+        <div className="text-center pt-2 space-y-1.5 border-t border-border/40">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Aplikasi internal keluarga F&amp;R. Terenkripsi dan terintegrasi dengan Bot Telegram &amp; WhatsApp.
           </p>
           <div className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -691,9 +742,9 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 select-none">
-          <div className="flex flex-col items-center gap-3">
-            <div className="inline-flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-xs ring-1 ring-primary/20">
-              FR
+          <div className="sm:max-w-[420px] w-[95vw] rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col items-center gap-3">
+            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs ring-1 ring-emerald-500/20">
+              <ShieldCheck className="size-4" />
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
