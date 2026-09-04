@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type, type Schema } from "@google/genai";
 
 export interface ParsedReceiptItem {
   name: string;
@@ -38,7 +38,14 @@ Categories to choose from:
 
 Rules:
 1. Always parse Indonesian slang numbers: "50rb" -> 50000, "1.5jt" -> 1500000, "15k" -> 15000, "cepek" -> 100000.
-2. For receipt photos, extract merchant name, total receipt amount, transaction date, and itemized lines.
+2. CRITICAL RULES FOR RECEIPT / STRUK PHOTOS:
+   - Distinguish TOTAL vs CASH vs KEMBALI:
+     * "TOTAL", "GRAND TOTAL", "SUBTOTAL", or "TAGIHAN" is the actual purchase amount (the true expense).
+     * "CASH", "TUNAI", "BAYAR", "DIBAYAR", "TENDERED" is the physical cash bill handed to cashier (e.g. Rp 50.000). NEVER use CASH/TUNAI as the expense amount if a TOTAL or KEMBALI is present!
+     * "KEMBALI", "KEMBALIAN", "CHANGE" is the change returned (e.g. Rp 3.400).
+     * Verification Formula: Actual Expense = TOTAL = CASH - KEMBALI (e.g. 50.000 - 3.400 = 46.600).
+   - If paper crease, fold, or tear obscures the TOTAL line, calculate the sum of itemized purchases or subtract KEMBALI from CASH.
+   - Extract merchant name, transaction date (YYYY-MM-DD), and itemized lines with qty and unit price.
 3. For voice notes, transcribe the spoken Indonesian words accurately into the transcription field.
 4. Extract wallet hints if mentioned (e.g. "bca", "mandiri", "gopay", "ovo", "cash", "tunai", "kantong").
 `;
@@ -104,7 +111,14 @@ export async function parseFinancialInputWithGemini(options: {
           data: options.imageBuffer.toString("base64"),
         },
       });
-      contents.push({ text: "Ekstrak transaksi dari foto nota/struk belanja di atas." });
+      contents.push({
+        text:
+          "Ekstrak transaksi dari foto nota/struk belanja di atas.\n" +
+          "PERINGATAN KHUSUS STRUK:\n" +
+          "- Ambil nominal TOTAL / TAGIHAN belanja yang sebenarnya (bukan uang CASH/TUNAI yang diserahkan ke kasir).\n" +
+          "- Jika terdapat baris CASH dan KEMBALI, total belanja sebenarnya adalah TOTAL = CASH - KEMBALI.\n" +
+          "- Pastikan nominal transaksi konsisten dengan penjumlahan harga rincian item.",
+      });
     }
 
     if (options.audioBuffer) {
@@ -134,11 +148,55 @@ export async function parseFinancialInputWithGemini(options: {
     }
 
     const parsed: GeminiParsedTransaction = JSON.parse(responseText);
+    if (options.imageBuffer) {
+      return verifyAndReconcileReceipt(parsed);
+    }
     return parsed;
   } catch (err) {
     console.error("❌ Error running Gemini parser:", err);
     return null;
   }
+}
+
+/**
+ * Deterministic Layer-2 mathematical reconciliation for receipts
+ * Verifies sum of items and protects against cash-tendered rounding confusion.
+ */
+export function verifyAndReconcileReceipt(
+  parsed: GeminiParsedTransaction
+): GeminiParsedTransaction {
+  if (!parsed || !parsed.items || parsed.items.length === 0) {
+    return parsed;
+  }
+
+  // Calculate sum of itemized purchases
+  const sumItems = parsed.items.reduce((acc, item) => {
+    const qty = item.qty > 0 ? item.qty : 1;
+    const price = item.price > 0 ? item.price : 0;
+    return acc + qty * price;
+  }, 0);
+
+  if (sumItems > 0 && parsed.amount !== sumItems) {
+    const isRoundCashBill =
+      parsed.amount % 10000 === 0 ||
+      parsed.amount % 20000 === 0 ||
+      parsed.amount % 50000 === 0;
+
+    // Case 1: AI picked cash bill (e.g. 50,000) instead of exact item total (e.g. 46,600)
+    if (parsed.amount > sumItems && isRoundCashBill) {
+      console.log(
+        `[ReceiptReconciler] Corrected cash bill amount Rp ${parsed.amount} to verified item sum Rp ${sumItems}`
+      );
+      parsed.amount = sumItems;
+    } else if (Math.abs(parsed.amount - sumItems) / sumItems <= 0.15 && isRoundCashBill) {
+      console.log(
+        `[ReceiptReconciler] Reconciled round amount Rp ${parsed.amount} to items sum Rp ${sumItems}`
+      );
+      parsed.amount = sumItems;
+    }
+  }
+
+  return parsed;
 }
 
 /**
