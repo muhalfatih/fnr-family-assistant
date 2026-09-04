@@ -6,11 +6,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { channel, identifier, code, token, rememberMe = true } = body;
 
+    const challengeCookie = req.cookies.get("fnr_otp_challenge")?.value;
     let verificationResult;
 
     // 1. Verifikasi via Magic Link Token
     if (token && typeof token === "string" && token.trim()) {
-      verificationResult = verifyMagicToken(token.trim());
+      verificationResult = verifyMagicToken(token.trim(), challengeCookie);
     }
     // 2. Verifikasi via Kode OTP 6 Digit
     else if (code && typeof code === "string" && code.trim()) {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      verificationResult = verifyOtpCode(channel, identifier.trim(), code.trim());
+      verificationResult = verifyOtpCode(channel, identifier.trim(), code.trim(), challengeCookie);
     } else {
       return NextResponse.json(
         { error: "Kode verifikasi 6 digit atau tautan masuk wajib disertakan." },
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest) {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
     });
+
+    response.cookies.delete("fnr_otp_challenge");
 
     return response;
   } catch (err: any) {

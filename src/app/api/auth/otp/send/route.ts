@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findMemberByIdentifier, issueOtp } from "@/lib/auth-otp";
+import { findMemberByIdentifier, issueOtp, createSignedChallenge } from "@/lib/auth-otp";
 import { sendWhatsAppTextMessage } from "@/lib/whatsapp/client";
 import { sendTelegramMessage } from "@/lib/telegram/bot";
 
@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Cari anggota keluarga terdaftar
-    const user = findMemberByIdentifier(channel, identifier.trim());
+    // 1. Cari anggota keluarga terdaftar (di database Supabase / mock data)
+    const user = await findMemberByIdentifier(channel, identifier.trim());
     if (!user) {
       const msg =
         channel === "whatsapp"
@@ -105,7 +105,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Kembalikan respons berhasil beserta info fallback simulasi (agar testing aman jika API bot offline/dev)
-    return NextResponse.json({
+    const challengeToken = createSignedChallenge(record);
+
+    const response = NextResponse.json({
       success: true,
       message: `Kode masuk dan tautan verifikasi telah dikirim ke ${record.targetDisplay}.`,
       targetDisplay: record.targetDisplay,
@@ -125,6 +127,17 @@ export async function POST(req: NextRequest) {
           }
         : undefined,
     });
+
+    // Set signed challenge cookie (berlaku 5 menit) untuk ketahanan serverless di Vercel
+    response.cookies.set("fnr_otp_challenge", challengeToken, {
+      path: "/",
+      maxAge: 300,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    return response;
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Terjadi kesalahan pada server saat mengirim kode verifikasi." },

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { mockStore } from "@/lib/mock-data";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 export interface AuthenticatedUser {
   id: string;
@@ -22,8 +23,18 @@ export interface OtpRecord {
   attempts: number;
 }
 
+export interface OtpChallengeToken {
+  identifier: string;
+  channel: "whatsapp" | "telegram";
+  codeHash: string;
+  magicToken: string;
+  user: AuthenticatedUser;
+  expiresAt: number;
+}
+
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 menit
 const RESEND_COOLDOWN_MS = 60 * 1000; // 60 detik
+const OTP_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.AUTH_SECRET || "fnr-family-otp-secret-key-2026";
 
 // Use global singleton to survive hot-module reloading in Next.js development
 const globalForOtp = globalThis as unknown as {
@@ -42,9 +53,11 @@ const otpStore = globalForOtp.otpStore;
 const magicTokenIndex = globalForOtp.magicTokenIndex;
 
 /**
- * Normalize phone numbers to standard format (e.g. 6281234567890)
+ * Normalize phone numbers to standard Indonesian format (e.g. 6281234567890)
+ * Handles +62, 62, 08, 8, spaces, dashes, and parentheses seamlessly
  */
 export function normalizePhoneNumber(raw: string): string {
+  if (!raw) return "";
   let cleaned = raw.replace(/\D/g, "");
   if (cleaned.startsWith("0")) {
     cleaned = `62${cleaned.substring(1)}`;
@@ -52,6 +65,44 @@ export function normalizePhoneNumber(raw: string): string {
     cleaned = `62${cleaned}`;
   }
   return cleaned;
+}
+
+/**
+ * Creates an HMAC-signed stateless challenge token for reliable verification across Vercel serverless functions
+ */
+export function createSignedChallenge(record: OtpRecord): string {
+  const payload: OtpChallengeToken = {
+    identifier: record.identifier,
+    channel: record.channel,
+    codeHash: crypto.createHmac("sha256", OTP_SECRET).update(record.code).digest("hex"),
+    magicToken: record.magicToken,
+    user: record.user,
+    expiresAt: record.expiresAt,
+  };
+  const jsonStr = JSON.stringify(payload);
+  const base64Data = Buffer.from(jsonStr).toString("base64url");
+  const signature = crypto.createHmac("sha256", OTP_SECRET).update(base64Data).digest("base64url");
+  return `${base64Data}.${signature}`;
+}
+
+/**
+ * Verifies the stateless HMAC-signed challenge token from HTTP cookie
+ */
+export function verifySignedChallenge(tokenStr: string): { valid: boolean; payload?: OtpChallengeToken } {
+  if (!tokenStr || !tokenStr.includes(".")) return { valid: false };
+  const [base64Data, signature] = tokenStr.split(".");
+  if (!base64Data || !signature) return { valid: false };
+
+  const expectedSig = crypto.createHmac("sha256", OTP_SECRET).update(base64Data).digest("base64url");
+  if (signature !== expectedSig) return { valid: false };
+
+  try {
+    const payload: OtpChallengeToken = JSON.parse(Buffer.from(base64Data, "base64url").toString("utf8"));
+    if (Date.now() > payload.expiresAt) return { valid: false };
+    return { valid: true, payload };
+  } catch {
+    return { valid: false };
+  }
 }
 
 /**
@@ -77,16 +128,68 @@ export function maskTarget(identifier: string, channel: "whatsapp" | "telegram")
 
 /**
  * Look up family member based on channel and identifier
+ * Queries real database in Supabase first, falls back to mockStore
  */
-export function findMemberByIdentifier(
+export async function findMemberByIdentifier(
   channel: "whatsapp" | "telegram",
   identifier: string
-): AuthenticatedUser | null {
-  const members = mockStore.getMembers();
+): Promise<AuthenticatedUser | null> {
+  // 1. Prioritize querying Supabase Cloud database
+  if (isSupabaseConfigured()) {
+    try {
+      const { data: members, error } = await supabaseAdmin
+        .from("family_members")
+        .select("id, full_name, role, whatsapp_number, telegram_chat_id");
+
+      if (error) {
+        console.error("[Auth] Error fetching family_members from Supabase:", error);
+      } else if (members && members.length > 0) {
+        if (channel === "whatsapp") {
+          const normalizedInput = normalizePhoneNumber(identifier);
+          for (const m of members) {
+            if (m.whatsapp_number) {
+              const normalizedMember = normalizePhoneNumber(m.whatsapp_number);
+              if (normalizedMember === normalizedInput) {
+                return {
+                  id: m.id,
+                  name: m.full_name,
+                  email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
+                  role: m.role || "member",
+                };
+              }
+            }
+          }
+        } else if (channel === "telegram") {
+          const clean = identifier.replace(/^@/, "").trim().toLowerCase();
+          for (const m of members) {
+            const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id).trim() : "";
+            const memberNameLower = m.full_name.toLowerCase();
+
+            const isChatIdMatch = chatIdStr && chatIdStr === clean;
+            const isNameMatch = memberNameLower.includes(clean);
+
+            if (isChatIdMatch || isNameMatch) {
+              return {
+                id: m.id,
+                name: m.full_name,
+                email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
+                role: m.role || "member",
+              };
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[Auth] Exception querying Supabase members:", err);
+    }
+  }
+
+  // 2. Fallback to mockStore in development / demo mode
+  const mockMembers = mockStore.getMembers();
 
   if (channel === "whatsapp") {
     const normalizedInput = normalizePhoneNumber(identifier);
-    for (const m of members) {
+    for (const m of mockMembers) {
       if (m.whatsapp_number) {
         const normalizedMember = normalizePhoneNumber(m.whatsapp_number);
         if (normalizedMember === normalizedInput) {
@@ -101,19 +204,20 @@ export function findMemberByIdentifier(
     }
   } else if (channel === "telegram") {
     const clean = identifier.replace(/^@/, "").trim().toLowerCase();
-    for (const m of members) {
+    for (const m of mockMembers) {
       const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id) : "";
       const memberNameLower = m.full_name.toLowerCase();
 
       // Cocokkan chat ID angka atau alias nama/username umum
       const isChatIdMatch = chatIdStr && chatIdStr === clean;
       const isNameMatch =
-        (clean === "ayah" || clean === "fatih") && m.id === "mem-001" ||
-        (clean === "ibu" || clean === "bunda" || clean === "rania") && m.id === "mem-002" ||
-        (clean === "kakak" || clean === "zaid") && m.id === "mem-003" ||
-        (clean === "adik" || clean === "maryam") && m.id === "mem-004";
+        ((clean === "ayah" || clean === "fatih") && m.id === "mem-001") ||
+        ((clean === "ibu" || clean === "bunda" || clean === "rania") && m.id === "mem-002") ||
+        ((clean === "kakak" || clean === "zaid") && m.id === "mem-003") ||
+        ((clean === "adik" || clean === "maryam") && m.id === "mem-004") ||
+        memberNameLower.includes(clean);
 
-      if (isChatIdMatch || isNameMatch || memberNameLower.includes(clean)) {
+      if (isChatIdMatch || isNameMatch) {
         return {
           id: m.id,
           name: m.full_name,
@@ -188,13 +292,38 @@ export function issueOtp(
 
 /**
  * Verify 6-digit OTP code
+ * Checks signed challenge cookie first (serverless proof), with in-memory fallback
  */
 export function verifyOtpCode(
   channel: "whatsapp" | "telegram",
   identifier: string,
-  inputCode: string
+  inputCode: string,
+  challengeCookieToken?: string
 ): { success: boolean; user?: AuthenticatedUser; error?: string } {
+  const cleanInput = inputCode.trim().replace(/\D/g, "");
   const normalizedKey = channel === "whatsapp" ? normalizePhoneNumber(identifier) : identifier.trim().toLowerCase();
+
+  // 1. Primary check: Stateless Signed Challenge Token (100% resilient on Vercel Serverless)
+  if (challengeCookieToken) {
+    const verified = verifySignedChallenge(challengeCookieToken);
+    if (verified.valid && verified.payload) {
+      const payload = verified.payload;
+      const expectedHash = crypto.createHmac("sha256", OTP_SECRET).update(cleanInput).digest("hex");
+
+      if (payload.identifier === normalizedKey && payload.channel === channel) {
+        if (payload.codeHash === expectedHash) {
+          // Success! Clean memory if present
+          otpStore.delete(normalizedKey);
+          magicTokenIndex.delete(payload.magicToken);
+          return { success: true, user: payload.user };
+        } else {
+          return { success: false, error: "Kode verifikasi 6-digit salah. Silakan periksa kembali." };
+        }
+      }
+    }
+  }
+
+  // 2. Secondary check: In-Memory Map (for localhost development or same container)
   const record = otpStore.get(normalizedKey);
 
   if (!record) {
@@ -223,7 +352,6 @@ export function verifyOtpCode(
     };
   }
 
-  const cleanInput = inputCode.trim().replace(/\D/g, "");
   if (record.code !== cleanInput) {
     const remainingAttempts = 5 - record.attempts;
     return {
@@ -243,7 +371,10 @@ export function verifyOtpCode(
 /**
  * Verify Magic Link Token
  */
-export function verifyMagicToken(token: string): {
+export function verifyMagicToken(
+  token: string,
+  challengeCookieToken?: string
+): {
   success: boolean;
   user?: AuthenticatedUser;
   error?: string;
@@ -252,6 +383,15 @@ export function verifyMagicToken(token: string): {
     return { success: false, error: "Tautan verifikasi tidak valid." };
   }
 
+  // 1. Check stateless signed challenge token first
+  if (challengeCookieToken) {
+    const verified = verifySignedChallenge(challengeCookieToken);
+    if (verified.valid && verified.payload && verified.payload.magicToken === token.trim()) {
+      return { success: true, user: verified.payload.user };
+    }
+  }
+
+  // 2. In-Memory fallback
   const normalizedKey = magicTokenIndex.get(token);
   if (!normalizedKey) {
     return {
