@@ -356,25 +356,25 @@ export function ManageBudgetModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[560px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader className="space-y-1.5">
-            <DialogTitle className="text-base font-semibold">Atur Pagu Anggaran Bulanan</DialogTitle>
+      <DialogContent className="sm:max-w-[540px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl gap-0">
+        <form onSubmit={handleSubmit} className="space-y-0">
+          <DialogHeader className="space-y-1 pb-3 border-b border-border/40">
+            <DialogTitle className="text-base font-semibold tracking-tight">Atur Pagu Anggaran Bulanan</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Tentukan target batas pengeluaran keluarga per kategori untuk bulan yang dipilih.
+              Kelola batas pengeluaran keluarga per kategori untuk bulan yang dipilih.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Month Selector & Quick Actions Banner */}
-          <div className="my-3 p-3 rounded-lg bg-muted/40 border border-border/70 space-y-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Calendar className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                <Label htmlFor="budgetMonthSelect" className="text-xs font-semibold shrink-0">
-                  Target Bulan:
+          {/* Flat Integrated Month Selector & Status (No heavy boxes) */}
+          <div className="py-3 border-b border-border/40 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <Calendar className="size-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                <Label htmlFor="budgetMonthSelect" className="text-xs font-medium text-muted-foreground shrink-0">
+                  Bulan:
                 </Label>
                 <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                  <SelectTrigger id="budgetMonthSelect" className="h-8 text-xs font-medium bg-background min-w-[170px]" aria-label="Pilih Bulan Anggaran">
+                  <SelectTrigger id="budgetMonthSelect" className="h-8 text-xs font-semibold bg-background/50 border-border/50 hover:border-border min-w-[170px]" aria-label="Pilih Bulan Anggaran">
                     <SelectValue placeholder="Pilih Bulan" />
                   </SelectTrigger>
                   <SelectContent>
@@ -391,31 +391,31 @@ export function ManageBudgetModal({
 
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleCopyPreviousMonth}
                 disabled={isLoadingMonth}
-                className="h-8 text-[11px] gap-1.5 shrink-0 bg-background hover:bg-muted font-medium"
+                className="h-8 text-[11px] gap-1.5 shrink-0 text-muted-foreground hover:text-foreground font-medium px-2.5 cursor-pointer"
                 title="Salin target anggaran dari 1 bulan sebelumnya"
               >
-                <Copy className="size-3" aria-hidden="true" />
+                <Copy className="size-3 text-muted-foreground" aria-hidden="true" />
                 <span>Salin Bulan Lalu</span>
               </Button>
             </div>
 
-            {/* Status Feedback / Alert */}
-            <div className="flex items-center justify-between text-[11px] pt-1">
+            {/* Status Feedback (Flat typography) */}
+            <div className="flex items-center justify-between text-[11px] pt-0.5">
               <div className="flex items-center gap-1.5">
                 {totalTarget > 0 ? (
-                  <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium">
-                    <CheckCircle2 className="size-3 mr-1" aria-hidden="true" />
-                    Pagu Sudah Diatur
-                  </Badge>
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">
+                    <CheckCircle2 className="size-3 shrink-0" aria-hidden="true" />
+                    Pagu sudah diatur
+                  </span>
                 ) : (
-                  <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 font-medium">
-                    <AlertCircle className="size-3 mr-1" aria-hidden="true" />
-                    Pagu Belum Diatur (Kosong)
-                  </Badge>
+                  <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium text-[11px]">
+                    <AlertCircle className="size-3 shrink-0" aria-hidden="true" />
+                    Pagu belum diatur
+                  </span>
                 )}
               </div>
 
@@ -427,10 +427,10 @@ export function ManageBudgetModal({
             </div>
           </div>
 
-          {/* Form Tambah Kategori Baru (Inline Card) */}
+          {/* Form Tambah Kategori Baru (Flat Inline Panel) */}
           {isCreateOpen && (
-            <div className="mb-3 p-3 sm:p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-3 animate-in fade-in-0 zoom-in-95 duration-150">
-              <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <div className="py-3 px-1 my-2 border-b border-border/40 space-y-3 animate-in fade-in-0 duration-150">
+              <div className="flex items-center justify-between pb-1">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="size-3.5 text-primary shrink-0" />
                   <span className="text-xs font-semibold text-foreground">Tambah Kategori Anggaran Baru</span>
@@ -438,7 +438,7 @@ export function ManageBudgetModal({
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(false)}
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   aria-label="Tutup form tambah"
                 >
                   <X className="size-3.5" />
@@ -447,18 +447,18 @@ export function ManageBudgetModal({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="space-y-1">
-                  <Label htmlFor="newCategoryName" className="text-[11px] font-medium">Nama Kategori</Label>
+                  <Label htmlFor="newCategoryName" className="text-[11px] text-muted-foreground font-medium">Nama Kategori</Label>
                   <Input
                     id="newCategoryName"
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     placeholder="Misal: Kucing, Skincare, Kursus"
-                    className="h-8 text-xs bg-background"
+                    className="h-8 text-xs bg-background/50 border-border/50 focus:border-primary/80"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="newCategoryTarget" className="text-[11px] font-medium">Target Pagu Bulan Ini (Rp)</Label>
+                  <Label htmlFor="newCategoryTarget" className="text-[11px] text-muted-foreground font-medium">Target Pagu Bulan Ini (Rp)</Label>
                   <div className="relative flex items-center">
                     <span className="absolute left-2.5 font-semibold text-muted-foreground text-xs select-none">
                       Rp
@@ -471,14 +471,14 @@ export function ManageBudgetModal({
                         setNewCategoryTarget(num > 0 ? num.toLocaleString("id-ID") : "");
                       }}
                       placeholder="0"
-                      className="h-8 pl-8 text-xs tabular-nums text-right font-semibold bg-background"
+                      className="h-8 pl-8 text-xs tabular-nums text-right font-semibold bg-background/50 border-border/50 focus:border-primary/80"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-medium">Warna Label</Label>
+                <Label className="text-[11px] text-muted-foreground font-medium">Warna Label</Label>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {COLOR_PRESETS.map((col) => (
                     <button
@@ -499,7 +499,7 @@ export function ManageBudgetModal({
                 <p className="text-[11px] text-destructive font-medium">{createError}</p>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/50">
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/30">
                 <Button
                   type="button"
                   variant="ghost"
@@ -514,7 +514,7 @@ export function ManageBudgetModal({
                   size="sm"
                   disabled={isCreating}
                   onClick={handleCreateCategory}
-                  className="h-7 px-3 text-xs gap-1.5"
+                  className="h-7 px-3 text-xs gap-1.5 cursor-pointer"
                 >
                   <Plus className="size-3" />
                   <span>{isCreating ? "Menyimpan..." : "Tambah Kategori"}</span>
@@ -523,7 +523,7 @@ export function ManageBudgetModal({
             </div>
           )}
 
-          {/* Category Input Form */}
+          {/* Category Input Form (Flat List Rows, No Cards) */}
           <div className="relative py-1">
             {isLoadingMonth && (
               <div className="absolute inset-0 bg-background/70 backdrop-blur-xs z-10 flex items-center justify-center rounded-md">
@@ -534,34 +534,34 @@ export function ManageBudgetModal({
               </div>
             )}
 
-            <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+            <div className="divide-y divide-border/40 max-h-[350px] overflow-y-auto pr-1">
               {items.map((b) => (
                 <div
                   key={b.id}
-                  className="p-2.5 rounded-lg border border-border/70 bg-card/60 hover:bg-muted/20 transition-colors space-y-2"
+                  className="py-2.5 px-1 hover:bg-muted/15 transition-colors space-y-2"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <span
-                        className="size-2.5 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20"
+                        className="size-2 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20"
                         style={{ backgroundColor: b.color || "#3b82f6" }}
                       />
                       <span className="text-xs font-medium truncate text-foreground">
                         {b.name}
                       </span>
                       {b.is_default ? (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-normal text-muted-foreground border-border/60 shrink-0">
-                          Default
-                        </Badge>
+                        <span className="text-[10px] text-muted-foreground/70 font-normal shrink-0">
+                          (Default)
+                        </span>
                       ) : (
                         <div className="flex items-center gap-1 shrink-0">
-                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 font-normal text-primary bg-primary/10">
-                            Kustom
-                          </Badge>
+                          <span className="text-[10px] text-primary/80 font-medium">
+                            (Kustom)
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleStartEdit(b)}
-                            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
                             title="Ubah nama & warna"
                             aria-label={`Ubah kategori ${b.name}`}
                           >
@@ -580,7 +580,7 @@ export function ManageBudgetModal({
                       )}
                     </div>
 
-                    {/* Right: Target Input */}
+                    {/* Right: Flat Minimalist Target Input */}
                     <div className="relative flex items-center w-[130px] sm:w-[150px] shrink-0">
                       <span className="absolute left-2.5 font-semibold text-muted-foreground text-xs select-none">
                         Rp
@@ -591,14 +591,14 @@ export function ManageBudgetModal({
                         value={b.target > 0 ? b.target.toLocaleString("id-ID") : ""}
                         placeholder="0"
                         onChange={(e) => handleTargetChange(b.id, e.target.value)}
-                        className="h-8 pl-8 text-xs tabular-nums text-right font-semibold"
+                        className="h-8 pl-8 text-xs tabular-nums text-right font-semibold bg-background/40 border-border/50 hover:border-border/80 focus:border-primary/80"
                       />
                     </div>
                   </div>
 
                   {/* Inline Edit Form */}
                   {editingCategoryId === b.id && (
-                    <div className="pt-2 border-t border-border/70 space-y-2.5 bg-muted/30 p-2.5 rounded-md animate-in fade-in-0 duration-150">
+                    <div className="pt-2 border-t border-border/40 space-y-2.5 bg-muted/20 p-2.5 rounded-md animate-in fade-in-0 duration-150">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold text-foreground">Ubah Kategori Kustom</span>
                         <button
@@ -610,16 +610,16 @@ export function ManageBudgetModal({
                         </button>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-medium">Nama Kategori</Label>
+                        <Label className="text-[11px] text-muted-foreground font-medium">Nama Kategori</Label>
                         <Input
                           value={editCategoryName}
                           onChange={(e) => setEditCategoryName(e.target.value)}
                           placeholder="Nama kategori"
-                          className="h-7 text-xs bg-background"
+                          className="h-7 text-xs bg-background/60 border-border/50"
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[11px] font-medium">Warna Label</Label>
+                        <Label className="text-[11px] text-muted-foreground font-medium">Warna Label</Label>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {COLOR_PRESETS.map((col) => (
                             <button
@@ -698,35 +698,44 @@ export function ManageBudgetModal({
                 </div>
               ))}
 
-              {/* Button "+ Tambah Kategori Anggaran Baru" */}
+              {/* Flat Button "+ Tambah Kategori Anggaran Baru" */}
               {!isCreateOpen && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsCreateOpen(true)}
-                  className="w-full mt-2 border-dashed border-border/80 gap-1.5 h-8 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Tambah Kategori Anggaran Baru</span>
-                </Button>
+                <div className="pt-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsCreateOpen(true)}
+                    className="w-full h-8 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 cursor-pointer gap-1.5 justify-center border border-dashed border-border/50 rounded-lg"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Tambah Kategori Anggaran Baru</span>
+                  </Button>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Total Planned Footer */}
-          <div className="flex items-center justify-between border-t border-border/70 pt-3 mt-3 text-xs font-semibold">
-            <span className="text-muted-foreground">Total Pagu Terencana:</span>
-            <span className="tabular-nums text-foreground text-sm font-bold">
+          {/* Total Planned Footer (Flat Typography) */}
+          <div className="flex items-center justify-between pt-3.5 mt-3 border-t border-border/40">
+            <div className="space-y-0.5">
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Total Pagu Terencana
+              </span>
+              <p className="text-[11px] text-muted-foreground">
+                Akumulasi pagu {items.length} kategori
+              </p>
+            </div>
+            <span className="tabular-nums text-foreground text-base sm:text-lg font-bold">
               {formatRupiah(totalTarget)}
             </span>
           </div>
 
-          <DialogFooter className="mt-4 gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          <DialogFooter className="mt-5 gap-2 sm:gap-0 pt-3 border-t border-border/40">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="h-8 text-xs">
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting || isLoadingMonth}>
+            <Button type="submit" disabled={isSubmitting || isLoadingMonth} className="h-8 text-xs">
               {isSubmitting ? "Menyimpan..." : "Simpan Anggaran"}
             </Button>
           </DialogFooter>
