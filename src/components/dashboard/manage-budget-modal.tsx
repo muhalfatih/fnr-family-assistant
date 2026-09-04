@@ -35,6 +35,7 @@ import {
   X,
   Sparkles,
   AlertTriangle,
+  Check,
 } from "lucide-react";
 
 const COLOR_PRESETS = [
@@ -479,19 +480,29 @@ export function ManageBudgetModal({
 
               <div className="space-y-1.5">
                 <Label className="text-[11px] text-muted-foreground font-medium">Warna Label</Label>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {COLOR_PRESETS.map((col) => (
-                    <button
-                      key={col}
-                      type="button"
-                      onClick={() => setNewCategoryColor(col)}
-                      className={`size-5 rounded-full transition-transform cursor-pointer ${
-                        newCategoryColor === col ? "scale-125 ring-2 ring-primary ring-offset-1" : "hover:scale-110"
-                      }`}
-                      style={{ backgroundColor: col }}
-                      aria-label={`Pilih warna ${col}`}
-                    />
-                  ))}
+                <div className="flex items-center gap-2.5 flex-wrap py-1">
+                  {COLOR_PRESETS.map((col) => {
+                    const isSelected = newCategoryColor === col;
+                    return (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => setNewCategoryColor(col)}
+                        aria-pressed={isSelected}
+                        aria-label={`Pilih warna ${col}`}
+                        className={`size-6 rounded-full inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                          isSelected
+                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xs"
+                            : "opacity-85 hover:opacity-100 hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: col }}
+                      >
+                        {isSelected && (
+                          <Check className="size-3.5 text-white stroke-[2.5] drop-shadow-xs" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -620,18 +631,29 @@ export function ManageBudgetModal({
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[11px] text-muted-foreground font-medium">Warna Label</Label>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {COLOR_PRESETS.map((col) => (
-                            <button
-                              key={col}
-                              type="button"
-                              onClick={() => setEditCategoryColor(col)}
-                              className={`size-5 rounded-full transition-transform cursor-pointer ${
-                                editCategoryColor === col ? "scale-125 ring-2 ring-primary ring-offset-1" : "hover:scale-110"
-                              }`}
-                              style={{ backgroundColor: col }}
-                            />
-                          ))}
+                        <div className="flex items-center gap-2.5 flex-wrap py-1">
+                          {COLOR_PRESETS.map((col) => {
+                            const isSelected = editCategoryColor === col;
+                            return (
+                              <button
+                                key={col}
+                                type="button"
+                                onClick={() => setEditCategoryColor(col)}
+                                aria-pressed={isSelected}
+                                aria-label={`Pilih warna ${col}`}
+                                className={`size-6 rounded-full inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                  isSelected
+                                    ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xs"
+                                    : "opacity-85 hover:opacity-100 hover:scale-105"
+                                }`}
+                                style={{ backgroundColor: col }}
+                              >
+                                {isSelected && (
+                                  <Check className="size-3.5 text-white stroke-[2.5] drop-shadow-xs" />
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                       {updateError && (
