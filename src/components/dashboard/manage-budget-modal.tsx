@@ -510,24 +510,22 @@ export function ManageBudgetModal({
                 <p className="text-[11px] text-destructive font-medium">{createError}</p>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2.5 pb-0.5 border-t border-border/30">
+              <div className="flex items-center justify-end gap-2 pt-3 pb-0.5 border-t border-border/30">
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
                   onClick={() => setIsCreateOpen(false)}
-                  className="h-7.5 px-3 text-xs cursor-pointer"
+                  className="h-9 px-4 text-xs cursor-pointer font-medium"
                 >
                   Batal
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
                   disabled={isCreating}
                   onClick={handleCreateCategory}
-                  className="h-7.5 px-3 text-xs gap-1.5 cursor-pointer"
+                  className="h-9 px-4 text-xs gap-1.5 cursor-pointer font-medium"
                 >
-                  <Plus className="size-3" />
+                  <Plus className="size-3.5" />
                   <span>{isCreating ? "Menyimpan..." : "Tambah Kategori"}</span>
                 </Button>
               </div>
@@ -726,9 +724,8 @@ export function ManageBudgetModal({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
                     onClick={() => setIsCreateOpen(true)}
-                    className="w-full h-8.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 cursor-pointer gap-1.5 justify-center border border-dashed border-border/50 rounded-lg transition-colors"
+                    className="w-full h-9 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 cursor-pointer gap-2 justify-center border border-dashed border-border/50 rounded-lg transition-colors"
                   >
                     <Plus className="size-3.5" />
                     <span>Tambah Kategori Anggaran Baru</span>
