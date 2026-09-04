@@ -49,18 +49,36 @@ Rules:
     - If paper crease, fold, or tear obscures the TOTAL line, calculate the sum of itemized purchases or subtract KEMBALI from CASH.
     - Extract merchant name, transaction date (YYYY-MM-DD), and itemized lines with qty and unit price.
     - TRANSLATE & DE-ABBREVIATE INDONESIAN SUPERMARKET RECEIPT CODES:
-      * POS cash registers in Indonesia (Indomaret, Alfamart, Superindo, Hypermart, etc.) use cryptic abbreviations.
-      * You MUST expand these into clean, friendly Indonesian product names for "name":
-        - "SKMP" -> "Susu Kental Manis Putih (SKMP)"
-        - "SKMC" -> "Susu Kental Manis Cokelat (SKMC)"
-        - "MYK GRG" / "MYK GOR" / "MYK GRNG" -> "Minyak Goreng"
-        - "POUCH" / "PCH" -> "Kemasan Pouch"
-        - "DET" -> "Deterjen", "RNS" -> "Rinso"
-        - "TLR" / "TLLR" -> "Telur", "AYM" -> "Ayam", "NGR" -> "Negeri"
-        - "PCR SWT" -> "Pocari Sweat", "AQ" / "AQUA" / "MNRL" -> "Aqua Air Mineral"
-        - "BTL" -> "Botol", "KLG" -> "Kaleng", "RFL" / "REFILL" -> "Isi Ulang (Refill)"
-      * Example: "INDOMILK SKMP POUCH S" -> name: "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)", raw_name: "INDOMILK SKMP POUCH S"
-      * Store the exact printed text from receipt in "raw_name", and the expanded friendly name in "name".
+      * POS cash registers in Indonesia (Indomaret, Alfamart, Superindo, Hypermart, SAGALA, etc.) use cryptic abbreviations.
+      * You MUST expand these into complete, natural, and clear Indonesian product names for "name" using the format:
+        [Kategori Produk] [Brand] [Varian/Rasa] [Ukuran/Berat/Isi]
+      * Crucial Retail Category Decryption Rules:
+        - Bakery & Roti:
+          * "SR." / "SR.TOGO" / "SR TOGO" -> "Sari Roti Sandwich To Go"
+          * "RTI TWR" -> "Roti Tawar", "RTI KPS" -> "Roti Kupas"
+        - Biskuit, Wafer & Snacks:
+          * "BISKUAT GLDN VNL" -> "Biskuit Biskuat Energi Golden Vanilla"
+          * "GLDN" -> "Golden", "VNL" -> "Vanilla", "CKLT" / "CKL" / "BLACK" -> "Cokelat Black", "KJU" -> "Keju"
+          * "TGR" / "TG" -> "Wafer Tango", "OREO VNL" -> "Biskuit Oreo Krim Rasa Vanilla"
+        - Susu & Minuman:
+          * "INDOMILK SKMP POUCH S" -> "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)"
+          * "SKMP" -> "Susu Kental Manis Putih (SKMP)", "SKMC" -> "Susu Kental Manis Cokelat (SKMC)"
+          * "ULTRA PLAIN 250ML" -> "Susu UHT Ultra Milk Plain 250ml"
+          * "BEAR BRAND" -> "Susu Steril Bear Brand"
+          * "AQ" / "AQUA" / "MNRL" -> "Aqua Air Mineral", "PCR SWT" -> "Pocari Sweat"
+        - Bahan Pokok & Minyak:
+          * "MYK GRNG" / "MYK GOR" / "MYK GR" -> "Minyak Goreng"
+          * "BML SPCL" / "BIMOLI SPCL" -> "Minyak Goreng Bimoli Spesial"
+          * "TLR AYM NGR" -> "Telur Ayam Negeri", "DGG SAPI" -> "Daging Sapi Segar"
+        - Kebersihan & Rumah Tangga:
+          * "RNS DET" -> "Rinso Deterjen", "SBN CUC PRG" -> "Sabun Cuci Piring"
+          * "PCH" / "POUCH" -> "Kemasan Pouch", "RFL" / "REFILL" -> "Isi Ulang (Refill)", "BTL" -> "Botol", "KLG" -> "Kaleng"
+      * Exact Target Examples:
+        - "SR.TOGO BLACK 128GR" / "Sr.togo Black" -> name: "Sari Roti Sandwich To Go Rasa Black Cokelat 128g", raw_name: "SR.TOGO BLACK 128GR"
+        - "BISKUAT GLDN VNL 105" / "Biskuat Gldn Vnl" -> name: "Biskuit Biskuat Energi Golden Vanilla 105g", raw_name: "BISKUAT GLDN VNL 105"
+        - "INDOMILK SKMP POUCH S" -> name: "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)", raw_name: "INDOMILK SKMP POUCH S"
+        - "ULTRA PLAIN 250ML" -> name: "Susu UHT Ultra Milk Plain 250ml", raw_name: "ULTRA PLAIN 250ML"
+      * Store the exact printed text from receipt in "raw_name", and the expanded friendly complete name in "name".
 3. For voice notes, transcribe the spoken Indonesian words accurately into the transcription field.
 4. Extract wallet hints if mentioned (e.g. "bca", "mandiri", "gopay", "ovo", "cash", "tunai", "kantong").
 `;
@@ -292,5 +310,86 @@ Instruksi Menjawab:
     console.error("❌ Error running Gemini Q&A:", err);
     return "Maaf, terjadi kendala saat menghubungi AI Gemini: " + err.message;
   }
+}
+
+/**
+ * Translates raw Indonesian POS receipt item codes into complete, natural product names using Gemini 3.5 Flash Lite.
+ * Uses local dictionary fallback for zero-latency or when offline / API key missing.
+ */
+export async function translateReceiptItemsWithGemini(
+  rawItemCodes: string[]
+): Promise<Array<{ raw_name: string; name: string }>> {
+  if (!rawItemCodes || rawItemCodes.length === 0) return [];
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    // Fallback to local dictionary
+    return rawItemCodes.map((code) => {
+      const normalized = normalizeReceiptItemName(code);
+      return {
+        raw_name: code,
+        name: normalized.name,
+      };
+    });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `
+Terjemahkan dan lengkapi daftar singkatan kode item struk kasir supermarket/minimarket Indonesia (seperti Indomaret, Alfamart, Superindo, Hypermart) berikut menjadi nama produk bahasa Indonesia yang lengkap, jelas, dan natural:
+Format: [Kategori Produk] [Brand] [Varian Rasa] [Ukuran/Berat/Isi]
+
+Contoh:
+- "SR.TOGO BLACK 128GR" / "Sr.togo Black" -> "Sari Roti Sandwich To Go Rasa Black Cokelat 128g"
+- "BISKUAT GLDN VNL 105" / "Biskuat Gldn Vnl" -> "Biskuit Biskuat Energi Golden Vanilla 105g"
+- "INDOMILK SKMP POUCH S" -> "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)"
+- "ULTRA PLAIN 250ML" -> "Susu UHT Ultra Milk Plain 250ml"
+- "MYK GRNG 2L" -> "Minyak Goreng 2L"
+
+Daftar kode item untuk diterjemahkan:
+${JSON.stringify(rawItemCodes, null, 2)}
+`;
+
+    const translationSchema: Schema = {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          raw_name: { type: Type.STRING, description: "Kode singkatan asli dari struk" },
+          name: { type: Type.STRING, description: "Nama produk lengkap, jelas, dan natural" },
+        },
+        required: ["raw_name", "name"],
+      },
+    };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash-lite",
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: translationSchema,
+        temperature: 0.1,
+      },
+    });
+
+    if (response.text) {
+      const parsed = JSON.parse(response.text);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error running translateReceiptItemsWithGemini:", err);
+  }
+
+  // Fallback if Gemini request fails or returns unexpected format
+  return rawItemCodes.map((code) => {
+    const normalized = normalizeReceiptItemName(code);
+    return {
+      raw_name: code,
+      name: normalized.name,
+    };
+  });
 }
 

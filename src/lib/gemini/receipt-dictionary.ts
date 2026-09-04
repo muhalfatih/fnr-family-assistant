@@ -6,6 +6,19 @@
 
 // Multi-word phrase expansions (highest precedence)
 const EXACT_PHRASE_EXPANSIONS: Array<[RegExp, string]> = [
+  // Bakery, Biscuits & Snacks (User specific retail patterns)
+  [/\bSR\.?\s*TOGO\s+BLACK\b/gi, "Sari Roti Sandwich To Go Rasa Black Cokelat"],
+  [/\bSR\.?\s*TOGO\s+COKELAT\b/gi, "Sari Roti Sandwich To Go Rasa Cokelat"],
+  [/\bSR\.?\s*TOGO\s+KEJU\b/gi, "Sari Roti Sandwich To Go Rasa Keju"],
+  [/\bSR\.?\s*TOGO\b/gi, "Sari Roti Sandwich To Go"],
+  [/\bBISKUAT\s+GLDN\s+VNL\s+105\b/gi, "Biskuit Biskuat Energi Golden Vanilla 105g"],
+  [/\bBISKUAT\s+GLDN\s+VNL\b/gi, "Biskuit Biskuat Energi Golden Vanilla"],
+  [/\bBISKUAT\s+GOLDEN\s+VANILLA\b/gi, "Biskuit Biskuat Energi Golden Vanilla"],
+  [/\bBISKUAT\s+COKELAT\b/gi, "Biskuit Biskuat Energi Cokelat"],
+  [/\bULTRA\s+PLAIN\b/gi, "Susu UHT Ultra Milk Plain"],
+  [/\bULTRA\s+COKELAT\b/gi, "Susu UHT Ultra Milk Cokelat"],
+  [/\bULTRA\s+STRAWBERRY\b/gi, "Susu UHT Ultra Milk Strawberry"],
+
   // Dairy & Milks
   [/\bINDOMILK\s+SKMP\s+POUCH\s+S\b/gi, "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)"],
   [/\bINDOMILK\s+SKMP\s+POUCH\b/gi, "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch"],
@@ -149,6 +162,23 @@ const WORD_TOKEN_REPLACEMENTS: Record<string, string> = {
   "PMLT": "Pembalut",
   "TISU": "Tisu",
 
+  // Bakery, Biscuit & Snacks
+  "SR": "Sari Roti",
+  "TOGO": "Sandwich To Go",
+  "GLDN": "Golden",
+  "VNL": "Vanilla",
+  "CKLT": "Cokelat",
+  "CKL": "Cokelat",
+  "KJU": "Keju",
+  "STR": "Stroberi",
+  "STWB": "Strawberry",
+  "BSK": "Biskuit",
+  "WFR": "Wafer",
+  "KRPK": "Keripik",
+  "KCG": "Kacang",
+  "RTI": "Roti",
+  "SDP": "Sedaap",
+
   // Packaging Sizes
   "KCL": "Kecil",
   "BSR": "Besar",
@@ -173,6 +203,7 @@ function toIndonesianTitleCase(str: string): string {
         const num = word.replace(/[^0-9.]/g, "");
         const unit = word.replace(/[0-9.]/g, "").toLowerCase();
         if (unit === "l") return `${num}L`;
+        if (unit === "gr") return `${num}g`;
         return `${num}${unit}`;
       }
       // Keep standard uppercase acronyms

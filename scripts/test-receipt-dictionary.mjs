@@ -1,5 +1,5 @@
 import { normalizeReceiptItemName } from "../src/lib/gemini/receipt-dictionary.ts";
-import { verifyAndReconcileReceipt } from "../src/lib/gemini/parser.ts";
+import { verifyAndReconcileReceipt, translateReceiptItemsWithGemini } from "../src/lib/gemini/parser.ts";
 
 console.log("=== Testing Indonesian Retail POS Receipt Abbreviation Dictionary ===");
 
@@ -50,7 +50,32 @@ assert(res7.name === "Aqua Air Mineral 600ml", `'AQUA AIR MNRL 600ML' => '${res7
 const res8 = normalizeReceiptItemName("Beras Pandan Wangi 5kg");
 assert(res8.name === "Beras Pandan Wangi 5kg", `'Beras Pandan Wangi 5kg' => preserved '${res8.name}'`);
 
-// 7. Test verifyAndReconcileReceipt pipeline integration
+// 7. User specific retail test cases: Sr.togo Black & Biskuat Gldn Vnl
+const res9 = normalizeReceiptItemName("SR.TOGO BLACK 128GR");
+assert(
+  res9.name === "Sari Roti Sandwich To Go Rasa Black Cokelat 128g",
+  `'SR.TOGO BLACK 128GR' => '${res9.name}'`
+);
+
+const res10 = normalizeReceiptItemName("BISKUAT GLDN VNL 105");
+assert(
+  res10.name === "Biskuit Biskuat Energi Golden Vanilla 105g",
+  `'BISKUAT GLDN VNL 105' => '${res10.name}'`
+);
+
+const res11 = normalizeReceiptItemName("Sr.togo Black");
+assert(
+  res11.name === "Sari Roti Sandwich To Go Rasa Black Cokelat",
+  `'Sr.togo Black' => '${res11.name}'`
+);
+
+const res12 = normalizeReceiptItemName("Biskuat Gldn Vnl");
+assert(
+  res12.name === "Biskuit Biskuat Energi Golden Vanilla",
+  `'Biskuat Gldn Vnl' => '${res12.name}'`
+);
+
+// 8. Test verifyAndReconcileReceipt pipeline integration
 const mockParsedTx = {
   confidence: 0.95,
   type: "expense",
@@ -60,6 +85,8 @@ const mockParsedTx = {
   items: [
     { name: "INDOMILK SKMP POUCH S", qty: 1, price: 18500 },
     { name: "MYK GRNG 2L", qty: 1, price: 28100 },
+    { name: "SR.TOGO BLACK 128GR", qty: 1, price: 14000 },
+    { name: "BISKUAT GLDN VNL 105", qty: 1, price: 16000 },
   ],
 };
 
@@ -76,6 +103,30 @@ assert(
   reconciled.items[1].name === "Minyak Goreng 2L",
   `Reconciler translated item 1 to '${reconciled.items[1].name}'`
 );
+assert(
+  reconciled.items[2].name === "Sari Roti Sandwich To Go Rasa Black Cokelat 128g",
+  `Reconciler translated item 2 to '${reconciled.items[2].name}'`
+);
+assert(
+  reconciled.items[3].name === "Biskuit Biskuat Energi Golden Vanilla 105g",
+  `Reconciler translated item 3 to '${reconciled.items[3].name}'`
+);
+
+// 9. Test translateReceiptItemsWithGemini helper (with local fallback)
+const translatedList = await translateReceiptItemsWithGemini([
+  "SR.TOGO BLACK 128GR",
+  "BISKUAT GLDN VNL 105",
+]);
+assert(translatedList.length === 2, `translateReceiptItemsWithGemini returned ${translatedList.length} items`);
+assert(
+  translatedList[0].name === "Sari Roti Sandwich To Go Rasa Black Cokelat 128g",
+  `translateReceiptItemsWithGemini translated item 0: '${translatedList[0].name}'`
+);
+assert(
+  translatedList[1].name === "Biskuit Biskuat Energi Golden Vanilla 105g",
+  `translateReceiptItemsWithGemini translated item 1: '${translatedList[1].name}'`
+);
 
 console.log(`\nReceipt Dictionary Results: ${passed} passed, ${failed} failed.\n`);
 if (failed > 0) process.exit(1);
+
