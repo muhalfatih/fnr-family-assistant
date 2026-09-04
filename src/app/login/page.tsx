@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,61 +12,23 @@ import {
   EyeOff,
   Loader2,
   ShieldCheck,
-  UserCheck,
   AlertCircle,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface PresetAccount {
-  id: string;
-  name: string;
-  roleTitle: string;
-  email: string;
-  avatarText: string;
-  badgeCol: string;
-}
-
-const PRESET_ACCOUNTS: PresetAccount[] = [
-  {
-    id: "ayah",
-    name: "Ayah (Fatih)",
-    roleTitle: "Admin Utama",
-    email: "ayah@keluarga.hub",
-    avatarText: "AY",
-    badgeCol: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  },
-  {
-    id: "ibu",
-    name: "Ibu (Rania)",
-    roleTitle: "Admin Keuangan",
-    email: "ibu@keluarga.hub",
-    avatarText: "IB",
-    badgeCol: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-  },
-];
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get("from") || "/";
 
-  const [email, setEmail] = useState("ayah@keluarga.hub");
-  const [password, setPassword] = useState("keluarga123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [selectedPreset, setSelectedPreset] = useState<string>("ayah");
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleSelectPreset = (preset: PresetAccount) => {
-    setSelectedPreset(preset.id);
-    setEmail(preset.email);
-    setPassword("keluarga123");
-    setError(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +89,7 @@ function LoginForm() {
       />
 
       {/* Main Centered Card */}
-      <div className="w-full max-w-[420px] z-10 space-y-6">
+      <div className="w-full max-w-[390px] z-10 space-y-6">
         {/* Brand & App Identity Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base tracking-wider shadow-xs mx-auto ring-1 ring-primary/20">
@@ -148,56 +110,7 @@ function LoginForm() {
         </div>
 
         {/* Card Form */}
-        <div className="rounded-2xl border border-border/80 bg-card/95 p-6 sm:p-7 shadow-xs backdrop-blur-xs space-y-5">
-          {/* Quick Member Selection (Chips) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <UserCheck className="size-3 text-primary" />
-                Akses Cepat Anggota
-              </span>
-              <span className="text-[10px] text-muted-foreground">Pilih profil</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {PRESET_ACCOUNTS.map((preset) => {
-                const isSelected = selectedPreset === preset.id && email === preset.email;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => handleSelectPreset(preset)}
-                    className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
-                      isSelected
-                        ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
-                        : "border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-border"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-xs font-semibold text-foreground truncate">
-                        {preset.name}
-                      </span>
-                      <span className={`text-[9.5px] px-1.5 py-0.2 rounded-md font-medium border ${preset.badgeCol}`}>
-                        {preset.avatarText}
-                      </span>
-                    </div>
-                    <span className="text-[10.5px] text-muted-foreground truncate">
-                      {preset.roleTitle}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="relative flex items-center py-1">
-            <div className="flex-grow border-t border-border/60" />
-            <span className="flex-shrink mx-3 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
-              atau masuk manual
-            </span>
-            <div className="flex-grow border-t border-border/60" />
-          </div>
-
+        <div className="rounded-2xl border border-border/80 bg-card/95 p-6 sm:p-7 shadow-xs backdrop-blur-xs">
           {/* Form Credentials */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Input */}
@@ -215,10 +128,11 @@ function LoginForm() {
                     setEmail(e.target.value);
                     if (error) setError(null);
                   }}
-                  placeholder="nama@keluarga.hub"
+                  placeholder="contoh@keluarga.hub"
                   className="h-10 pl-9 text-xs bg-background/50 border-border/70 focus:border-primary/90"
                   disabled={isLoading}
                   autoComplete="email"
+                  autoFocus
                   required
                 />
               </div>
@@ -226,12 +140,9 @@ function LoginForm() {
 
             {/* Password Input */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="loginPasswordInput" className="text-xs font-medium text-foreground">
-                  Kata Sandi
-                </Label>
-                <span className="text-[11px] text-muted-foreground/80">Demo: keluarga123</span>
-              </div>
+              <Label htmlFor="loginPasswordInput" className="text-xs font-medium text-foreground">
+                Kata Sandi
+              </Label>
               <div className="relative flex items-center">
                 <Lock className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
                 <Input
@@ -242,7 +153,7 @@ function LoginForm() {
                     setPassword(e.target.value);
                     if (error) setError(null);
                   }}
-                  placeholder="••••••••"
+                  placeholder="Masukkan kata sandi"
                   className="h-10 pl-9 pr-9 text-xs bg-background/50 border-border/70 focus:border-primary/90"
                   disabled={isLoading}
                   autoComplete="current-password"
