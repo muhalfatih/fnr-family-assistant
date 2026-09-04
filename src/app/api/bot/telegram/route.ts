@@ -25,6 +25,7 @@ import {
 } from "@/lib/bot/process-manager";
 import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
 import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from "@/lib/bot/relevance-guard";
+import { isWebhookDuplicate, checkRecentDuplicateTransaction } from "@/lib/bot/idempotency";
 import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
 
 // Persistent Quick Action Reply Keyboard
@@ -83,6 +84,18 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch (err) {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+  }
+
+  // Lapis 1: Webhook Idempotency Check (Pencegah Retry Storm dari Server Telegram)
+  if (body?.update_id && isWebhookDuplicate(`tg_update_${body.update_id}`)) {
+    console.log(`[Telegram] Dropping duplicate webhook retry for update_id: ${body.update_id}`);
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+
+  const rawMsg = body?.message || body?.edited_message || body?.channel_post;
+  if (rawMsg?.message_id && rawMsg?.chat?.id && isWebhookDuplicate(`tg_msg_${rawMsg.chat.id}_${rawMsg.message_id}`)) {
+    console.log(`[Telegram] Dropping duplicate message_id: ${rawMsg.message_id} in chat: ${rawMsg.chat.id}`);
+    return NextResponse.json({ ok: true, duplicate: true });
   }
 
   const currentMonth = new Date().toISOString().substring(0, 7);
@@ -835,6 +848,31 @@ export async function POST(req: NextRequest) {
     );
     const categoryId = budgetSync?.categoryId || null;
     const categoryDisplayName = budgetSync?.categoryName || parsed.category || "Lain-lain";
+
+    // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard (Mencegah Pencatatan Ganda)
+    const dupCheck = await checkRecentDuplicateTransaction({
+      familyId,
+      amount: parsed.amount,
+      type: parsed.type,
+      merchant: parsed.merchant_name,
+      description: parsed.description,
+      windowMinutes: 5,
+    });
+
+    if (dupCheck.isDuplicate) {
+      const dupLabel = parsed.merchant_name || parsed.description || "Transaksi";
+      const dupMsg =
+        `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
+        `Transaksi *${dupLabel}* sebesar \`${formatRupiah(parsed.amount)}\` baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
+        `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
+
+      await replyOrEditLoading(chatId, loadingMessageId, dupMsg, MAIN_KEYBOARD);
+      await completeBotProcess(taskId, "success", undefined, {
+        parsedMetadata: { duplicateSkipped: true },
+        latencyMs: Date.now() - startTime,
+      });
+      return NextResponse.json({ ok: true });
+    }
 
     // 2g. Insert Transaction into Supabase
     const { data: transaction, error: txError } = await supabaseAdmin

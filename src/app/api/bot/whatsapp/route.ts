@@ -24,6 +24,7 @@ import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from
 import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
 import { whatsAppConfig, getReceiptAckMessage, getAudioAckMessage } from "@/lib/whatsapp/config";
 import { fastParseIndonesianFinancialText } from "@/lib/bot/fast-parser";
+import { isWebhookDuplicate, checkRecentDuplicateTransaction } from "@/lib/bot/idempotency";
 
 // Standard quick action buttons for WhatsApp interactive messages
 const DEFAULT_WHATSAPP_BUTTONS = [
@@ -231,6 +232,12 @@ export async function POST(req: NextRequest) {
       const senderPhone = message.from;
       const senderName = contact?.profile?.name || senderPhone;
       const messageId = message.id;
+
+      // Lapis 1: Webhook Idempotency Check (Pencegah Retry Storm dari Meta WhatsApp)
+      if (messageId && isWebhookDuplicate(`wa_msg_${messageId}`)) {
+        console.log(`[WhatsApp] Dropping duplicate webhook retry for messageId: ${messageId}`);
+        continue;
+      }
 
       // Mark message as read
       if (messageId) {
@@ -800,6 +807,28 @@ async function processWhatsAppMessage(
       );
       const categoryId = budgetSync?.categoryId || null;
 
+      // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard
+      const dupCheck = await checkRecentDuplicateTransaction({
+        familyId,
+        amount: parsed.amount,
+        type: parsed.type,
+        merchant: parsed.merchant_name,
+        description: parsed.description,
+        windowMinutes: 5,
+      });
+
+      if (dupCheck.isDuplicate) {
+        const dupLabel = parsed.merchant_name || parsed.description || "Transaksi";
+        const dupMsg =
+          `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
+          `Transaksi *${dupLabel}* sebesar *${formatRupiah(parsed.amount)}* baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
+          `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
+
+        await sendWhatsAppTextMessage(senderPhone, dupMsg);
+        completeBotProcess(taskId, "success", undefined, { parsedMetadata: { duplicateSkipped: true } });
+        return;
+      }
+
       // 4. Insert Transaction into Supabase
       let newTx: any = null;
       if (isSupabaseConfigured()) {
@@ -954,6 +983,28 @@ async function processWhatsAppMessage(
       );
       const categoryId = budgetSync?.categoryId || null;
 
+      // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard
+      const dupCheck = await checkRecentDuplicateTransaction({
+        familyId,
+        amount: parsed.amount,
+        type: parsed.type,
+        merchant: parsed.merchant_name,
+        description: parsed.description,
+        windowMinutes: 5,
+      });
+
+      if (dupCheck.isDuplicate) {
+        const dupLabel = parsed.description || "Pesan Suara";
+        const dupMsg =
+          `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
+          `Transaksi *${dupLabel}* sebesar *${formatRupiah(parsed.amount)}* baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
+          `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
+
+        await sendWhatsAppTextMessage(senderPhone, dupMsg);
+        completeBotProcess(taskId, "success", undefined, { parsedMetadata: { duplicateSkipped: true } });
+        return;
+      }
+
       const { data: newTx, error: txErr } = await supabaseAdmin
         .from("transactions")
         .insert({
@@ -1107,6 +1158,28 @@ async function processWhatsAppMessage(
         parsed.type
       );
       const categoryId = budgetSync?.categoryId || null;
+
+      // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard
+      const dupCheck = await checkRecentDuplicateTransaction({
+        familyId,
+        amount: parsed.amount,
+        type: parsed.type,
+        merchant: parsed.merchant_name,
+        description: parsed.description,
+        windowMinutes: 5,
+      });
+
+      if (dupCheck.isDuplicate) {
+        const dupLabel = parsed.description || text;
+        const dupMsg =
+          `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
+          `Transaksi *${dupLabel}* sebesar *${formatRupiah(parsed.amount)}* baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
+          `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
+
+        await sendWhatsAppTextMessage(senderPhone, dupMsg);
+        completeBotProcess(taskId, "success", undefined, { parsedMetadata: { duplicateSkipped: true } });
+        return;
+      }
 
       // Insert Transaction
       let newTx: any = null;
