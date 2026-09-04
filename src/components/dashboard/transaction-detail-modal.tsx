@@ -583,7 +583,7 @@ export function TransactionDetailModal({
       {/* Fullscreen Interactive Lightbox for Receipt Image */}
       {isLightboxOpen && mediaUrl && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col select-none animate-in fade-in-0 duration-200"
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col select-none pointer-events-auto animate-in fade-in-0 duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsLightboxOpen(false);
@@ -592,7 +592,7 @@ export function TransactionDetailModal({
         >
           {/* Top Bar: Title & Controls */}
           <div
-            className="flex items-center justify-between p-3 sm:p-4 bg-black/50 border-b border-white/10 text-white z-10 shrink-0"
+            className="flex items-center justify-between p-3 sm:p-4 bg-black/50 border-b border-white/10 text-white z-10 shrink-0 pointer-events-auto"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
@@ -616,7 +616,7 @@ export function TransactionDetailModal({
                   handleZoomOut();
                 }}
                 disabled={zoomLevel <= 0.5}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors cursor-pointer disabled:cursor-not-allowed pointer-events-auto"
                 title="Perkecil (Zoom Out)"
                 aria-label="Perkecil"
               >
@@ -631,7 +631,7 @@ export function TransactionDetailModal({
                   e.stopPropagation();
                   handleResetZoom();
                 }}
-                className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white tabular-nums font-medium transition-colors"
+                className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white tabular-nums font-medium transition-colors cursor-pointer pointer-events-auto"
                 title="Reset Ukuran (100%)"
               >
                 {Math.round(zoomLevel * 100)}%
@@ -646,7 +646,7 @@ export function TransactionDetailModal({
                   handleZoomIn();
                 }}
                 disabled={zoomLevel >= 4}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors cursor-pointer disabled:cursor-not-allowed pointer-events-auto"
                 title="Perbesar (Zoom In)"
                 aria-label="Perbesar"
               >
@@ -660,7 +660,7 @@ export function TransactionDetailModal({
                 rel="noopener noreferrer"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer pointer-events-auto"
                 title="Buka Gambar Asli di Tab Baru"
                 aria-label="Buka di tab baru"
               >
@@ -677,7 +677,7 @@ export function TransactionDetailModal({
                   e.stopPropagation();
                   setIsLightboxOpen(false);
                 }}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-destructive text-white transition-colors"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-destructive text-white transition-colors cursor-pointer pointer-events-auto"
                 title="Tutup (Esc)"
                 aria-label="Tutup"
               >
@@ -688,7 +688,7 @@ export function TransactionDetailModal({
 
           {/* Center Image Canvas (Pan & Zoom) */}
           <div
-            className={`flex-1 overflow-hidden flex items-center justify-center p-4 relative select-none ${
+            className={`flex-1 overflow-hidden flex items-center justify-center p-4 relative select-none pointer-events-auto ${
               zoomLevel > 1
                 ? isDragging && hasMovedDuringDrag
                   ? "cursor-grabbing"
@@ -726,7 +726,7 @@ export function TransactionDetailModal({
 
           {/* Bottom Hint */}
           <div
-            className="p-2.5 text-center bg-black/50 text-[11px] text-white/60 border-t border-white/10 shrink-0"
+            className="p-2.5 text-center bg-black/50 text-[11px] text-white/60 border-t border-white/10 shrink-0 pointer-events-auto"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
