@@ -407,8 +407,8 @@ export async function clearAllChatActivityLogs(): Promise<boolean> {
   if (isSupabaseConfigured()) {
     try {
       await Promise.allSettled([
-        supabaseAdmin.from("chat_activity_logs").delete().neq("id", "none"),
-        supabaseAdmin.from("bot_logs").delete().neq("id", "none"),
+        supabaseAdmin.from("chat_activity_logs").delete().not("id", "is", null),
+        supabaseAdmin.from("bot_logs").delete().not("id", "is", null),
       ]);
     } catch (e) {
       console.warn("Failed to clear logs from Supabase:", e);

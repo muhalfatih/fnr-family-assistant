@@ -11,6 +11,56 @@ import { useChatLogs } from "@/lib/hooks/use-family-data";
 export default function LogsPage() {
   const { logs, isMockMode, isLoading, isValidating, mutate } = useChatLogs();
 
+  const handleDeleteLog = async (id: string) => {
+    await mutate(
+      async (currentData) => {
+        const res = await fetch(`/api/logs?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          throw new Error("Gagal menghapus log dari server");
+        }
+        return {
+          logs: (currentData?.logs || []).filter((l) => l.id !== id),
+          isMockMode: currentData?.isMockMode,
+        };
+      },
+      {
+        optimisticData: (currentData) => ({
+          logs: (currentData?.logs || []).filter((l) => l.id !== id),
+          isMockMode: currentData?.isMockMode,
+        }),
+        rollbackOnError: true,
+        revalidate: true,
+      }
+    );
+  };
+
+  const handleClearAllLogs = async () => {
+    await mutate(
+      async (currentData) => {
+        const res = await fetch("/api/logs?all=true", {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          throw new Error("Gagal mengosongkan log");
+        }
+        return {
+          logs: [],
+          isMockMode: currentData?.isMockMode,
+        };
+      },
+      {
+        optimisticData: (currentData) => ({
+          logs: [],
+          isMockMode: currentData?.isMockMode,
+        }),
+        rollbackOnError: true,
+        revalidate: true,
+      }
+    );
+  };
+
   return (
     <AppShell>
       <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
@@ -68,6 +118,8 @@ export default function LogsPage() {
           logs={logs}
           isLoading={isLoading && logs.length === 0}
           onRefresh={() => mutate()}
+          onDeleteLog={handleDeleteLog}
+          onClearAll={handleClearAllLogs}
         />
       </div>
     </AppShell>

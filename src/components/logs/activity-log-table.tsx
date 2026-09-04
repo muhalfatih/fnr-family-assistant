@@ -55,9 +55,17 @@ interface ActivityLogTableProps {
   logs: ChatActivityLog[];
   isLoading?: boolean;
   onRefresh?: () => void;
+  onDeleteLog?: (id: string) => Promise<void>;
+  onClearAll?: () => Promise<void>;
 }
 
-export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTableProps) {
+export function ActivityLogTable({
+  logs,
+  isLoading,
+  onRefresh,
+  onDeleteLog,
+  onClearAll,
+}: ActivityLogTableProps) {
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -71,17 +79,22 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
 
   const handleDeleteSingleLog = async () => {
     if (!logToDelete) return;
+    const targetId = logToDelete.id;
     setIsDeletingSingle(true);
     try {
-      const res = await fetch(`/api/logs?id=${encodeURIComponent(logToDelete.id)}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error("Gagal menghapus log");
+      if (onDeleteLog) {
+        await onDeleteLog(targetId);
+      } else {
+        const res = await fetch(`/api/logs?id=${encodeURIComponent(targetId)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          throw new Error("Gagal menghapus log");
+        }
+        onRefresh?.();
       }
       toast.success("Log aktivitas berhasil dihapus");
       setLogToDelete(null);
-      onRefresh?.();
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat menghapus log");
     } finally {
@@ -92,15 +105,19 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
   const handleClearAllLogs = async () => {
     setIsClearingAll(true);
     try {
-      const res = await fetch("/api/logs?all=true", {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error("Gagal mengosongkan log");
+      if (onClearAll) {
+        await onClearAll();
+      } else {
+        const res = await fetch("/api/logs?all=true", {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          throw new Error("Gagal mengosongkan log");
+        }
+        onRefresh?.();
       }
       toast.success("Seluruh riwayat log berhasil dibersihkan");
       setIsClearAllOpen(false);
-      onRefresh?.();
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat mengosongkan log");
     } finally {
@@ -220,18 +237,6 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
                 >
                   <Trash2 className="size-3" aria-hidden="true" />
                   <span>Hapus Semua</span>
-                </Button>
-              )}
-              {onRefresh && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRefresh}
-                  className="gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
-                  title="Segarkan data log"
-                >
-                  <RefreshCw className="size-3" aria-hidden="true" />
-                  <span>Segarkan</span>
                 </Button>
               )}
             </div>
@@ -623,7 +628,10 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteSingleLog}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteSingleLog();
+              }}
               disabled={isDeletingSingle}
               className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
             >
@@ -657,7 +665,10 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleClearAllLogs}
+              onClick={(e) => {
+                e.preventDefault();
+                handleClearAllLogs();
+              }}
               disabled={isClearingAll}
               className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
             >
