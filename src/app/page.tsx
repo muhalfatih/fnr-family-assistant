@@ -3,12 +3,14 @@
 import React, { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
-import { BudgetProgress } from "@/components/dashboard/budget-progress";
+import { BudgetProgress, CategoryBudgetItem } from "@/components/dashboard/budget-progress";
 import { TransactionFeed } from "@/components/dashboard/transaction-feed";
 import { FinancialCharts, MonthlyFlowData } from "@/components/dashboard/financial-charts";
 import { AddTransactionModal } from "@/components/dashboard/add-transaction-modal";
 import { ManageWalletModal } from "@/components/dashboard/manage-wallet-modal";
 import { ManageBudgetModal } from "@/components/dashboard/manage-budget-modal";
+import { AddCategoryModal } from "@/components/dashboard/add-category-modal";
+import { EditBudgetItemModal } from "@/components/dashboard/edit-budget-item-modal";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,17 +62,12 @@ export default function DashboardPage() {
   const [walletToEdit, setWalletToEdit] = useState<Wallet | null>(null);
   const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
-  const [isCreateBudgetMode, setIsCreateBudgetMode] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [editingBudgetItem, setEditingBudgetItem] = useState<CategoryBudgetItem | null>(null);
 
-  const handleOpenCreateBudget = () => {
-    setIsCreateBudgetMode(true);
-    setIsBudgetModalOpen(true);
-  };
-
-  const handleOpenManageBudget = () => {
-    setIsCreateBudgetMode(false);
-    setIsBudgetModalOpen(true);
-  };
+  const activeMonthYear = useMemo(() => {
+    return selectedPeriod === "all" ? new Date().toISOString().substring(0, 7) : selectedPeriod;
+  }, [selectedPeriod]);
 
   // SWR Caching & Real-time Auto-sync Hooks
   const { wallets, mutate: mutateWallets } = useWallets();
@@ -369,7 +366,8 @@ export default function DashboardPage() {
               <div className="w-full">
                 <BudgetProgress
                   budgets={budgets}
-                  onOpenManageBudget={handleOpenManageBudget}
+                  onOpenManageBudget={() => setIsBudgetModalOpen(true)}
+                  onEditItem={(item) => setEditingBudgetItem(item)}
                 />
               </div>
               <div className="w-full">
@@ -411,7 +409,7 @@ export default function DashboardPage() {
               <Button
                 variant="default"
                 size="sm"
-                onClick={handleOpenCreateBudget}
+                onClick={() => setIsAddCategoryOpen(true)}
                 className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto cursor-pointer"
               >
                 <Plus className="size-3.5" aria-hidden="true" />
@@ -420,7 +418,8 @@ export default function DashboardPage() {
             </div>
             <BudgetProgress
               budgets={budgets}
-              onOpenManageBudget={handleOpenManageBudget}
+              onOpenManageBudget={() => setIsBudgetModalOpen(true)}
+              onEditItem={(item) => setEditingBudgetItem(item)}
             />
           </TabsContent>
 
@@ -533,21 +532,39 @@ export default function DashboardPage() {
         onSaveWallet={handleSaveWallet}
       />
 
-      {/* Modal Atur Pagu Anggaran */}
+      {/* Modal Tambah Kategori Anggaran (Tanpa Target) */}
+      <AddCategoryModal
+        isOpen={isAddCategoryOpen}
+        onClose={() => setIsAddCategoryOpen(false)}
+        onSuccess={() => {
+          mutateCategories();
+          mutateBudgets();
+        }}
+      />
+
+      {/* Modal Atur Pagu Anggaran Massal (Bulan Aktif) */}
       <ManageBudgetModal
         isOpen={isBudgetModalOpen}
-        onClose={() => {
-          setIsBudgetModalOpen(false);
-          setIsCreateBudgetMode(false);
-        }}
-        initialMonthYear={selectedPeriod === "all" ? "2026-09" : selectedPeriod}
+        onClose={() => setIsBudgetModalOpen(false)}
+        activeMonthYear={activeMonthYear}
         budgets={budgets}
         onSaveBudgets={handleSaveBudgets}
         onRefresh={() => {
           mutateBudgets();
           mutateCategories();
         }}
-        initialCreateOpen={isCreateBudgetMode}
+      />
+
+      {/* Modal Edit Anggaran Item (Bulan Aktif) */}
+      <EditBudgetItemModal
+        isOpen={!!editingBudgetItem}
+        onClose={() => setEditingBudgetItem(null)}
+        item={editingBudgetItem}
+        activeMonthYear={activeMonthYear}
+        onSuccess={() => {
+          mutateBudgets();
+          mutateCategories();
+        }}
       />
 
       {/* Delete Wallet Alert Dialog */}

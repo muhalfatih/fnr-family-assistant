@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { formatRupiah } from "@/lib/utils";
 import {
   Dialog,
@@ -10,546 +10,165 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { CategoryBudgetItem } from "@/components/dashboard/budget-progress";
-import {
-  Calendar,
-  Copy,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  Sparkles,
-  AlertTriangle,
-  Check,
-} from "lucide-react";
-
-const COLOR_PRESETS = [
-  "#10b981", // Emerald
-  "#3b82f6", // Blue
-  "#8b5cf6", // Purple
-  "#ec4899", // Pink
-  "#f59e0b", // Amber
-  "#f97316", // Orange
-  "#06b6d4", // Cyan
-  "#14b8a6", // Teal
-  "#6366f1", // Indigo
-  "#ef4444", // Red
-];
+import { Settings2, Calendar, Loader2 } from "lucide-react";
 
 interface ManageBudgetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMonthYear?: string;
+  activeMonthYear: string; // e.g. "2026-09"
   budgets: CategoryBudgetItem[];
   onSaveBudgets: (monthYear: string, updatedBudgets: CategoryBudgetItem[]) => Promise<void> | void;
   onRefresh?: () => void;
-  initialCreateOpen?: boolean;
 }
 
 export function ManageBudgetModal({
   isOpen,
   onClose,
-  initialMonthYear,
+  activeMonthYear,
   budgets,
   onSaveBudgets,
   onRefresh,
-  initialCreateOpen = false,
 }: ManageBudgetModalProps) {
-  const currentMonthStr = useMemo(() => {
-    return new Date().toISOString().substring(0, 7); // e.g. "2026-09"
-  }, []);
-
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    initialMonthYear && initialMonthYear !== "all" ? initialMonthYear : currentMonthStr
-  );
-  const [items, setItems] = useState<CategoryBudgetItem[]>(budgets);
-  const [isLoadingMonth, setIsLoadingMonth] = useState(false);
+  const [items, setItems] = useState<CategoryBudgetItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copiedMsg, setCopiedMsg] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Creation State
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
-  const [newCategoryTarget, setNewCategoryTarget] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  // Edit State
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [editCategoryName, setEditCategoryName] = useState("");
-  const [editCategoryColor, setEditCategoryColor] = useState("#3b82f6");
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-
-  // Deletion State
-  const [deletingCategory, setDeletingCategory] = useState<CategoryBudgetItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // Generate structured list of months (3 future months, current month, 6 past months)
-  const monthOptions = useMemo(() => {
-    const list: { value: string; label: string; isFuture: boolean; isCurrent: boolean }[] = [];
-    const baseDate = new Date();
-
-    // 3 future months (+3, +2, +1)
-    for (let i = 3; i >= 1; i--) {
-      const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
-      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const name = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-      list.push({
-        value: val,
-        label: `${name} (Mendatang)`,
-        isFuture: true,
-        isCurrent: false,
-      });
-    }
-
-    // Current month (0)
-    const curVal = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, "0")}`;
-    const curName = baseDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-    list.push({
-      value: curVal,
-      label: `${curName} (Bulan Ini)`,
-      isFuture: false,
-      isCurrent: true,
-    });
-
-    // 6 past months (-1 to -6)
-    for (let i = 1; i <= 6; i++) {
-      const d = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
-      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const name = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-      list.push({
-        value: val,
-        label: name,
-        isFuture: false,
-        isCurrent: false,
-      });
-    }
-
-    return list;
-  }, []);
-
-  // Fetch budgets whenever selectedMonth changes
-  const fetchMonthBudgets = useCallback(async (monthYear: string) => {
-    setIsLoadingMonth(true);
-    setCopiedMsg(null);
+  // Month label in Indonesian
+  const monthLabel = useMemo(() => {
     try {
-      const res = await fetch(`/api/budgets?monthYear=${encodeURIComponent(monthYear)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.budgets && Array.isArray(data.budgets)) {
-          setItems(data.budgets);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load month budgets:", err);
-    } finally {
-      setIsLoadingMonth(false);
+      const [y, m] = activeMonthYear.split("-").map((s) => parseInt(s, 10));
+      const d = new Date(y, m - 1, 1);
+      return d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+    } catch {
+      return activeMonthYear;
     }
-  }, []);
+  }, [activeMonthYear]);
 
+  // Fetch or sync budgets for active month
   useEffect(() => {
-    if (isOpen) {
-      const initial = initialMonthYear && initialMonthYear !== "all" ? initialMonthYear : currentMonthStr;
-      setSelectedMonth(initial);
-      fetchMonthBudgets(initial);
-      if (initialCreateOpen) {
-        setIsCreateOpen(true);
-      }
-    } else {
-      setIsCreateOpen(false);
-      setEditingCategoryId(null);
-      setDeletingCategory(null);
-      setCreateError(null);
-      setUpdateError(null);
-    }
-  }, [isOpen, initialMonthYear, currentMonthStr, fetchMonthBudgets, initialCreateOpen]);
+    if (!isOpen) return;
 
-  const handleMonthChange = (newMonth: string) => {
-    setSelectedMonth(newMonth);
-    fetchMonthBudgets(newMonth);
-  };
-
-  const handleCopyPreviousMonth = async () => {
-    try {
-      const [yearStr, monthStr] = selectedMonth.split("-");
-      const curDate = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10) - 1, 1);
-      curDate.setMonth(curDate.getMonth() - 1);
-      const prevMonthStr = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, "0")}`;
-      const prevMonthName = curDate.toLocaleDateString("id-ID", { month: "long" });
-
-      setIsLoadingMonth(true);
-      const res = await fetch(`/api/budgets?monthYear=${encodeURIComponent(prevMonthStr)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.budgets && Array.isArray(data.budgets)) {
-          const prevMap = new Map<string, number>();
-          data.budgets.forEach((b: any) => {
-            if (b.name) prevMap.set(b.name, Number(b.target) || 0);
-            if (b.id) prevMap.set(b.id, Number(b.target) || 0);
-            if (b.category_id) prevMap.set(b.category_id, Number(b.target) || 0);
-          });
-
-          setItems((currentItems) =>
-            currentItems.map((item) => {
-              const prevTarget = prevMap.get(item.name) ?? prevMap.get(item.id) ?? Number(item.target) ?? 0;
-              return {
-                ...item,
-                target: prevTarget,
-              };
-            })
-          );
-          setCopiedMsg(`Berhasil menyalin pagu dari bulan ${prevMonthName}!`);
+    let isMounted = true;
+    const loadBudgets = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/budgets?monthYear=${encodeURIComponent(activeMonthYear)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.budgets && Array.isArray(data.budgets)) {
+            setItems(data.budgets);
+            return;
+          }
+        }
+        if (isMounted) {
+          setItems(budgets || []);
+        }
+      } catch {
+        if (isMounted) {
+          setItems(budgets || []);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
         }
       }
-    } catch (err) {
-      console.error("Failed to copy previous month budget:", err);
-    } finally {
-      setIsLoadingMonth(false);
-    }
-  };
+    };
+
+    loadBudgets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, activeMonthYear, budgets]);
 
   const handleTargetChange = (id: string, rawVal: string) => {
-    const cleanNum = parseInt(rawVal.replace(/[^0-9]/g, "") || "0", 10);
+    const num = parseInt(rawVal.replace(/[^0-9]/g, "") || "0", 10);
     setItems((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, target: cleanNum } : b))
+      prev.map((item) => (item.id === id ? { ...item, target: num } : item))
     );
   };
 
   const totalTarget = useMemo(() => {
-    return items.reduce((acc, curr) => acc + (Number(curr.target) || 0), 0);
+    return items.reduce((acc, curr) => acc + (curr.target || 0), 0);
   }, [items]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
+
     try {
-      await onSaveBudgets(selectedMonth, items);
+      await onSaveBudgets(activeMonthYear, items);
+      onRefresh?.();
       onClose();
-    } catch (err) {
-      console.error("Failed to save budget:", err);
+    } catch (err: any) {
+      setError(err.message || "Gagal menyimpan perubahan pagu");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Create Category Handler
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCategoryName.trim()) {
-      setCreateError("Nama kategori wajib diisi");
-      return;
-    }
-    setIsCreating(true);
-    setCreateError(null);
-    try {
-      const cleanTarget = parseInt(newCategoryTarget.replace(/[^0-9]/g, "") || "0", 10);
-      const res = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newCategoryName.trim(),
-          type: "expense",
-          color: newCategoryColor,
-          initialTarget: cleanTarget,
-          monthYear: selectedMonth,
-        }),
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Gagal membuat kategori");
-      }
-      setNewCategoryName("");
-      setNewCategoryColor("#3b82f6");
-      setNewCategoryTarget("");
-      setIsCreateOpen(false);
-      await fetchMonthBudgets(selectedMonth);
-      onRefresh?.();
-    } catch (err: any) {
-      setCreateError(err.message || "Gagal membuat kategori baru");
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  // Start Edit Category
-  const handleStartEdit = (cat: CategoryBudgetItem) => {
-    setEditingCategoryId(cat.id);
-    setEditCategoryName(cat.name);
-    setEditCategoryColor(cat.color || "#3b82f6");
-    setUpdateError(null);
-  };
-
-  // Update Category Handler
-  const handleUpdateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCategoryId) return;
-    if (!editCategoryName.trim()) {
-      setUpdateError("Nama kategori wajib diisi");
-      return;
-    }
-    setIsUpdating(true);
-    setUpdateError(null);
-    try {
-      const targetCat = items.find((i) => i.id === editingCategoryId);
-      const rawCatId = targetCat?.category_id || (editingCategoryId.startsWith("cat-") ? editingCategoryId.replace(/^cat-/, "") : editingCategoryId);
-      const res = await fetch("/api/categories", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: rawCatId,
-          name: editCategoryName.trim(),
-          color: editCategoryColor,
-        }),
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Gagal memperbarui kategori");
-      }
-      setEditingCategoryId(null);
-      await fetchMonthBudgets(selectedMonth);
-      onRefresh?.();
-    } catch (err: any) {
-      setUpdateError(err.message || "Gagal memperbarui kategori");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // Delete Category Handler
-  const handleDeleteCategory = async () => {
-    if (!deletingCategory) return;
-    setIsDeleting(true);
-    try {
-      const rawCatId = deletingCategory.category_id || (deletingCategory.id.startsWith("cat-") ? deletingCategory.id.replace(/^cat-/, "") : deletingCategory.id);
-      const res = await fetch(`/api/categories?id=${encodeURIComponent(rawCatId)}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Gagal menghapus kategori");
-      }
-      setDeletingCategory(null);
-      await fetchMonthBudgets(selectedMonth);
-      onRefresh?.();
-    } catch (err: any) {
-      console.error("Failed to delete category:", err);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[540px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl gap-0">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSubmitting) {
+          setError(null);
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl gap-0">
         <form onSubmit={handleSubmit} className="space-y-0">
-          <DialogHeader className="space-y-1 pb-3 border-b border-border/40">
-            <DialogTitle className="text-base font-semibold tracking-tight">Atur Pagu Anggaran Bulanan</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Kelola batas pengeluaran keluarga per kategori untuk bulan yang dipilih.
+          {/* Header */}
+          <DialogHeader className="space-y-1 pb-3 border-b border-border/40 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <Settings2 className="size-4" />
+                </div>
+                <DialogTitle className="text-base font-semibold tracking-tight">
+                  Atur Pagu Anggaran Massal
+                </DialogTitle>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-md shrink-0">
+                <Calendar className="size-3 text-muted-foreground" aria-hidden="true" />
+                <span>{monthLabel}</span>
+              </span>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground pt-0.5">
+              Sesuaikan alokasi target pagu pengeluaran seluruh kategori untuk periode aktif ini.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Flat Integrated Month Selector & Status (No heavy boxes) */}
-          <div className="py-3 border-b border-border/40 space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <Calendar className="size-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-                <Label htmlFor="budgetMonthSelect" className="text-xs font-medium text-muted-foreground shrink-0">
-                  Bulan:
-                </Label>
-                <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                  <SelectTrigger id="budgetMonthSelect" className="h-8 text-xs font-semibold bg-background/50 border-border/50 hover:border-border min-w-[170px]" aria-label="Pilih Bulan Anggaran">
-                    <SelectValue placeholder="Pilih Bulan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {monthOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleCopyPreviousMonth}
-                disabled={isLoadingMonth}
-                className="h-8 text-[11px] gap-1.5 shrink-0 text-muted-foreground hover:text-foreground font-medium px-2.5 cursor-pointer"
-                title="Salin target anggaran dari 1 bulan sebelumnya"
-              >
-                <Copy className="size-3 text-muted-foreground" aria-hidden="true" />
-                <span>Salin Bulan Lalu</span>
-              </Button>
-            </div>
-
-            {/* Status Feedback (Flat typography) */}
-            <div className="flex items-center justify-between text-[11px] pt-0.5">
-              <div className="flex items-center gap-1.5">
-                {totalTarget > 0 ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">
-                    <CheckCircle2 className="size-3 shrink-0" aria-hidden="true" />
-                    Pagu sudah diatur
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium text-[11px]">
-                    <AlertCircle className="size-3 shrink-0" aria-hidden="true" />
-                    Pagu belum diatur
-                  </span>
-                )}
-              </div>
-
-              {copiedMsg && (
-                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in">
-                  {copiedMsg}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Form Tambah Kategori Baru (Flat Inline Panel) */}
-          {isCreateOpen && (
-            <div className="pt-3 pb-4 px-1 my-2 border-b border-border/40 space-y-3 animate-in fade-in-0 duration-150">
-              <div className="flex items-center justify-between pb-1">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="size-3.5 text-primary shrink-0" />
-                  <span className="text-xs font-semibold text-foreground">Tambah Kategori Anggaran Baru</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  aria-label="Tutup form tambah"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <Label htmlFor="newCategoryName" className="text-[11px] text-muted-foreground font-medium">Nama Kategori</Label>
-                  <Input
-                    id="newCategoryName"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="Misal: Kucing, Skincare, Kursus"
-                    className="h-8 text-xs bg-background/50 border-border/50 focus:border-primary/80"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="newCategoryTarget" className="text-[11px] text-muted-foreground font-medium">Target Pagu Bulan Ini (Rp)</Label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-2.5 font-semibold text-muted-foreground text-xs select-none">
-                      Rp
-                    </span>
-                    <Input
-                      id="newCategoryTarget"
-                      value={newCategoryTarget}
-                      onChange={(e) => {
-                        const num = parseInt(e.target.value.replace(/[^0-9]/g, "") || "0", 10);
-                        setNewCategoryTarget(num > 0 ? num.toLocaleString("id-ID") : "");
-                      }}
-                      placeholder="0"
-                      className="h-8 pl-8 text-xs tabular-nums text-right font-semibold bg-background/50 border-border/50 focus:border-primary/80"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[11px] text-muted-foreground font-medium">Warna Label</Label>
-                <div className="flex items-center gap-2.5 flex-wrap py-1">
-                  {COLOR_PRESETS.map((col) => {
-                    const isSelected = newCategoryColor === col;
-                    return (
-                      <button
-                        key={col}
-                        type="button"
-                        onClick={() => setNewCategoryColor(col)}
-                        aria-pressed={isSelected}
-                        aria-label={`Pilih warna ${col}`}
-                        className={`size-6 rounded-full inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                          isSelected
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xs"
-                            : "opacity-85 hover:opacity-100 hover:scale-105"
-                        }`}
-                        style={{ backgroundColor: col }}
-                      >
-                        {isSelected && (
-                          <Check className="size-3.5 text-white stroke-[2.5] drop-shadow-xs" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {createError && (
-                <p className="text-[11px] text-destructive font-medium">{createError}</p>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-3 pb-0.5 border-t border-border/30">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="h-9 px-4 text-xs cursor-pointer font-medium"
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="button"
-                  disabled={isCreating}
-                  onClick={handleCreateCategory}
-                  className="h-9 px-4 text-xs gap-1.5 cursor-pointer font-medium"
-                >
-                  <Plus className="size-3.5" />
-                  <span>{isCreating ? "Menyimpan..." : "Tambah Kategori"}</span>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Category Input Form (Flat List Rows, No Cards) */}
-          <div className="relative py-1">
-            {isLoadingMonth && (
+          {/* Category List */}
+          <div className="relative py-2">
+            {isLoading && (
               <div className="absolute inset-0 bg-background/70 backdrop-blur-xs z-10 flex items-center justify-center rounded-md">
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border px-3 py-1.5 rounded-md shadow-sm">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border px-3 py-1.5 rounded-md shadow-xs">
                   <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
                   <span>Memuat data anggaran...</span>
                 </div>
               </div>
             )}
 
-            <div className="divide-y divide-border/40">
-              {items.map((b) => (
-                <div
-                  key={b.id}
-                  className="py-2.5 px-1 hover:bg-muted/15 transition-colors space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-3">
+            {items.length === 0 ? (
+              <div className="py-8 text-center text-xs text-muted-foreground italic">
+                Belum ada kategori anggaran. Tambahkan kategori baru melalui tombol Tambah Anggaran.
+              </div>
+            ) : (
+              <div className="divide-y divide-border/40">
+                {items.map((b) => (
+                  <div
+                    key={b.id}
+                    className="py-2.5 px-1 flex items-center justify-between gap-3 hover:bg-muted/15 transition-colors"
+                  >
+                    {/* Category Label */}
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <span
                         className="size-2 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20"
@@ -558,185 +177,35 @@ export function ManageBudgetModal({
                       <span className="text-xs font-medium truncate text-foreground">
                         {b.name}
                       </span>
-                      {b.is_default ? (
-                        <span className="text-[10px] text-muted-foreground/70 font-normal shrink-0">
-                          (Default)
-                        </span>
-                      ) : (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[10px] text-primary/80 font-medium">
-                            (Kustom)
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleStartEdit(b)}
-                            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
-                            title="Ubah nama & warna"
-                            aria-label={`Ubah kategori ${b.name}`}
-                          >
-                            <Pencil className="size-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeletingCategory(b)}
-                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                            title="Hapus kategori"
-                            aria-label={`Hapus kategori ${b.name}`}
-                          >
-                            <Trash2 className="size-3" />
-                          </button>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Right: Flat Minimalist Target Input */}
-                    <div className="relative flex items-center w-[130px] sm:w-[150px] shrink-0">
+                    {/* Target Input */}
+                    <div className="relative flex items-center shrink-0">
                       <span className="absolute left-2.5 font-semibold text-muted-foreground text-xs select-none">
                         Rp
                       </span>
                       <Input
-                        id={`budget-${b.id}`}
                         type="text"
+                        inputMode="numeric"
                         value={b.target > 0 ? b.target.toLocaleString("id-ID") : ""}
-                        placeholder="0"
                         onChange={(e) => handleTargetChange(b.id, e.target.value)}
-                        className="h-8 pl-8 text-xs tabular-nums text-right font-semibold bg-background/40 border-border/50 hover:border-border/80 focus:border-primary/80"
+                        placeholder="0"
+                        disabled={isSubmitting}
+                        className="h-8 w-36 sm:w-44 pl-8 text-xs tabular-nums text-right font-semibold bg-background/50 border-border/50 hover:border-border/80 focus:border-primary/80 transition-colors"
                       />
                     </div>
                   </div>
-
-                  {/* Inline Edit Form */}
-                  {editingCategoryId === b.id && (
-                    <div className="pt-2 border-t border-border/40 space-y-2.5 bg-muted/20 p-2.5 rounded-md animate-in fade-in-0 duration-150">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-foreground">Ubah Kategori Kustom</span>
-                        <button
-                          type="button"
-                          onClick={() => setEditingCategoryId(null)}
-                          className="text-muted-foreground hover:text-foreground cursor-pointer"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground font-medium">Nama Kategori</Label>
-                        <Input
-                          value={editCategoryName}
-                          onChange={(e) => setEditCategoryName(e.target.value)}
-                          placeholder="Nama kategori"
-                          className="h-7 text-xs bg-background/60 border-border/50"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground font-medium">Warna Label</Label>
-                        <div className="flex items-center gap-2.5 flex-wrap py-1">
-                          {COLOR_PRESETS.map((col) => {
-                            const isSelected = editCategoryColor === col;
-                            return (
-                              <button
-                                key={col}
-                                type="button"
-                                onClick={() => setEditCategoryColor(col)}
-                                aria-pressed={isSelected}
-                                aria-label={`Pilih warna ${col}`}
-                                className={`size-6 rounded-full inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                                  isSelected
-                                    ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xs"
-                                    : "opacity-85 hover:opacity-100 hover:scale-105"
-                                }`}
-                                style={{ backgroundColor: col }}
-                              >
-                                {isSelected && (
-                                  <Check className="size-3.5 text-white stroke-[2.5] drop-shadow-xs" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      {updateError && (
-                        <p className="text-[11px] text-destructive">{updateError}</p>
-                      )}
-                      <div className="flex items-center justify-end gap-2 pt-2 pb-0.5 border-t border-border/40">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingCategoryId(null)}
-                          className="h-6 px-2 text-[11px]"
-                        >
-                          Batal
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={isUpdating}
-                          onClick={handleUpdateCategory}
-                          className="h-6 px-2.5 text-[11px]"
-                        >
-                          {isUpdating ? "Menyimpan..." : "Simpan Perubahan"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Inline Delete Confirmation */}
-                  {deletingCategory?.id === b.id && (
-                    <div className="pt-2 border-t border-destructive/30 bg-destructive/5 p-2.5 rounded-md space-y-2 animate-in fade-in-0 duration-150">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
-                        <div className="text-[11px] space-y-1">
-                          <p className="font-semibold text-destructive">Hapus kategori "{b.name}"?</p>
-                          <p className="text-muted-foreground text-[10px] leading-relaxed">
-                            Seluruh riwayat transaksi terkait akan dialihkan ke kategori default agar pembukuan keluarga tetap utuh.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-destructive/20">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeletingCategory(null)}
-                          className="h-6 px-2 text-[11px]"
-                        >
-                          Batal
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={isDeleting}
-                          onClick={handleDeleteCategory}
-                          className="h-6 px-2.5 text-[11px]"
-                        >
-                          {isDeleting ? "Menghapus..." : "Ya, Hapus"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Flat Button "+ Tambah Kategori Anggaran Baru" */}
-              {!isCreateOpen && (
-                <div className="pt-3 pb-2.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setIsCreateOpen(true)}
-                    className="w-full h-9 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 cursor-pointer gap-2 justify-center border border-dashed border-border/50 rounded-lg transition-colors"
-                  >
-                    <Plus className="size-3.5" />
-                    <span>Tambah Kategori Anggaran Baru</span>
-                  </Button>
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Total Planned Footer (Flat Typography) */}
-          <div className="flex items-center justify-between pt-3.5 pb-4 mt-3 border-t border-border/40">
+          {error && (
+            <p className="text-xs text-destructive font-medium pt-1 pb-2">{error}</p>
+          )}
+
+          {/* Total Planned Footer */}
+          <div className="flex items-center justify-between pt-3.5 pb-4 mt-2 border-t border-border/40">
             <div className="space-y-0.5">
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                 Total Pagu Terencana
@@ -750,13 +219,15 @@ export function ManageBudgetModal({
             </span>
           </div>
 
+          {/* Action Footer (Full Width Stacked) */}
           <DialogFooter className="mt-0 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
             <Button
               type="submit"
-              disabled={isSubmitting || isLoadingMonth}
-              className="w-full h-9 text-xs font-semibold cursor-pointer"
+              disabled={isSubmitting || isLoading}
+              className="w-full h-9 text-xs font-semibold cursor-pointer gap-1.5"
             >
-              {isSubmitting ? "Menyimpan..." : "Simpan Anggaran"}
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              <span>{isSubmitting ? "Menyimpan..." : "Simpan Pagu Anggaran"}</span>
             </Button>
             <Button
               type="button"
@@ -773,4 +244,3 @@ export function ManageBudgetModal({
     </Dialog>
   );
 }
-

@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings2 } from "lucide-react";
+import { Settings2, Pencil } from "lucide-react";
 
 export interface CategoryBudgetItem {
   id: string;
@@ -22,9 +22,10 @@ export interface CategoryBudgetItem {
 interface BudgetProgressProps {
   budgets: CategoryBudgetItem[];
   onOpenManageBudget?: () => void;
+  onEditItem?: (item: CategoryBudgetItem) => void;
 }
 
-export function BudgetProgress({ budgets, onOpenManageBudget }: BudgetProgressProps) {
+export function BudgetProgress({ budgets, onOpenManageBudget, onEditItem }: BudgetProgressProps) {
   return (
     <Card className="rounded-xl border border-border/80 bg-card">
       <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
@@ -65,23 +66,43 @@ export function BudgetProgress({ budgets, onOpenManageBudget }: BudgetProgressPr
 
             return (
               <div key={b.id} className="flex flex-col gap-1.5 p-2 sm:p-2.5 rounded-lg hover:bg-muted/30 transition-colors border border-border/40 sm:border-transparent">
-                {/* Row 1: Category Name & Badge */}
+                {/* Row 1: Category Name, Badge & Edit Icon */}
                 <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-semibold text-xs sm:text-sm truncate min-w-0 text-foreground" title={b.name}>
-                    {b.name}
-                  </span>
-                  <Badge
-                    variant={isOver ? "destructive" : "outline"}
-                    className={`text-[10.5px] tabular-nums font-semibold px-1.5 py-0 shrink-0 ${
-                      isOver
-                        ? ""
-                        : isWarning
-                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                        : "text-muted-foreground border-border/80"
-                    }`}
-                  >
-                    {percent}%
-                  </Badge>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span
+                      className="size-2 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20"
+                      style={{ backgroundColor: b.color || "#3b82f6" }}
+                    />
+                    <span className="font-semibold text-xs sm:text-sm truncate text-foreground" title={b.name}>
+                      {b.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Badge
+                      variant={isOver ? "destructive" : "outline"}
+                      className={`text-[10.5px] tabular-nums font-semibold px-1.5 py-0 shrink-0 ${
+                        isOver
+                          ? ""
+                          : isWarning
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                          : "text-muted-foreground border-border/80"
+                      }`}
+                    >
+                      {percent}%
+                    </Badge>
+                    {onEditItem && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEditItem(b)}
+                        className="size-6 text-muted-foreground hover:text-foreground rounded-md transition-colors"
+                        title={`Edit anggaran ${b.name}`}
+                        aria-label={`Edit anggaran ${b.name}`}
+                      >
+                        <Pencil className="size-3" aria-hidden="true" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Row 2: Spent / Target Numbers */}
