@@ -430,7 +430,7 @@ export function ManageBudgetModal({
 
           {/* Form Tambah Kategori Baru (Flat Inline Panel) */}
           {isCreateOpen && (
-            <div className="py-3 px-1 my-2 border-b border-border/40 space-y-3 animate-in fade-in-0 duration-150">
+            <div className="pt-3 pb-4 px-1 my-2 border-b border-border/40 space-y-3 animate-in fade-in-0 duration-150">
               <div className="flex items-center justify-between pb-1">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="size-3.5 text-primary shrink-0" />
@@ -510,13 +510,13 @@ export function ManageBudgetModal({
                 <p className="text-[11px] text-destructive font-medium">{createError}</p>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/30">
+              <div className="flex items-center justify-end gap-2 pt-2.5 pb-0.5 border-t border-border/30">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsCreateOpen(false)}
-                  className="h-7 px-3 text-xs"
+                  className="h-7.5 px-3 text-xs cursor-pointer"
                 >
                   Batal
                 </Button>
@@ -525,7 +525,7 @@ export function ManageBudgetModal({
                   size="sm"
                   disabled={isCreating}
                   onClick={handleCreateCategory}
-                  className="h-7 px-3 text-xs gap-1.5 cursor-pointer"
+                  className="h-7.5 px-3 text-xs gap-1.5 cursor-pointer"
                 >
                   <Plus className="size-3" />
                   <span>{isCreating ? "Menyimpan..." : "Tambah Kategori"}</span>
@@ -545,7 +545,7 @@ export function ManageBudgetModal({
               </div>
             )}
 
-            <div className="divide-y divide-border/40 max-h-[350px] overflow-y-auto pr-1">
+            <div className="divide-y divide-border/40">
               {items.map((b) => (
                 <div
                   key={b.id}
@@ -659,7 +659,7 @@ export function ManageBudgetModal({
                       {updateError && (
                         <p className="text-[11px] text-destructive">{updateError}</p>
                       )}
-                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+                      <div className="flex items-center justify-end gap-2 pt-2 pb-0.5 border-t border-border/40">
                         <Button
                           type="button"
                           variant="ghost"
@@ -722,13 +722,13 @@ export function ManageBudgetModal({
 
               {/* Flat Button "+ Tambah Kategori Anggaran Baru" */}
               {!isCreateOpen && (
-                <div className="pt-3">
+                <div className="pt-3 pb-2.5">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsCreateOpen(true)}
-                    className="w-full h-8 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 cursor-pointer gap-1.5 justify-center border border-dashed border-border/50 rounded-lg"
+                    className="w-full h-8.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 cursor-pointer gap-1.5 justify-center border border-dashed border-border/50 rounded-lg transition-colors"
                   >
                     <Plus className="size-3.5" />
                     <span>Tambah Kategori Anggaran Baru</span>
@@ -753,12 +753,22 @@ export function ManageBudgetModal({
             </span>
           </div>
 
-          <DialogFooter className="mt-0 gap-2 sm:gap-0 pt-3.5 border-t border-border/40">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="h-8 text-xs">
-              Batal
-            </Button>
-            <Button type="submit" disabled={isSubmitting || isLoadingMonth} className="h-8 text-xs">
+          <DialogFooter className="mt-0 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
+            <Button
+              type="submit"
+              disabled={isSubmitting || isLoadingMonth}
+              className="w-full h-9 text-xs font-semibold cursor-pointer"
+            >
               {isSubmitting ? "Menyimpan..." : "Simpan Anggaran"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="w-full h-9 text-xs cursor-pointer"
+            >
+              Batal
             </Button>
           </DialogFooter>
         </form>
