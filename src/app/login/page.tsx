@@ -312,19 +312,9 @@ function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden select-none">
-      {/* Subtle flat geometric grid background */}
-      <div
-        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(currentColor 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
-        }}
-      />
-
-      {/* Main Centered Card Container (Matching EditBudgetItemModal layout & typography) */}
-      <div className="sm:max-w-[420px] w-[95vw] rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-4 z-10 backdrop-blur-xs">
+    <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 relative select-none">
+      {/* Main Centered Card Container */}
+      <div className="sm:max-w-[400px] w-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs space-y-4 z-10">
         {/* Integrated Card Header */}
         <div className="space-y-1 pb-3.5 border-b border-border/40 text-left">
           <div className="flex items-center justify-between gap-2">
@@ -333,21 +323,16 @@ function LoginForm() {
                 <ShieldCheck className="size-4" strokeWidth={2.2} aria-hidden="true" />
               </div>
               <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-base font-semibold tracking-tight text-foreground">
-                    F&amp;R Family Hub
-                  </h1>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    v2.0
-                  </span>
-                </div>
+                <h1 className="text-base font-semibold tracking-tight text-foreground">
+                  F&amp;R Family Hub
+                </h1>
                 <p className="text-xs text-muted-foreground">
                   Buku Kas &amp; Asisten Finansial Keluarga
                 </p>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
               <span>Privat</span>
             </span>
           </div>
@@ -368,21 +353,21 @@ function LoginForm() {
                 value="whatsapp"
                 className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
-                <Smartphone className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                <Smartphone className="size-3.5" />
                 <span>WhatsApp</span>
               </TabsTrigger>
               <TabsTrigger
                 value="telegram"
                 className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
-                <Send className="size-3.5 text-blue-500" />
+                <Send className="size-3.5" />
                 <span>Telegram</span>
               </TabsTrigger>
               <TabsTrigger
                 value="password"
                 className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
-                <KeyRound className="size-3.5 text-amber-500" />
+                <KeyRound className="size-3.5" />
                 <span>Kata Sandi</span>
               </TabsTrigger>
             </TabsList>
@@ -395,7 +380,7 @@ function LoginForm() {
             {method === "whatsapp" ? (
               <div className="space-y-1.5">
                 <Label htmlFor="whatsappInput" className="text-xs font-medium text-foreground">
-                  Nomor WhatsApp Terdaftar
+                  Nomor WhatsApp
                 </Label>
                 <div className="relative flex items-center">
                   <Smartphone className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
@@ -407,7 +392,7 @@ function LoginForm() {
                       setPhone(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="0812-3456-7890 atau +62812..."
+                    placeholder="0812-3456-7890"
                     className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
                     autoFocus
@@ -433,7 +418,7 @@ function LoginForm() {
                       setTelegramId(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="Contoh: 123456789 atau @fatih"
+                    placeholder="123456789 atau @username"
                     className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
                     autoFocus
@@ -625,7 +610,7 @@ function LoginForm() {
             {/* Email Input */}
             <div className="space-y-1.5">
               <Label htmlFor="loginEmailInput" className="text-xs font-medium text-foreground">
-                Email Akun Keluarga
+                Email
               </Label>
               <div className="relative flex items-center">
                 <Mail className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
@@ -637,7 +622,7 @@ function LoginForm() {
                     setEmail(e.target.value);
                     if (error) setError(null);
                   }}
-                  placeholder="contoh@keluarga.hub"
+                  placeholder="nama@keluarga.hub"
                   className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                   disabled={isLoading}
                   autoComplete="email"
@@ -722,15 +707,11 @@ function LoginForm() {
           </form>
         )}
 
-        {/* Footer Security Notice */}
-        <div className="text-center pt-2 space-y-1.5 border-t border-border/40">
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Aplikasi internal keluarga F&amp;R. Terenkripsi dan terintegrasi dengan Bot Telegram &amp; WhatsApp.
+        {/* Footer Reassurance */}
+        <div className="text-center pt-2 border-t border-border/40">
+          <p className="text-[11px] text-muted-foreground">
+            Aplikasi privat keluarga F&amp;R • Terenkripsi end-to-end
           </p>
-          <div className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Status Layanan: Aktif &amp; Terhubung</span>
-          </div>
         </div>
       </div>
     </main>
@@ -742,8 +723,8 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 select-none">
-          <div className="sm:max-w-[420px] w-[95vw] rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col items-center gap-3">
-            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs ring-1 ring-emerald-500/20">
+          <div className="sm:max-w-[400px] w-full rounded-2xl border border-border/80 bg-card p-6 shadow-xs flex flex-col items-center gap-3">
+            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center ring-1 ring-emerald-500/20">
               <ShieldCheck className="size-4" />
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
