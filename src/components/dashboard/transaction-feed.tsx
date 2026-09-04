@@ -23,7 +23,8 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag } from "lucide-react";
+import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag, Eye } from "lucide-react";
+import { TransactionDetailModal } from "@/components/dashboard/transaction-detail-modal";
 
 interface TransactionFeedProps {
   transactions: Transaction[];
@@ -40,6 +41,7 @@ export function TransactionFeed({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
+  const [selectedTxForDetail, setSelectedTxForDetail] = useState<Transaction | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedTxId(expandedTxId === id ? null : id);
@@ -140,7 +142,8 @@ export function TransactionFeed({
                   return (
                     <div
                       key={tx.id}
-                      className="p-3.5 sm:px-5 transition-colors hover:bg-muted/40"
+                      onClick={() => setSelectedTxForDetail(tx)}
+                      className="p-3.5 sm:px-5 transition-colors hover:bg-muted/40 cursor-pointer group"
                     >
                       <div className="flex items-center justify-between gap-3">
                         {/* Left: Icon & Info */}
@@ -233,6 +236,7 @@ export function TransactionFeed({
                             href={tx.parsed_metadata.drive_view_url}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                             className="hidden sm:inline-flex items-center gap-1 text-[11px] text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded-full"
                             title="Lihat Nota Asli"
                           >
@@ -246,7 +250,10 @@ export function TransactionFeed({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => toggleExpand(tx.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpand(tx.id);
+                            }}
                             className="h-7 text-[11px] px-2 text-muted-foreground gap-1"
                           >
                             <span>{tx.parsed_metadata?.items?.length || 0} item</span>
@@ -269,11 +276,28 @@ export function TransactionFeed({
                           {formatRupiah(tx.amount)}
                         </span>
 
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTxForDetail(tx);
+                          }}
+                          className="size-7 text-muted-foreground hover:text-primary rounded-md opacity-80 group-hover:opacity-100 transition-opacity"
+                          title="Lihat Detail Transaksi"
+                          aria-label={`Lihat detail transaksi ${tx.description || "ini"}`}
+                        >
+                          <Eye className="size-3.5" aria-hidden="true" />
+                        </Button>
+
                         {onDeleteTransaction && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setTxToDelete(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTxToDelete(tx);
+                            }}
                             className="size-7 text-muted-foreground hover:text-destructive rounded-md"
                             title="Hapus Transaksi"
                             aria-label={`Hapus transaksi ${tx.description || "ini"}`}
@@ -304,6 +328,7 @@ export function TransactionFeed({
                               href={tx.parsed_metadata.drive_view_url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                               className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline hover:text-primary/80 transition-colors"
                               title="Lihat Nota Asli"
                             >
@@ -376,6 +401,24 @@ export function TransactionFeed({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Transaction Detail & Media Preview Modal */}
+      <TransactionDetailModal
+        transaction={selectedTxForDetail}
+        isOpen={!!selectedTxForDetail}
+        onClose={() => setSelectedTxForDetail(null)}
+        onDelete={
+          onDeleteTransaction
+            ? (id) => {
+                const tx = transactions.find((t) => t.id === id) || selectedTxForDetail;
+                setSelectedTxForDetail(null);
+                if (tx) {
+                  setTxToDelete(tx);
+                }
+              }
+            : undefined
+        }
+      />
     </>
   );
 }
