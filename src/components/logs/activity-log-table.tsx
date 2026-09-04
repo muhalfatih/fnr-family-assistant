@@ -12,6 +12,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { formatDateIndo, formatRupiah } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -37,6 +47,8 @@ import {
   Wallet,
   Code,
   RefreshCw,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 interface ActivityLogTableProps {
@@ -52,6 +64,49 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
   const [selectedLog, setSelectedLog] = useState<ChatActivityLog | null>(null);
   const [showRawJson, setShowRawJson] = useState<boolean>(false);
   const [copiedJson, setCopiedJson] = useState<boolean>(false);
+  const [logToDelete, setLogToDelete] = useState<ChatActivityLog | null>(null);
+  const [isDeletingSingle, setIsDeletingSingle] = useState<boolean>(false);
+  const [isClearAllOpen, setIsClearAllOpen] = useState<boolean>(false);
+  const [isClearingAll, setIsClearingAll] = useState<boolean>(false);
+
+  const handleDeleteSingleLog = async () => {
+    if (!logToDelete) return;
+    setIsDeletingSingle(true);
+    try {
+      const res = await fetch(`/api/logs?id=${encodeURIComponent(logToDelete.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error("Gagal menghapus log");
+      }
+      toast.success("Log aktivitas berhasil dihapus");
+      setLogToDelete(null);
+      onRefresh?.();
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan saat menghapus log");
+    } finally {
+      setIsDeletingSingle(false);
+    }
+  };
+
+  const handleClearAllLogs = async () => {
+    setIsClearingAll(true);
+    try {
+      const res = await fetch("/api/logs?all=true", {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error("Gagal mengosongkan log");
+      }
+      toast.success("Seluruh riwayat log berhasil dibersihkan");
+      setIsClearAllOpen(false);
+      onRefresh?.();
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan saat mengosongkan log");
+    } finally {
+      setIsClearingAll(false);
+    }
+  };
 
   const filteredLogs = logs.filter((log) => {
     if (selectedChannel !== "all" && log.channel !== selectedChannel) return false;
@@ -153,18 +208,33 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
                 {filteredLogs.length} Entri
               </Badge>
             </div>
-            {onRefresh && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onRefresh}
-                className="gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
-                title="Segarkan data log"
-              >
-                <RefreshCw className="size-3" aria-hidden="true" />
-                <span>Segarkan</span>
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {logs.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsClearAllOpen(true)}
+                  disabled={isLoading || isClearingAll}
+                  className="gap-1.5 h-7 px-2.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive/60 cursor-pointer"
+                  title="Hapus semua riwayat log"
+                >
+                  <Trash2 className="size-3" aria-hidden="true" />
+                  <span>Hapus Semua</span>
+                </Button>
+              )}
+              {onRefresh && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRefresh}
+                  className="gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+                  title="Segarkan data log"
+                >
+                  <RefreshCw className="size-3" aria-hidden="true" />
+                  <span>Segarkan</span>
+                </Button>
+              )}
+            </div>
           </div>
           <CardDescription className="text-xs text-muted-foreground">
             Catatan interaksi masuk dari Telegram & WhatsApp beserta waktu eksekusi dan respon AI.
@@ -258,12 +328,24 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
                           {log.sender_name || `Chat ID: ${log.chat_id || "-"}`}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <div className="flex items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
                           <Cpu className="size-3" aria-hidden="true" />
                           <span>{latencySec}s</span>
                         </div>
                         {getStatusBadge(log.status)}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLogToDelete(log);
+                          }}
+                          className="p-1 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                          title="Hapus log ini"
+                          aria-label={`Hapus log ${log.id}`}
+                        >
+                          <Trash2 className="size-3.5" aria-hidden="true" />
+                        </button>
                       </div>
                     </div>
 
@@ -498,12 +580,26 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
                 )}
               </div>
 
-              {/* Close Action */}
-              <div className="pt-2 border-t border-border flex justify-end">
+              {/* Close & Delete Actions */}
+              <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const log = selectedLog;
+                    setSelectedLog(null);
+                    setLogToDelete(log);
+                  }}
+                  className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive/60 gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="size-3" />
+                  <span>Hapus Log Ini</span>
+                </Button>
                 <Button
                   type="button"
                   onClick={() => setSelectedLog(null)}
-                  className="w-full sm:w-auto h-8 text-xs px-4 rounded-md active:scale-98"
+                  className="h-8 text-xs px-4 rounded-md active:scale-98 cursor-pointer"
                 >
                   Tutup
                 </Button>
@@ -512,6 +608,74 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Single Log Alert Dialog */}
+      <AlertDialog open={!!logToDelete} onOpenChange={(open) => !open && !isDeletingSingle && setLogToDelete(null)}>
+        <AlertDialogContent className="sm:max-w-[420px] rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-semibold">Hapus Log Aktivitas Ini?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              Entri log dari <strong className="text-foreground font-semibold">{logToDelete?.sender_name || "pengguna"}</strong> pada {logToDelete && formatDateIndo(logToDelete.created_at)} akan dihapus permanen dari riwayat pemantauan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 pt-2">
+            <AlertDialogCancel disabled={isDeletingSingle} className="h-8 text-xs cursor-pointer">
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSingleLog}
+              disabled={isDeletingSingle}
+              className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
+            >
+              {isDeletingSingle ? (
+                <>
+                  <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                  <span>Menghapus...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-3" aria-hidden="true" />
+                  <span>Hapus Log</span>
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear All Logs Alert Dialog */}
+      <AlertDialog open={isClearAllOpen} onOpenChange={(open) => !open && !isClearingAll && setIsClearAllOpen(false)}>
+        <AlertDialogContent className="sm:max-w-[420px] rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-semibold">Hapus Seluruh Riwayat Log?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              Seluruh {logs.length} entri riwayat chat bot (Telegram & WhatsApp) akan dibersihkan secara permanen. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0 pt-2">
+            <AlertDialogCancel disabled={isClearingAll} className="h-8 text-xs cursor-pointer">
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAllLogs}
+              disabled={isClearingAll}
+              className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
+            >
+              {isClearingAll ? (
+                <>
+                  <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                  <span>Membersihkan...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-3" aria-hidden="true" />
+                  <span>Hapus Semua Log</span>
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

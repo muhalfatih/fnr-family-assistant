@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getChatActivityLogs, recordChatLog } from "@/lib/bot/process-manager";
+import {
+  getChatActivityLogs,
+  recordChatLog,
+  deleteChatActivityLog,
+  clearAllChatActivityLogs,
+} from "@/lib/bot/process-manager";
 import { ChatActivityLog } from "@/lib/types/database";
 
 export async function GET(req: NextRequest) {
@@ -50,5 +55,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, log: newLog });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const isAll = searchParams.get("all") === "true";
+
+    if (isAll) {
+      await clearAllChatActivityLogs();
+      return NextResponse.json({ success: true, message: "Semua log berhasil dihapus" });
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "ID log wajib disertakan atau gunakan all=true" }, { status: 400 });
+    }
+
+    await deleteChatActivityLog(id);
+    return NextResponse.json({ success: true, message: "Log berhasil dihapus" });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }

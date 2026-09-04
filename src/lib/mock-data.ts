@@ -1199,6 +1199,14 @@ class MockDataStore {
     this.data.logs.unshift(newLog);
     return newLog;
   }
+  public deleteLog(id: string): boolean {
+    const prevLen = this.data.logs.length;
+    this.data.logs = this.data.logs.filter((l) => l.id !== id);
+    return this.data.logs.length < prevLen;
+  }
+  public clearLogs(): void {
+    this.data.logs = [];
+  }
 }
 
 // Global singleton attached to globalThis to persist mock data across Next.js API chunks in local dev

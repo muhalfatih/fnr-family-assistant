@@ -364,3 +364,56 @@ export async function getChatActivityLogs(
   // Otherwise return mockStore logs for staging/demo presentation
   return { logs: mockStore.getLogs().slice(0, limit), isMockMode: true };
 }
+
+/**
+ * Delete a single chat log by ID
+ */
+export async function deleteChatActivityLog(id: string): Promise<boolean> {
+  // 1. Remove from inMemoryLogs
+  const memIdx = inMemoryLogs.findIndex((l) => l.id === id);
+  if (memIdx !== -1) {
+    inMemoryLogs.splice(memIdx, 1);
+  }
+
+  // 2. Remove from mockStore
+  mockStore.deleteLog(id);
+
+  // 3. Remove from Supabase if configured
+  if (isSupabaseConfigured()) {
+    try {
+      await Promise.allSettled([
+        supabaseAdmin.from("chat_activity_logs").delete().eq("id", id),
+        supabaseAdmin.from("bot_logs").delete().eq("id", id),
+      ]);
+    } catch (e) {
+      console.warn("Failed to delete log from Supabase:", e);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Clear all chat logs
+ */
+export async function clearAllChatActivityLogs(): Promise<boolean> {
+  // 1. Clear inMemoryLogs
+  inMemoryLogs.length = 0;
+
+  // 2. Clear mockStore
+  mockStore.clearLogs();
+
+  // 3. Clear from Supabase if configured
+  if (isSupabaseConfigured()) {
+    try {
+      await Promise.allSettled([
+        supabaseAdmin.from("chat_activity_logs").delete().neq("id", "none"),
+        supabaseAdmin.from("bot_logs").delete().neq("id", "none"),
+      ]);
+    } catch (e) {
+      console.warn("Failed to clear logs from Supabase:", e);
+    }
+  }
+
+  return true;
+}
