@@ -739,7 +739,7 @@ export function ManageBudgetModal({
           </div>
 
           {/* Total Planned Footer (Flat Typography) */}
-          <div className="flex items-center justify-between pt-3.5 mt-3 border-t border-border/40">
+          <div className="flex items-center justify-between pt-3.5 pb-4 mt-3 border-t border-border/40">
             <div className="space-y-0.5">
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                 Total Pagu Terencana
@@ -753,7 +753,7 @@ export function ManageBudgetModal({
             </span>
           </div>
 
-          <DialogFooter className="mt-5 gap-2 sm:gap-0 pt-3 border-t border-border/40">
+          <DialogFooter className="mt-0 gap-2 sm:gap-0 pt-3.5 border-t border-border/40">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="h-8 text-xs">
               Batal
             </Button>
