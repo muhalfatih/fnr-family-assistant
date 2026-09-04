@@ -49,9 +49,9 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-13 sm:h-12 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-3.5 sm:px-4 backdrop-blur-md transition-all">
+      <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-3.5 sm:px-4 backdrop-blur-md transition-all">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-          <SidebarTrigger className="-ml-1 size-9 sm:size-8 text-foreground" />
+          <SidebarTrigger className="-ml-1 size-8 text-foreground shrink-0" />
           <Separator orientation="vertical" className="mr-1 sm:mr-2 h-4" />
           <Breadcrumb>
             <BreadcrumbList className="gap-1 sm:gap-1.5 text-xs flex-nowrap">
@@ -86,9 +86,14 @@ export function AppHeader() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-9 sm:size-8 rounded-full p-0">
-                <Avatar className="size-7.5 sm:size-7 border border-border">
-                  <AvatarFallback className="text-[11px] font-semibold bg-primary text-primary-foreground">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full p-0 shrink-0 aspect-square select-none focus-visible:ring-1"
+                aria-label="Menu Akun & Profil"
+              >
+                <Avatar className="size-8 rounded-full border border-border shrink-0 aspect-square">
+                  <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground select-none">
                     AY
                   </AvatarFallback>
                 </Avatar>

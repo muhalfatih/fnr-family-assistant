@@ -222,7 +222,7 @@ export function AddDocumentModal({
                   id="hasExpiry"
                   checked={hasExpiry}
                   onChange={(e) => setHasExpiry(e.target.checked)}
-                  className="rounded size-4.5 accent-primary text-primary focus:ring-primary cursor-pointer"
+                  className="rounded size-4 accent-primary text-primary focus:ring-primary cursor-pointer"
                 />
                 <label htmlFor="hasExpiry" className="text-xs text-muted-foreground cursor-pointer select-none">
                   {hasExpiry ? "Ada batas waktu" : "Seumur hidup / Permanen"}

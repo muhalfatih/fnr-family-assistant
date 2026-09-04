@@ -21,7 +21,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
         <Button
           variant="ghost"
           size={compact ? "icon" : "sm"}
-          className={compact ? "size-8 text-muted-foreground hover:text-foreground" : "h-8 px-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-2"}
+          className={compact ? "size-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground aspect-square" : "h-8 px-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-2"}
         >
           <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

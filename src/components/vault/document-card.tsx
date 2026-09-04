@@ -100,7 +100,7 @@ export function DocumentCard({
       onClick={() => onViewDetails && onViewDetails(doc)}
       className="rounded-xl border border-border/80 hover:border-primary/40 transition-all flex flex-col justify-between cursor-pointer hover:shadow-xs active:scale-[0.99] group"
     >
-      <CardContent className="p-4 sm:p-4.5 space-y-3">
+      <CardContent className="p-4 sm:p-4 space-y-3">
         {/* Header: Title, Category & Status */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">
