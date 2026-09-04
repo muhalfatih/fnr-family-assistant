@@ -85,7 +85,22 @@ Rules:
         - Kebersihan & Rumah Tangga:
           * "RNS DET" -> "Rinso Deterjen", "SBN CUC PRG" -> "Sabun Cuci Piring"
           * "PCH" / "POUCH" -> "Kemasan Pouch", "RFL" / "REFILL" -> "Isi Ulang (Refill)", "BTL" -> "Botol", "KLG" -> "Kaleng"
+        - Dimensi vs Gramatur & Aturan Non-Makanan (PENTING):
+          * JANGAN PERNAH menambahkan satuan gram ("g") pada angka yang merupakan pola dimensi (tanda "x", "X", "*") atau barang non-makanan.
+          * Barang skala besar (spanduk, banner, baliho, backdrop, terpal, tenda, karpet, tikar): gunakan satuan meter ("m").
+            - "SPANDUK 5X3" / "Spanduk 5x3" -> name: "Spanduk 5x3 m", raw_name: "SPANDUK 5X3"
+            - "TERPAL 4X6" -> name: "Terpal 4x6 m", raw_name: "TERPAL 4X6"
+            - "BANNER 3X1" -> name: "Banner 3x1 m", raw_name: "BANNER 3X1"
+          * Kemasan ritel & perlengkapan (tas kain, kantong belanja, plastik, kotak/dus, map, buku): gunakan satuan sentimeter ("cm").
+            - "TAS KAIN 47X 52" / "Tas Kain 47x52" -> name: "Tas Kain 47x52 cm", raw_name: "TAS KAIN 47X 52"
+            - "KANTONG PLASTIK 40X60" -> name: "Kantong Plastik 40x60 cm", raw_name: "KANTONG PLASTIK 40X60"
+          * Barang ambigu / non-makanan tanpa satuan jelas (kertas, kabel, baterai, ATK, kode model): TULIS APA ADANYA tanpa memaksakan satuan.
+            - "KERTAS F4 70" -> name: "Kertas F4 70", raw_name: "KERTAS F4 70"
+            - "KABEL USB 100" -> name: "Kabel USB 100", raw_name: "KABEL USB 100"
+            - "BATERAI AA 4" -> name: "Baterai AA 4", raw_name: "BATERAI AA 4"
       * Exact Target Examples:
+        - "TAS KAIN 47X 52" -> name: "Tas Kain 47x52 cm", raw_name: "TAS KAIN 47X 52"
+        - "SPANDUK 5X3" -> name: "Spanduk 5x3 m", raw_name: "SPANDUK 5X3"
         - "SR.TOGO BLACK 128GR" / "Sr.togo Black" -> name: "Sari Roti Sandwich To Go Rasa Black Cokelat 128g", raw_name: "SR.TOGO BLACK 128GR"
         - "BISKUAT GLDN VNL 105" / "Biskuat Gldn Vnl" -> name: "Biskuit Biskuat Energi Golden Vanilla 105g", raw_name: "BISKUAT GLDN VNL 105"
         - "INDOMILK SKMP POUCH S" -> name: "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)", raw_name: "INDOMILK SKMP POUCH S"

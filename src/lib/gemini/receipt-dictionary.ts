@@ -14,8 +14,26 @@ export function deconstructPOSCode(text: string): string {
   if (!text) return "";
   let s = text.trim();
 
-  // 1. Separate attached trailing numbers and infer units
-  s = s.replace(/([a-zA-Z]+)(\d+)(g|gr|kg|ml|l|liter|pcs|pack)?\b/gi, (match, word, num, unit) => {
+  // 1. Detect and normalize dimension patterns (e.g. "47x 52", "47x52", "5x3", "40x60")
+  // Check context for meter items vs centimeter items vs ambiguous
+  const isMeterItem = /\b(spanduk|spndk|banner|bnr|baliho|backdrop|terpal|trpl|tenda|karpet|krpt|tikar|kain\s*meteran|selang|tali)\b/i.test(s);
+  const isCmItem = /\b(tas|kain|kantong|kntg|ktg|plastik|plstk|smph|tote|goodie|dus|box|kotak|ktk|map|buku|pigura|frame|keset|spons|sponge)\b/i.test(s);
+
+  s = s.replace(/\b(\d+(?:\.\d+)?)\s*[xX*×]\s*(\d+(?:\.\d+)?)(?:\s*(cm|m|mm|meter|sentimeter))?\b/gi, (match, d1, d2, existingUnit) => {
+    if (existingUnit) {
+      const u = existingUnit.toLowerCase().startsWith("m") && !existingUnit.toLowerCase().startsWith("mm") && !existingUnit.toLowerCase().startsWith("meter")
+        ? (existingUnit.toLowerCase() === "meter" ? "m" : existingUnit.toLowerCase())
+        : existingUnit.toLowerCase() === "sentimeter" ? "cm" : existingUnit.toLowerCase();
+      return `${d1}x${d2} ${u}`;
+    }
+    if (isMeterItem) return `${d1}x${d2} m`;
+    if (isCmItem) return `${d1}x${d2} cm`;
+    return `${d1}x${d2}`;
+  });
+
+  // 2. Separate attached trailing numbers and infer units (e.g. "Indomiegrspcjumbo129" -> "Indomiegrspcjumbo 129g")
+  // Note: [a-zA-Z]{2,} prevents matching solitary operator 'x' in dimensions
+  s = s.replace(/([a-zA-Z]{2,})(\d+)(g|gr|kg|ml|l|liter|pcs|pack)?\b/gi, (match, word, num, unit) => {
     if (unit) return `${word} ${num}${unit.toLowerCase()}`;
     const n = parseInt(num, 10);
     // Drinks/dairy/toiletries sizes: 189, 200, 250, 300, 330, 450, 500, 600, 755, 780, 800, 1000, 1500
@@ -26,22 +44,39 @@ export function deconstructPOSCode(text: string): string {
     if (/bimoli|sania|filma|tropical|sunco|kunci/i.test(word) && (n === 1 || n === 2)) {
       return `${word} ${num}L`;
     }
-    // Packaged food / noodles grammage: 40g to 999g
-    if (n >= 40 && n <= 999) {
+    // Packaged food / noodles grammage: 40g to 999g - ONLY for food/snack/grocery words
+    if (/mie|indomie|sedap|sedaap|sarimi|popmie|biskuit|biskuat|oreo|tango|roti|snack|keripik|chiki|taro|lays|dancow|keju|cokelat|jumbo|spc|grspc|grg|ayam|bawang|soto|kari|rendang|pedas/i.test(word) && n >= 40 && n <= 999) {
       return `${word} ${num}g`;
     }
-    // Kilogram items
-    if (n >= 1000 && n % 1000 === 0) {
+    // Kilogram items for staples
+    if (/beras|gula|terigu|tepung/i.test(word) && n >= 1000 && n % 1000 === 0) {
       return `${word} ${n / 1000}kg`;
     }
     return `${word} ${num}`;
   });
 
-  // 2. Format standalone trailing numbers at the very end of retail item description: e.g. "BISKUAT GLDN VNL 105" -> "105g"
+  // 3. Format standalone trailing numbers at the very end of retail item description
+  // PROTECT NON-FOOD & AMBIGUOUS ITEMS: Never convert numbers to 'g' if non-food or unknown!
   s = s.replace(/\s+(\d+)\s*$/g, (match, num) => {
     const n = parseInt(num, 10);
-    if (n >= 40 && n <= 999) return ` ${num}g`;
-    if ([189, 200, 250, 300, 330, 450, 500, 600, 755, 780, 800].includes(n)) return ` ${num}ml`;
+    // If the entire text contains non-food / stationery / hardware / packaging keywords, DO NOT append 'g'
+    const isNonFood = /\b(tas|kain|plastik|kantong|kertas|buku|kabel|baterai|battery|lampu|piring|gelas|sendok|garpu|map|dus|box|spanduk|banner|terpal|tenda|karpet|tikar)\b/i.test(s);
+    if (isNonFood) {
+      return match;
+    }
+
+    // Only convert to 'g' if the text matches confirmed food/grocery items
+    const isFood = /\b(biskuit|biskuat|wafer|roti|mie|indomie|sedap|sedaap|sarimi|popmie|snack|keripik|tepung|gula|garam|bumbu|beras|oreo|tango|chiki|taro|lays|dancow|keju|cokelat|kopi|vnl|vanilla|gldn|golden|togo|kuah|goreng|nasi|abon|kacang|sosis|nugget|makaroni|pasta|spaghetti)\b/i.test(s);
+    if (isFood && n >= 40 && n <= 999) {
+      return ` ${num}g`;
+    }
+
+    // Volume for drinks / cleaning liquids
+    const isDrinkOrLiquid = /\b(ultra|bear|aqua|le\s*min|indomilk|pcr|pocari|teh|cleo|sunlight|sml|sabun|shampo|cair|sirup|jus|juice|minuman|deterjen)\b/i.test(s);
+    if (isDrinkOrLiquid && [189, 200, 250, 300, 330, 450, 500, 600, 755, 780, 800].includes(n)) {
+      return ` ${num}ml`;
+    }
+
     return match;
   });
 
@@ -155,6 +190,14 @@ const EXACT_PHRASE_EXPANSIONS: Array<[RegExp, string]> = [
   [/\bLE\s*M(I)?N(E)?R(A)?L(E)?\b/gi, "Le Minerale Air Mineral"],
   [/\b(TH|TEH)\s*BTL\b/gi, "Teh Botol Sosro"],
   [/\b(TH|TEH)\s*KTK\b/gi, "Teh Kotak Ultra"],
+
+  // Bags, Packaging & Signage
+  [/\bTAS\s*KAIN\b/gi, "Tas Kain"],
+  [/\b(KTG|KNTG)\s*PL(S)?T(I)?K\b/gi, "Kantong Plastik"],
+  [/\bPL(S)?T(I)?K\s*SMPH\b/gi, "Plastik Sampah"],
+  [/\bSPANDUK\b/gi, "Spanduk"],
+  [/\bTERPAL\b/gi, "Terpal"],
+  [/\bBANNER\b/gi, "Banner"],
 ];
 
 // Single word/token replacements
@@ -281,8 +324,26 @@ function toIndonesianTitleCase(str: string): string {
         if (unit === "gr") return `${num}g`;
         return `${num}${unit}`;
       }
+      // Preserve dimension formats: 47x52, 47x52cm, 5x3m, 40x60cm, etc.
+      if (/^\d+(\.\d+)?x\d+(\.\d+)?(cm|m|mm)?$/i.test(word)) {
+        const match = word.match(/^(\d+(?:\.\d+)?x\d+(?:\.\d+)?)(cm|m|mm)?$/i);
+        if (match) {
+          const dim = match[1].toLowerCase();
+          const unit = match[2] ? match[2].toLowerCase() : "";
+          return unit ? `${dim} ${unit}` : dim;
+        }
+      }
+      // Standalone units: cm, m, mm, pcs, pack
+      if (["cm", "m", "mm", "pcs", "pack"].includes(word.toLowerCase())) {
+        return word.toLowerCase();
+      }
       // Keep standard uppercase acronyms
-      if (["SKMP", "SKMC", "SKM", "UHT", "BCA", "PLN", "PDAM", "SPBU", "BBM"].includes(word.toUpperCase())) {
+      if (
+        [
+          "SKMP", "SKMC", "SKM", "UHT", "BCA", "PLN", "PDAM", "SPBU", "BBM",
+          "USB", "AA", "AAA", "LED", "PVC", "F4", "A4", "A3", "HDPE", "PE", "PP"
+        ].includes(word.toUpperCase())
+      ) {
         return word.toUpperCase();
       }
       // If already properly mixed case, keep it
@@ -294,6 +355,7 @@ function toIndonesianTitleCase(str: string): string {
       return clean.charAt(0).toUpperCase() + clean.slice(1);
     })
     .join(" ")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 
