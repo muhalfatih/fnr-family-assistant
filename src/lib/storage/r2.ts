@@ -279,6 +279,142 @@ export async function getPresignedDocViewUrl(
   }
 }
 
+/**
+ * Generates a temporary secure Presigned URL to view a transaction receipt from Cloudflare R2
+ * Default expiry: 3600 seconds (1 hour)
+ */
+export async function getPresignedReceiptViewUrl(
+  objectKey: string,
+  expiresInSeconds: number = 3600
+): Promise<string> {
+  if (!objectKey) return "";
+
+  // If already a full web URL
+  if (objectKey.startsWith("http://") || objectKey.startsWith("https://")) {
+    return objectKey;
+  }
+
+  // If already a local relative path
+  if (objectKey.startsWith("/uploads/")) {
+    return objectKey;
+  }
+
+  // If it's a local fallback key
+  if (objectKey.startsWith("local_receipts/")) {
+    const relativePath = objectKey.replace(/^local_receipts\//, "");
+    return `/uploads/receipts/${relativePath}`;
+  }
+  if (objectKey.startsWith("local_")) {
+    const relativePath = objectKey.replace(/^local_/, "");
+    return `/uploads/receipts/${relativePath}`;
+  }
+
+  // If public URL configured in environment, use it
+  if (process.env.CLOUDFLARE_R2_PUBLIC_URL) {
+    const baseUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL.replace(/\/$/, "");
+    return `${baseUrl}/${objectKey}`;
+  }
+
+  const client = getR2Client();
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+
+  if (!client || !bucket) {
+    return "";
+  }
+
+  try {
+    return await getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+      }),
+      { expiresIn: expiresInSeconds }
+    );
+  } catch (err: any) {
+    console.error("Error generating presigned URL for receipt:", err);
+    return "";
+  }
+}
+
+/**
+ * Retrieves receipt media buffer from Cloudflare R2 or local storage
+ */
+export async function getReceiptMediaStream(
+  objectKey: string
+): Promise<{ buffer: Buffer; contentType: string; contentLength: number } | null> {
+  if (!objectKey) return null;
+
+  let cleanKey = objectKey.trim();
+  if (cleanKey.startsWith("/")) cleanKey = cleanKey.slice(1);
+
+  // 1. Check local storage if key indicates local
+  const isLocal =
+    cleanKey.startsWith("local_receipts/") ||
+    cleanKey.startsWith("uploads/receipts/") ||
+    cleanKey.startsWith("local_");
+
+  if (isLocal) {
+    const fileName = path.basename(cleanKey);
+    const localPath = path.join(process.cwd(), "public", "uploads", "receipts", fileName);
+    if (fs.existsSync(localPath)) {
+      const ext = path.extname(localPath).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".pdf": "application/pdf",
+        ".ogg": "audio/ogg",
+        ".mp3": "audio/mpeg",
+      };
+      const stat = fs.statSync(localPath);
+      const buffer = fs.readFileSync(localPath);
+      return {
+        buffer,
+        contentType: mimeTypes[ext] || "image/jpeg",
+        contentLength: stat.size,
+      };
+    }
+  }
+
+  // 2. Fetch from Cloudflare R2
+  const client = getR2Client();
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+
+  if (client && bucket) {
+    try {
+      let r2Key = cleanKey;
+      if (r2Key.includes("/receipts/")) {
+        const match = r2Key.match(/(receipts\/[^\?\#]+)/);
+        if (match) r2Key = match[1];
+      }
+
+      const response = await client.send(
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: r2Key,
+        })
+      );
+
+      if (response.Body) {
+        const byteArray = await (response.Body as any).transformToByteArray();
+        const buffer = Buffer.from(byteArray);
+        return {
+          buffer,
+          contentType: response.ContentType || "image/jpeg",
+          contentLength: response.ContentLength || buffer.length,
+        };
+      }
+    } catch (err: any) {
+      console.warn(`[Storage] Failed to fetch object ${cleanKey} from Cloudflare R2:`, err.message);
+    }
+  }
+
+  return null;
+}
+
 export interface DeleteReceiptMediaParams {
   fileId?: string | null;
   viewUrl?: string | null;

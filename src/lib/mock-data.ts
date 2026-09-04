@@ -359,6 +359,8 @@ const mockTransactions: Transaction[] = [
     transaction_date: "2026-09-01T11:45:00Z",
     description: "Belanja Mingguan Superindo",
     media_type: "image",
+    drive_file_id: "receipts/2026/09/struk_superindo_dago.jpg",
+    drive_view_url: "/api/transactions/media?id=tx-003",
     is_synced_gsheet: true,
     parsed_metadata: {
       merchant: "Superindo Dago",

@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag, Eye } from "lucide-react";
+import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag, Eye, Image as ImageIcon } from "lucide-react";
 import { TransactionDetailModal } from "@/components/dashboard/transaction-detail-modal";
 
 interface TransactionFeedProps {
@@ -137,6 +137,7 @@ export function TransactionFeed({
                   const isIncome = tx.type === "income";
                   const isExpanded = expandedTxId === tx.id;
                   const hasItems = tx.parsed_metadata?.items && tx.parsed_metadata.items.length > 0;
+                  const hasReceipt = tx.media_type === "image" || Boolean(tx.drive_file_id) || Boolean(tx.drive_view_url) || Boolean(tx.media_url);
                   const fullTitle = tx.description || tx.category?.name || "Transaksi";
 
                   return (
@@ -230,21 +231,21 @@ export function TransactionFeed({
 
                       {/* Right: Amount, Receipt Badge & Actions */}
                       <div className="flex items-center gap-2 shrink-0 pl-2">
-                        {/* Receipt toggle / link */}
-                        {tx.parsed_metadata?.drive_view_url ? (
-                          <a
-                            href={tx.parsed_metadata.drive_view_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="hidden sm:inline-flex items-center gap-1 text-[11px] text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded-full"
-                            title="Lihat Nota Asli"
+                        {/* Receipt toggle / quick preview button */}
+                        {hasReceipt && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTxForDetail(tx);
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 px-2 py-0.5 rounded-md transition-colors"
+                            title="Buka Preview Struk R2"
                           >
-                            <FileText className="size-3" aria-hidden="true" />
-                            <span>Nota</span>
-                            <ExternalLink className="size-2.5" aria-hidden="true" />
-                          </a>
-                        ) : null}
+                            <ImageIcon className="size-3" aria-hidden="true" />
+                            <span className="hidden sm:inline">Struk</span>
+                          </button>
+                        )}
 
                         {hasItems && (
                           <Button

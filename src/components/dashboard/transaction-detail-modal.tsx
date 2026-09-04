@@ -28,6 +28,11 @@ import {
   CheckCircle2,
   HelpCircle,
   Maximize2,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
 interface TransactionDetailModalProps {
@@ -43,28 +48,50 @@ export function TransactionDetailModal({
   onClose,
   onDelete,
 }: TransactionDetailModalProps) {
+  const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [imageZoomed, setImageZoomed] = useState(false);
+
+  React.useEffect(() => {
+    setImageLoading(true);
+    setImageError(false);
+    setImageZoomed(false);
+  }, [transaction?.id]);
 
   if (!transaction) return null;
 
   const isExpense = transaction.type === "expense";
   const isIncome = transaction.type === "income";
 
-  // Resolve media pointers
-  const mediaUrl =
+  // Resolve media pointers from R2 file ID, drive_view_url, or media_url
+  const rawMediaKey =
+    transaction.drive_file_id ||
     transaction.drive_view_url ||
     transaction.parsed_metadata?.drive_view_url ||
     transaction.media_url ||
     null;
 
+  // Determine effective media URL for image preview
+  let mediaUrl: string | null = null;
+  if (rawMediaKey) {
+    if (rawMediaKey.startsWith("http://") || rawMediaKey.startsWith("https://")) {
+      mediaUrl = rawMediaKey;
+    } else if (rawMediaKey.startsWith("/uploads/") || rawMediaKey.startsWith("/api/")) {
+      mediaUrl = rawMediaKey;
+    } else {
+      mediaUrl = `/api/transactions/media?key=${encodeURIComponent(rawMediaKey)}&id=${transaction.id}`;
+    }
+  } else if (transaction.media_type === "image") {
+    mediaUrl = `/api/transactions/media?id=${transaction.id}`;
+  }
+
   const isImage =
     transaction.media_type === "image" ||
-    (mediaUrl && (mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) || mediaUrl.includes("/receipts/")));
+    Boolean(mediaUrl && (mediaUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)/i) || mediaUrl.includes("/receipts/") || mediaUrl.includes("/api/transactions/media")));
 
   const isAudio =
     transaction.media_type === "audio" ||
-    (mediaUrl && mediaUrl.match(/\.(ogg|oga|opus|mp3|wav|m4a)/i));
+    Boolean(rawMediaKey && rawMediaKey.match(/\.(ogg|oga|opus|mp3|wav|m4a)/i));
 
   const items = transaction.parsed_metadata?.items || [];
   const rawPrompt = transaction.raw_prompt || transaction.parsed_metadata?.original_transcription;
@@ -255,6 +282,14 @@ export function TransactionDetailModal({
               {/* Image Preview Box */}
               {isImage && mediaUrl && !imageError ? (
                 <div className="relative group rounded-xl overflow-hidden border border-border/80 bg-muted/40 aspect-[3/4] flex items-center justify-center">
+                  {/* Skeleton Loading State */}
+                  {imageLoading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/70 backdrop-blur-sm z-10 animate-pulse space-y-2 p-4 text-center">
+                      <Loader2 className="size-6 text-primary animate-spin" />
+                      <span className="text-xs text-muted-foreground font-medium">Memuat Bukti Struk R2...</span>
+                    </div>
+                  )}
+
                   <img
                     src={mediaUrl}
                     alt={transaction.description || "Struk Belanja"}
@@ -262,25 +297,63 @@ export function TransactionDetailModal({
                       imageZoomed ? "scale-150 cursor-zoom-out" : "cursor-zoom-in"
                     }`}
                     onClick={() => setImageZoomed(!imageZoomed)}
-                    onError={() => setImageError(true)}
+                    onLoad={() => setImageLoading(false)}
+                    onError={() => {
+                      setImageLoading(false);
+                      setImageError(true);
+                    }}
                   />
 
+                  {/* Zoom Hint / Toggle Icon in Top-Right */}
+                  <button
+                    type="button"
+                    onClick={() => setImageZoomed(!imageZoomed)}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 backdrop-blur-md text-white/90 hover:text-white transition-opacity opacity-80 hover:opacity-100 z-20"
+                    title={imageZoomed ? "Perkecil (Zoom Out)" : "Perbesar (Zoom In)"}
+                  >
+                    {imageZoomed ? <ZoomOut className="size-3.5" /> : <ZoomIn className="size-3.5" />}
+                  </button>
+
                   {/* Overlay Action Bar */}
-                  <div className="absolute bottom-2 inset-x-2 flex items-center justify-between p-2 rounded-lg bg-black/60 backdrop-blur-md text-white opacity-90 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute bottom-2 inset-x-2 flex items-center justify-between p-2 rounded-lg bg-black/70 backdrop-blur-md text-white opacity-90 group-hover:opacity-100 transition-opacity z-20">
                     <span className="text-[10px] font-medium flex items-center gap-1">
                       <CheckCircle2 className="size-3 text-emerald-400" />
-                      Tersimpan Aman
+                      Cloudflare R2 Archive
                     </span>
                     <a
                       href={mediaUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-semibold hover:underline bg-white/20 px-2 py-0.5 rounded-md"
+                      className="inline-flex items-center gap-1 text-xs font-semibold hover:underline bg-white/20 px-2 py-0.5 rounded-md text-white"
                     >
                       <span>Buka Tab Baru</span>
                       <ExternalLink className="size-3" />
                     </a>
                   </div>
+                </div>
+              ) : isImage && imageError ? (
+                /* Graceful Error Card with Retry Button */
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex flex-col items-center justify-center text-center aspect-[3/4] space-y-3">
+                  <AlertCircle className="size-8 text-destructive" />
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Gagal Menampilkan Foto Struk</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 max-w-[200px]">
+                      Storage Cloudflare R2 belum merespons atau berkas sedang tidak tersedia.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5 border-border/80"
+                    onClick={() => {
+                      setImageError(false);
+                      setImageLoading(true);
+                    }}
+                  >
+                    <RefreshCw className="size-3.5" />
+                    Coba Muat Ulang
+                  </Button>
                 </div>
               ) : isAudio && mediaUrl ? (
                 /* Audio Player Preview */
@@ -306,13 +379,13 @@ export function TransactionDetailModal({
             </div>
 
             {/* Storage Indicator */}
-            {mediaUrl && (
+            {(mediaUrl || transaction.drive_file_id) && (
               <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50 text-[11px] text-muted-foreground flex items-center justify-between">
-                <span>Penyimpanan:</span>
+                <span>Penyimpanan Media:</span>
                 <span className="font-medium text-foreground">
-                  {mediaUrl.includes("r2.")
-                    ? "Cloudflare R2"
-                    : "Penyimpanan Lokal"}
+                  {rawMediaKey?.startsWith("local_") || rawMediaKey?.includes("/uploads/")
+                    ? "Penyimpanan Lokal (uploads/)"
+                    : "Cloudflare R2 Object Storage"}
                 </span>
               </div>
             )}
