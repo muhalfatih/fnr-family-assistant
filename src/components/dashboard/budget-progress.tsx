@@ -26,6 +26,19 @@ interface BudgetProgressProps {
 }
 
 export function BudgetProgress({ budgets, onOpenManageBudget, onEditItem }: BudgetProgressProps) {
+  const cleanBudgets = React.useMemo(() => {
+    const seen = new Map<string, CategoryBudgetItem>();
+    for (const b of budgets) {
+      const key = (b.name || "").trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, b);
+      } else if (b.is_default && !seen.get(key)!.is_default) {
+        seen.set(key, b);
+      }
+    }
+    return Array.from(seen.values());
+  }, [budgets]);
+
   return (
     <Card className="rounded-xl border border-border/80 bg-card">
       <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
@@ -48,12 +61,12 @@ export function BudgetProgress({ budgets, onOpenManageBudget, onEditItem }: Budg
         )}
       </CardHeader>
       <CardContent className="p-4 sm:p-5 pt-2 flex flex-col gap-3 sm:gap-4">
-        {budgets.length === 0 ? (
+        {cleanBudgets.length === 0 ? (
           <p className="text-sm text-muted-foreground italic py-6 text-center">
             Belum ada alokasi anggaran bulan ini.
           </p>
         ) : (
-          budgets.map((b) => {
+          cleanBudgets.map((b) => {
             const percent = b.target > 0 ? Math.round((b.spent / b.target) * 100) : 0;
             const isOver = percent > 100;
             const isWarning = percent >= 80 && percent <= 100;

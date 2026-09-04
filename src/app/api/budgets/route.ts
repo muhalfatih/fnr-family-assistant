@@ -3,6 +3,19 @@ import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { getMonthDateRange } from "@/lib/utils";
 import { mockStore } from "@/lib/mock-data";
 
+function deduplicateCategories<T extends { name: string; is_default?: boolean }>(cats: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const c of cats) {
+    const key = c.name.trim().toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, c);
+    } else if (c.is_default && !map.get(key)!.is_default) {
+      map.set(key, c);
+    }
+  }
+  return Array.from(map.values());
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -12,7 +25,9 @@ export async function GET(req: NextRequest) {
       new Date().toISOString().substring(0, 7);
 
     if (!isSupabaseConfigured()) {
-      const categories = mockStore.getCategories().filter((c) => c.type === "expense");
+      const categories = deduplicateCategories(
+        mockStore.getCategories().filter((c) => c.type === "expense")
+      );
       const budgets = mockStore.getBudgets(monthYear);
       const allTxMonth = mockStore.getTransactions(monthYear);
       const txs = allTxMonth.filter((t) => t.type === "expense");
@@ -64,7 +79,9 @@ export async function GET(req: NextRequest) {
 
     if (catErr) {
       console.warn("Supabase categories error, falling back to mock:", catErr.message);
-      const mockCats = mockStore.getCategories().filter((c) => c.type === "expense");
+      const mockCats = deduplicateCategories(
+        mockStore.getCategories().filter((c) => c.type === "expense")
+      );
       const mockB = mockStore.getBudgets(monthYear);
       const budgetItems = mockCats.map((cat) => {
         const b = mockB.find((item) => item.category_id === cat.id);
@@ -104,7 +121,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const budgetItems = (categories || []).map((cat) => {
+    const cleanCategories = deduplicateCategories(categories || []);
+    const budgetItems = cleanCategories.map((cat) => {
       const b = budgets?.find((item) => item.category_id === cat.id);
       return {
         id: b?.id || `cat-${cat.id}`,
@@ -120,7 +138,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ budgets: budgetItems, monthYear });
   } catch (err: any) {
     console.warn("Error in GET budgets, falling back to mock:", err.message);
-    const mockCats = mockStore.getCategories().filter((c) => c.type === "expense");
+    const mockCats = deduplicateCategories(
+      mockStore.getCategories().filter((c) => c.type === "expense")
+    );
     const budgetItems = mockCats.map((cat) => ({
       id: `cat-${cat.id}`,
       category_id: cat.id,

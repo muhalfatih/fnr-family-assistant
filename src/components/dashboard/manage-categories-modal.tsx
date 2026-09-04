@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,27 +29,13 @@ import {
   Pencil,
   Trash2,
   Check,
-  X,
   Lock,
   Loader2,
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Category } from "@/lib/types/database";
-
-const COLOR_PRESETS = [
-  "#10b981", // Emerald
-  "#3b82f6", // Blue
-  "#8b5cf6", // Purple
-  "#ec4899", // Pink
-  "#f59e0b", // Amber
-  "#f97316", // Orange
-  "#06b6d4", // Cyan
-  "#14b8a6", // Teal
-  "#6366f1", // Indigo
-  "#ef4444", // Red
-  "#64748b", // Slate
-];
+import { COLOR_PRESETS } from "./edit-budget-item-modal";
 
 interface ManageCategoriesModalProps {
   isOpen: boolean;
@@ -64,21 +50,22 @@ export function ManageCategoriesModal({
 }: ManageCategoriesModalProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [view, setView] = useState<"list" | "add" | "edit">("list");
 
-  // State untuk form tambah kategori baru
-  const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState(COLOR_PRESETS[0]);
-  const [isAdding, setIsAdding] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
+  // State form Tambah
+  const [addName, setAddName] = useState("");
+  const [addColor, setAddColor] = useState(COLOR_PRESETS[0]);
 
-  // State untuk inline edit kategori
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // State form Edit
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editName, setEditName] = useState("");
-  const [editColor, setEditColor] = useState("");
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  const [editColor, setEditColor] = useState(COLOR_PRESETS[0]);
 
-  // State untuk konfirmasi hapus kategori
+  // State bersama
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // State dialog konfirmasi hapus
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -101,33 +88,61 @@ export function ManageCategoriesModal({
   useEffect(() => {
     if (isOpen) {
       fetchCategories();
-      setNewName("");
-      setNewColor(COLOR_PRESETS[0]);
-      setAddError(null);
-      setEditingId(null);
-      setEditError(null);
+      setView("list");
+      setAddName("");
+      setAddColor(COLOR_PRESETS[0]);
+      setEditingCategory(null);
+      setFormError(null);
       setCategoryToDelete(null);
     }
   }, [isOpen]);
 
-  // Handler: Tambah Kategori Baru (tanpa target)
-  const handleAddCategory = async (e: React.FormEvent) => {
+  // Deduplikasi defensif kategori belanja (expense)
+  const expenseCategories = useMemo(() => {
+    const seen = new Map<string, Category>();
+    for (const c of categories.filter((cat) => cat.type === "expense")) {
+      const key = c.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, c);
+      } else if (c.is_default && !seen.get(key)!.is_default) {
+        seen.set(key, c);
+      }
+    }
+    return Array.from(seen.values());
+  }, [categories]);
+
+  // Handler: Tambah Kategori Baru
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) {
-      setAddError("Nama kategori wajib diisi");
+    const trimmed = addName.trim();
+    if (!trimmed) {
+      setFormError("Nama kategori wajib diisi");
       return;
     }
 
-    setIsAdding(true);
-    setAddError(null);
+    if (trimmed.toLowerCase() === "lainnya") {
+      setFormError("Kategori 'Lainnya' sudah ada sebagai kategori default.");
+      return;
+    }
+
+    const duplicate = expenseCategories.some(
+      (c) => c.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      setFormError(`Kategori "${trimmed}" sudah ada.`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFormError(null);
 
     try {
       const res = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newName.trim(),
-          color: newColor,
+          name: trimmed,
+          color: addColor,
           type: "expense",
           initialTarget: 0,
         }),
@@ -138,51 +153,51 @@ export function ManageCategoriesModal({
         throw new Error(errData.error || "Gagal menambahkan kategori");
       }
 
-      setNewName("");
-      setNewColor(COLOR_PRESETS[0]);
-      toast.success("Kategori baru berhasil ditambahkan");
+      toast.success(`Kategori "${trimmed}" berhasil ditambahkan`);
       await fetchCategories();
+      setView("list");
       onSuccess?.();
     } catch (err: any) {
-      setAddError(err.message || "Terjadi kesalahan saat menyimpan kategori");
+      setFormError(err.message || "Terjadi kesalahan saat menambahkan kategori");
     } finally {
-      setIsAdding(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Handler: Mulai Edit Inline
-  const handleStartEdit = (cat: Category) => {
-    setEditingId(cat.id);
-    setEditName(cat.name);
-    setEditColor(cat.color || COLOR_PRESETS[0]);
-    setEditError(null);
-  };
+  // Handler: Simpan Edit Kategori
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
 
-  // Handler: Batalkan Edit Inline
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditName("");
-    setEditColor("");
-    setEditError(null);
-  };
-
-  // Handler: Simpan Edit Inline (Nama & Warna)
-  const handleSaveEdit = async (id: string) => {
-    if (!editName.trim()) {
-      setEditError("Nama kategori tidak boleh kosong");
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setFormError("Nama kategori wajib diisi");
       return;
     }
 
-    setIsSavingEdit(true);
-    setEditError(null);
+    if (trimmed.toLowerCase() === "lainnya" && editingCategory.name.toLowerCase() !== "lainnya") {
+      setFormError("Nama 'Lainnya' dicadangkan untuk kategori default sistem.");
+      return;
+    }
+
+    const duplicate = expenseCategories.some(
+      (c) => c.id !== editingCategory.id && c.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      setFormError(`Kategori dengan nama "${trimmed}" sudah ada.`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFormError(null);
 
     try {
       const res = await fetch("/api/categories", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id,
-          name: editName.trim(),
+          id: editingCategory.id,
+          name: trimmed,
           color: editColor,
         }),
       });
@@ -192,18 +207,18 @@ export function ManageCategoriesModal({
         throw new Error(errData.error || "Gagal memperbarui kategori");
       }
 
-      setEditingId(null);
       toast.success("Kategori berhasil diperbarui");
       await fetchCategories();
+      setView("list");
       onSuccess?.();
     } catch (err: any) {
-      setEditError(err.message || "Terjadi kesalahan saat memperbarui kategori");
+      setFormError(err.message || "Terjadi kesalahan saat memperbarui kategori");
     } finally {
-      setIsSavingEdit(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Handler: Konfirmasi & Eksekusi Hapus Kategori
+  // Handler: Eksekusi Hapus Kategori
   const handleConfirmDelete = async () => {
     if (!categoryToDelete) return;
 
@@ -218,7 +233,9 @@ export function ManageCategoriesModal({
         throw new Error(errData.error || "Gagal menghapus kategori");
       }
 
-      toast.success(`Kategori "${categoryToDelete.name}" dihapus. Transaksi dialihkan ke "Lainnya"`);
+      toast.success(
+        `Kategori "${categoryToDelete.name}" dihapus. Transaksi dialihkan ke "Lainnya"`
+      );
       setCategoryToDelete(null);
       await fetchCategories();
       onSuccess?.();
@@ -229,304 +246,359 @@ export function ManageCategoriesModal({
     }
   };
 
-  // Filter hanya kategori pengeluaran (expense)
-  const expenseCategories = categories.filter((c) => c.type === "expense");
-
   return (
     <>
       <Dialog
         open={isOpen}
         onOpenChange={(open) => {
-          if (!open && !isAdding && !isSavingEdit && !isDeleting) {
+          if (!open && !isSubmitting && !isDeleting) {
             onClose();
           }
         }}
       >
-        <DialogContent className="sm:max-w-[500px] w-[95vw] p-5 sm:p-6 rounded-2xl gap-0 max-h-[90vh] flex flex-col">
-          {/* Header */}
-          <DialogHeader className="space-y-1 pb-3 border-b border-border/40 text-left shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                <SlidersHorizontal className="size-4" />
-              </div>
-              <DialogTitle className="text-base font-semibold tracking-tight">
-                Kelola Anggaran
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-xs text-muted-foreground pt-0.5">
-              Tambah kategori anggaran baru, ubah nama & warna, atau hapus kategori belanja.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[440px] w-[95vw] p-5 sm:p-6 rounded-2xl gap-0">
+          {/* VIEW: DAFTAR KATEGORI */}
+          {view === "list" && (
+            <div className="space-y-4">
+              <DialogHeader className="space-y-1 pb-3 border-b border-border/40 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <SlidersHorizontal className="size-3.5" />
+                    </div>
+                    <DialogTitle className="text-base font-semibold tracking-tight">
+                      Kelola Kategori Anggaran
+                    </DialogTitle>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
+                    <span>{expenseCategories.length} Kategori</span>
+                  </span>
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground pt-0.5">
+                  Atur nama, warna label, atau tambah kategori belanja baru.
+                </DialogDescription>
+              </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto pt-4 space-y-4 pr-0.5">
-            {/* Form Tambah Kategori Baru */}
-            <form
-              onSubmit={handleAddCategory}
-              className="p-3.5 rounded-xl border border-border/50 bg-muted/20 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Plus className="size-3.5 text-primary" />
-                  Tambah Kategori Baru
-                </span>
-                <span className="text-[11px] text-muted-foreground">Tanpa target pagu</span>
-              </div>
-
-              {/* Input Nama */}
-              <div className="space-y-1">
-                <Input
-                  id="newCategoryNameInput"
-                  value={newName}
-                  onChange={(e) => {
-                    setNewName(e.target.value);
-                    if (addError) setAddError(null);
+              <div className="space-y-3 pt-1">
+                {/* Tombol Tambah Kategori Baru */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setAddName("");
+                    setAddColor(COLOR_PRESETS[0]);
+                    setFormError(null);
+                    setView("add");
                   }}
-                  placeholder="Misal: Hobi & Buku, Donasi, Perawatan"
-                  className="h-8.5 text-xs bg-background border-border/60 focus:border-primary"
-                  disabled={isAdding}
-                />
-              </div>
+                  className="w-full h-9 text-xs font-semibold gap-1.5 border-dashed border-border/80 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all cursor-pointer"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Tambah Kategori Baru</span>
+                </Button>
 
-              {/* Color Presets */}
-              <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">Warna Label</Label>
-                <div className="flex items-center gap-2 flex-wrap py-0.5">
-                  {COLOR_PRESETS.map((col) => {
-                    const isSelected = newColor === col;
-                    return (
-                      <button
-                        key={col}
-                        type="button"
-                        onClick={() => setNewColor(col)}
-                        aria-pressed={isSelected}
-                        aria-label={`Pilih warna ${col}`}
-                        disabled={isAdding}
-                        className={`size-5.5 rounded-full inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                          isSelected
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xs scale-105"
-                            : "opacity-80 hover:opacity-100 hover:scale-105"
-                        }`}
-                        style={{ backgroundColor: col }}
-                      >
-                        {isSelected && (
-                          <Check className="size-3 text-white stroke-[2.5] drop-shadow-xs" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {addError && (
-                <div className="flex items-center gap-1.5 text-xs text-destructive bg-destructive/10 p-2 rounded-lg">
-                  <AlertCircle className="size-3.5 shrink-0" />
-                  <span>{addError}</span>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                variant="default"
-                size="sm"
-                disabled={isAdding || !newName.trim()}
-                className="w-full h-8 text-xs font-medium cursor-pointer"
-              >
-                {isAdding ? (
-                  <>
-                    <Loader2 className="size-3.5 animate-spin mr-1.5" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="size-3.5 mr-1" />
-                    Tambah Kategori
-                  </>
-                )}
-              </Button>
-            </form>
-
-            {/* Daftar Kategori Anggaran */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-0.5">
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                  Daftar Kategori Anggaran
-                </span>
-                <span className="text-[11px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full font-medium">
-                  {expenseCategories.length} kategori
-                </span>
-              </div>
-
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
-                  <Loader2 className="size-4 animate-spin text-primary" />
-                  <span className="text-xs">Memuat daftar kategori...</span>
-                </div>
-              ) : expenseCategories.length === 0 ? (
-                <div className="text-center py-6 border border-dashed border-border/60 rounded-xl">
-                  <p className="text-xs text-muted-foreground">Belum ada kategori anggaran.</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border/50 divide-y divide-border/30 bg-muted/10 overflow-hidden">
-                  {expenseCategories.map((cat) => {
-                    const isLainnya = cat.name.toLowerCase() === "lainnya";
-                    const isEditing = editingId === cat.id;
-
-                    if (isEditing) {
+                {/* List Container */}
+                <div className="rounded-xl border border-border/60 bg-muted/15 divide-y divide-border/40 overflow-hidden max-h-[300px] overflow-y-auto">
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
+                      <Loader2 className="size-3.5 animate-spin text-primary" />
+                      <span className="text-xs">Memuat daftar kategori...</span>
+                    </div>
+                  ) : expenseCategories.length === 0 ? (
+                    <div className="text-center py-6">
+                      <p className="text-xs text-muted-foreground">Belum ada kategori belanja.</p>
+                    </div>
+                  ) : (
+                    expenseCategories.map((cat) => {
+                      const isLainnya = cat.name.trim().toLowerCase() === "lainnya";
                       return (
                         <div
                           key={cat.id}
-                          className="p-3 bg-primary/5 space-y-2.5 transition-all"
+                          className="flex items-center justify-between p-2.5 sm:px-3 hover:bg-muted/40 transition-colors"
                         >
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={editName}
-                              onChange={(e) => {
-                                setEditName(e.target.value);
-                                if (editError) setEditError(null);
-                              }}
-                              placeholder="Nama kategori"
-                              className="h-8 text-xs bg-background flex-1"
-                              disabled={isSavingEdit}
-                              autoFocus
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span
+                              className="size-3 rounded-full shrink-0 ring-1 ring-border/40"
+                              style={{ backgroundColor: cat.color || "#64748b" }}
                             />
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => handleSaveEdit(cat.id)}
-                              disabled={isSavingEdit || !editName.trim()}
-                              className="h-8 text-xs gap-1 cursor-pointer"
-                            >
-                              {isSavingEdit ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <Check className="size-3.5" />
-                              )}
-                              <span>Simpan</span>
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleCancelEdit}
-                              disabled={isSavingEdit}
-                              className="h-8 text-xs cursor-pointer px-2"
-                            >
-                              <X className="size-3.5" />
-                            </Button>
+                            <span className="text-xs font-medium text-foreground truncate">
+                              {cat.name}
+                            </span>
+                            {isLainnya && (
+                              <Badge
+                                variant="secondary"
+                                className="gap-1 text-[10px] font-normal py-0 h-4.5 px-1.5 bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20"
+                              >
+                                <Lock className="size-2.5" />
+                                Default
+                              </Badge>
+                            )}
                           </div>
 
-                          {/* Mini Color Picker for Edit */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] text-muted-foreground mr-1">Warna:</span>
-                            {COLOR_PRESETS.map((col) => {
-                              const isSelected = editColor === col;
-                              return (
-                                <button
-                                  key={col}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isLainnya ? (
+                              <span className="text-[11px] text-muted-foreground/60 italic px-2 py-0.5 select-none">
+                                Terkunci
+                              </span>
+                            ) : (
+                              <>
+                                <Button
                                   type="button"
-                                  onClick={() => setEditColor(col)}
-                                  disabled={isSavingEdit}
-                                  className={`size-4.5 rounded-full inline-flex items-center justify-center transition-all cursor-pointer ${
-                                    isSelected
-                                      ? "ring-2 ring-primary ring-offset-1 ring-offset-background scale-110"
-                                      : "opacity-75 hover:opacity-100"
-                                  }`}
-                                  style={{ backgroundColor: col }}
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditingCategory(cat);
+                                    setEditName(cat.name);
+                                    setEditColor(cat.color || COLOR_PRESETS[0]);
+                                    setFormError(null);
+                                    setView("edit");
+                                  }}
+                                  title={`Ubah ${cat.name}`}
+                                  className="size-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
                                 >
-                                  {isSelected && (
-                                    <Check className="size-2.5 text-white stroke-[2.5]" />
-                                  )}
-                                </button>
-                              );
-                            })}
+                                  <Pencil className="size-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setCategoryToDelete(cat)}
+                                  title={`Hapus ${cat.name}`}
+                                  className="size-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </>
+                            )}
                           </div>
-
-                          {editError && (
-                            <p className="text-[11px] text-destructive flex items-center gap-1">
-                              <AlertCircle className="size-3" />
-                              {editError}
-                            </p>
-                          )}
                         </div>
                       );
-                    }
-
-                    return (
-                      <div
-                        key={cat.id}
-                        className="flex items-center justify-between p-2.5 sm:px-3 hover:bg-muted/30 transition-colors"
-                      >
-                        {/* Kiri: Indikator Warna & Nama */}
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span
-                            className="size-3 rounded-full shrink-0 ring-1 ring-border/40"
-                            style={{ backgroundColor: cat.color || "#64748b" }}
-                          />
-                          <span className="text-xs font-medium text-foreground truncate">
-                            {cat.name}
-                          </span>
-                          {isLainnya && (
-                            <Badge
-                              variant="secondary"
-                              className="gap-1 text-[10px] font-normal py-0 h-4.5 px-1.5 bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20"
-                            >
-                              <Lock className="size-2.5" />
-                              Default
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Kanan: Aksi Edit & Hapus (dikunci jika Lainnya) */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          {isLainnya ? (
-                            <span className="text-[11px] text-muted-foreground/70 italic px-2 py-0.5">
-                              Terkunci
-                            </span>
-                          ) : (
-                            <>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleStartEdit(cat)}
-                                title="Ubah nama dan warna"
-                                className="size-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-                              >
-                                <Pencil className="size-3.5" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setCategoryToDelete(cat)}
-                                title="Hapus kategori"
-                                className="size-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                    })
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Footer */}
-          <DialogFooter className="pt-3 border-t border-border/40 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="w-full sm:w-auto h-8 text-xs cursor-pointer"
-            >
-              Tutup
-            </Button>
-          </DialogFooter>
+              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  className="w-full h-9 text-xs cursor-pointer"
+                >
+                  Tutup
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* VIEW: TAMBAH KATEGORI BARU */}
+          {view === "add" && (
+            <form onSubmit={handleAddSubmit} className="space-y-4">
+              <DialogHeader className="space-y-1 pb-3 border-b border-border/40 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Plus className="size-3.5" />
+                    </div>
+                    <DialogTitle className="text-base font-semibold tracking-tight">
+                      Tambah Kategori Baru
+                    </DialogTitle>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
+                    <span>Tanpa Target</span>
+                  </span>
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground pt-0.5">
+                  Buat kategori anggaran baru. Nominal pagu bulanan dapat diatur di tab Atur Pagu.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3.5 pt-1">
+                {/* Nama Kategori */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="addCategoryNameInput" className="text-xs font-medium text-foreground">
+                    Nama Kategori
+                  </Label>
+                  <Input
+                    id="addCategoryNameInput"
+                    value={addName}
+                    onChange={(e) => {
+                      setAddName(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                    placeholder="Misal: Hobi & Buku, Donasi, Perawatan"
+                    className="h-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                    disabled={isSubmitting}
+                    autoFocus
+                  />
+                </div>
+
+                {/* Warna Label (24 Pilihan Warna) */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Warna Label</Label>
+                  <div className="flex items-center gap-2.5 flex-wrap py-1">
+                    {COLOR_PRESETS.map((col) => {
+                      const isSelected = addColor === col;
+                      return (
+                        <button
+                          key={col}
+                          type="button"
+                          onClick={() => setAddColor(col)}
+                          aria-pressed={isSelected}
+                          aria-label={`Pilih warna ${col}`}
+                          disabled={isSubmitting}
+                          className={`size-6 rounded-full inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                            isSelected
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xs"
+                              : "opacity-85 hover:opacity-100 hover:scale-105"
+                          }`}
+                          style={{ backgroundColor: col }}
+                        >
+                          {isSelected && (
+                            <Check className="size-3.5 text-white stroke-[2.5] drop-shadow-xs" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {formError && (
+                  <div className="flex items-center gap-1.5 text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg">
+                    <AlertCircle className="size-3.5 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !addName.trim()}
+                  className="w-full h-9 text-xs font-semibold cursor-pointer gap-1.5"
+                >
+                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Menyimpan..." : "Tambah Kategori"}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setFormError(null);
+                    setView("list");
+                  }}
+                  disabled={isSubmitting}
+                  className="w-full h-9 text-xs cursor-pointer"
+                >
+                  Kembali ke Daftar
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+
+          {/* VIEW: EDIT KATEGORI */}
+          {view === "edit" && editingCategory && (
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <DialogHeader className="space-y-1 pb-3 border-b border-border/40 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="size-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Pencil className="size-3.5" />
+                    </div>
+                    <DialogTitle className="text-base font-semibold tracking-tight">
+                      Ubah Kategori
+                    </DialogTitle>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
+                    <span>Kategori Belanja</span>
+                  </span>
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground pt-0.5">
+                  Ubah nama dan warna label kategori belanja yang dipilih.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3.5 pt-1">
+                {/* Nama Kategori */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="editCategoryNameInput" className="text-xs font-medium text-foreground">
+                    Nama Kategori
+                  </Label>
+                  <Input
+                    id="editCategoryNameInput"
+                    value={editName}
+                    onChange={(e) => {
+                      setEditName(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                    placeholder="Nama kategori"
+                    className="h-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                    disabled={isSubmitting}
+                    autoFocus
+                  />
+                </div>
+
+                {/* Warna Label (24 Pilihan Warna) */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Warna Label</Label>
+                  <div className="flex items-center gap-2.5 flex-wrap py-1">
+                    {COLOR_PRESETS.map((col) => {
+                      const isSelected = editColor === col;
+                      return (
+                        <button
+                          key={col}
+                          type="button"
+                          onClick={() => setEditColor(col)}
+                          aria-pressed={isSelected}
+                          aria-label={`Pilih warna ${col}`}
+                          disabled={isSubmitting}
+                          className={`size-6 rounded-full inline-flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                            isSelected
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xs"
+                              : "opacity-85 hover:opacity-100 hover:scale-105"
+                          }`}
+                          style={{ backgroundColor: col }}
+                        >
+                          {isSelected && (
+                            <Check className="size-3.5 text-white stroke-[2.5] drop-shadow-xs" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {formError && (
+                  <div className="flex items-center gap-1.5 text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg">
+                    <AlertCircle className="size-3.5 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !editName.trim()}
+                  className="w-full h-9 text-xs font-semibold cursor-pointer gap-1.5"
+                >
+                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setFormError(null);
+                    setView("list");
+                  }}
+                  disabled={isSubmitting}
+                  className="w-full h-9 text-xs cursor-pointer"
+                >
+                  Kembali ke Daftar
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

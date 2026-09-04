@@ -16,17 +16,31 @@ import { CategoryBudgetItem } from "@/components/dashboard/budget-progress";
 import { Pencil, Check, Loader2, Calendar } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 
-const COLOR_PRESETS = [
+export const COLOR_PRESETS = [
   "#10b981", // Emerald
-  "#3b82f6", // Blue
-  "#8b5cf6", // Purple
-  "#ec4899", // Pink
-  "#f59e0b", // Amber
-  "#f97316", // Orange
-  "#06b6d4", // Cyan
+  "#059669", // Dark Emerald
   "#14b8a6", // Teal
+  "#06b6d4", // Cyan
+  "#0284c7", // Sky Blue
+  "#3b82f6", // Blue
+  "#2563eb", // Royal Blue
   "#6366f1", // Indigo
+  "#8b5cf6", // Violet
+  "#a855f7", // Purple
+  "#d946ef", // Fuchsia
+  "#ec4899", // Pink
+  "#f43f5e", // Rose
   "#ef4444", // Red
+  "#dc2626", // Crimson
+  "#f97316", // Orange
+  "#ea580c", // Deep Orange
+  "#f59e0b", // Amber
+  "#eab308", // Yellow
+  "#84cc16", // Lime
+  "#22c55e", // Green
+  "#64748b", // Slate
+  "#78716c", // Stone
+  "#475569", // Charcoal
 ];
 
 interface EditBudgetItemModalProps {

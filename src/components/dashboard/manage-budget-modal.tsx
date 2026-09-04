@@ -53,6 +53,19 @@ export function ManageBudgetModal({
     if (!isOpen) return;
 
     let isMounted = true;
+    const dedupe = (list: CategoryBudgetItem[]) => {
+      const map = new Map<string, CategoryBudgetItem>();
+      for (const item of list) {
+        const key = (item.name || "").trim().toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, item);
+        } else if (item.is_default && !map.get(key)!.is_default) {
+          map.set(key, item);
+        }
+      }
+      return Array.from(map.values());
+    };
+
     const loadBudgets = async () => {
       setIsLoading(true);
       setError(null);
@@ -61,16 +74,16 @@ export function ManageBudgetModal({
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.budgets && Array.isArray(data.budgets)) {
-            setItems(data.budgets);
+            setItems(dedupe(data.budgets));
             return;
           }
         }
         if (isMounted) {
-          setItems(budgets || []);
+          setItems(dedupe(budgets || []));
         }
       } catch {
         if (isMounted) {
-          setItems(budgets || []);
+          setItems(dedupe(budgets || []));
         }
       } finally {
         if (isMounted) {

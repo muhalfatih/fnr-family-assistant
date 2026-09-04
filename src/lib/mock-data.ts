@@ -890,7 +890,24 @@ class MockDataStore {
 
   // Categories
   public getCategories() {
-    if (!this.data.categories.some((c) => c.name.toLowerCase() === "lainnya")) {
+    // 1. Deduplikasi defensif berdasarkan tipe & nama
+    const seen = new Map<string, Category>();
+    for (const c of this.data.categories) {
+      const key = `${c.type || "expense"}-${c.name.trim().toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.set(key, c);
+      } else if (c.is_default && !seen.get(key)!.is_default) {
+        // Prioritaskan kategori default jika terjadi duplikasi
+        seen.set(key, c);
+      }
+    }
+    this.data.categories = Array.from(seen.values());
+
+    // 2. Pastikan tepat satu kategori default "Lainnya" (expense) selalu ada
+    const hasLainnya = this.data.categories.some(
+      (c) => c.name.trim().toLowerCase() === "lainnya" && c.type === "expense"
+    );
+    if (!hasLainnya) {
       this.data.categories.push({
         id: "cat-011",
         family_id: "fam-001",
@@ -914,11 +931,25 @@ class MockDataStore {
     initialTarget?: number;
     monthYear?: string;
   }) {
+    const trimmedName = cat.name.trim();
+    const catType = cat.type || "expense";
+
+    if (trimmedName.toLowerCase() === "lainnya") {
+      throw new Error("Kategori 'Lainnya' sudah ada sebagai kategori default.");
+    }
+
+    const exists = this.data.categories.some(
+      (c) => c.type === catType && c.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (exists) {
+      throw new Error(`Kategori "${trimmedName}" sudah ada.`);
+    }
+
     const newCategory: Category = {
       id: `cat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       family_id: cat.family_id || this.data.family.id,
-      name: cat.name.trim(),
-      type: cat.type || "expense",
+      name: trimmedName,
+      type: catType,
       icon: cat.icon || "Tag",
       color: cat.color || "#3b82f6",
       is_default: cat.is_default ?? false,
@@ -946,7 +977,21 @@ class MockDataStore {
     if (idx === -1) return null;
     const cat = this.data.categories[idx];
     const isLainnya = cat.name.toLowerCase() === "lainnya" && cat.is_default;
-    const newName = isLainnya ? cat.name : (updates.name !== undefined ? updates.name.trim() : cat.name);
+    
+    let newName = cat.name;
+    if (!isLainnya && updates.name !== undefined) {
+      const trimmed = updates.name.trim();
+      if (trimmed.toLowerCase() === "lainnya") {
+        throw new Error("Nama 'Lainnya' dicadangkan untuk kategori default sistem.");
+      }
+      const duplicate = this.data.categories.some(
+        (c) => c.id !== id && c.type === cat.type && c.name.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (duplicate) {
+        throw new Error(`Kategori dengan nama "${trimmed}" sudah ada.`);
+      }
+      newName = trimmed;
+    }
 
     this.data.categories[idx] = {
       ...cat,
