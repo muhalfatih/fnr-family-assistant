@@ -159,7 +159,7 @@ export function ManageBudgetModal({
 
             {items.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground italic">
-                Belum ada kategori anggaran. Tambahkan kategori baru melalui tombol Tambah Anggaran.
+                Belum ada kategori anggaran. Tambahkan kategori baru melalui tombol Kelola Anggaran.
               </div>
             ) : (
               <div className="divide-y divide-border/40">

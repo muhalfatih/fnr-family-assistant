@@ -9,7 +9,7 @@ import { FinancialCharts, MonthlyFlowData } from "@/components/dashboard/financi
 import { AddTransactionModal } from "@/components/dashboard/add-transaction-modal";
 import { ManageWalletModal } from "@/components/dashboard/manage-wallet-modal";
 import { ManageBudgetModal } from "@/components/dashboard/manage-budget-modal";
-import { AddCategoryModal } from "@/components/dashboard/add-category-modal";
+import { ManageCategoriesModal } from "@/components/dashboard/manage-categories-modal";
 import { EditBudgetItemModal } from "@/components/dashboard/edit-budget-item-modal";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -46,6 +46,7 @@ import {
   Trash2,
   WalletCards,
   RefreshCw,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Wallet } from "@/lib/types/database";
 import {
@@ -62,7 +63,7 @@ export default function DashboardPage() {
   const [walletToEdit, setWalletToEdit] = useState<Wallet | null>(null);
   const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
-  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [editingBudgetItem, setEditingBudgetItem] = useState<CategoryBudgetItem | null>(null);
 
   const activeMonthYear = useMemo(() => {
@@ -409,11 +410,11 @@ export default function DashboardPage() {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => setIsAddCategoryOpen(true)}
+                onClick={() => setIsManageCategoriesOpen(true)}
                 className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto cursor-pointer"
               >
-                <Plus className="size-3.5" aria-hidden="true" />
-                <span>Tambah Anggaran</span>
+                <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+                <span>Kelola Anggaran</span>
               </Button>
             </div>
             <BudgetProgress
@@ -532,13 +533,14 @@ export default function DashboardPage() {
         onSaveWallet={handleSaveWallet}
       />
 
-      {/* Modal Tambah Kategori Anggaran (Tanpa Target) */}
-      <AddCategoryModal
-        isOpen={isAddCategoryOpen}
-        onClose={() => setIsAddCategoryOpen(false)}
+      {/* Modal Kelola Kategori Anggaran */}
+      <ManageCategoriesModal
+        isOpen={isManageCategoriesOpen}
+        onClose={() => setIsManageCategoriesOpen(false)}
         onSuccess={() => {
           mutateCategories();
           mutateBudgets();
+          mutateTransactions();
         }}
       />
 

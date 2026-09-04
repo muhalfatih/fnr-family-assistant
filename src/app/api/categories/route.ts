@@ -18,6 +18,27 @@ export async function GET() {
       return NextResponse.json({ categories: mockStore.getCategories() });
     }
 
+    // Pastikan kategori default "Lainnya" selalu tersedia
+    if (categories && !categories.some((c) => c.name.toLowerCase() === "lainnya" && c.type === "expense")) {
+      const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
+      const famId = families && families.length > 0 ? families[0].id : null;
+      if (famId) {
+        await supabaseAdmin.from("categories").insert({
+          family_id: famId,
+          name: "Lainnya",
+          type: "expense",
+          color: "#64748b",
+          icon: "Tag",
+          is_default: true,
+        });
+        const { data: refreshed } = await supabaseAdmin
+          .from("categories")
+          .select("*")
+          .order("name", { ascending: true });
+        return NextResponse.json({ categories: refreshed || categories });
+      }
+    }
+
     return NextResponse.json({ categories: categories || [] });
   } catch (err: any) {
     console.warn("Error fetching categories, falling back to mock:", err.message);
@@ -136,6 +157,11 @@ export async function PUT(req: NextRequest) {
     }
 
     if (!isSupabaseConfigured()) {
+      const existing = mockStore.getCategories().find((c) => c.id === id);
+      if (existing?.name.toLowerCase() === "lainnya" && existing?.is_default && name && name.trim().toLowerCase() !== "lainnya") {
+        return NextResponse.json({ error: "Nama kategori default 'Lainnya' tidak dapat diubah." }, { status: 400 });
+      }
+
       const updated = mockStore.updateCategory(id, {
         ...(name !== undefined && { name: name.trim() }),
         ...(color !== undefined && { color }),
@@ -145,6 +171,17 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: "Kategori tidak ditemukan" }, { status: 404 });
       }
       return NextResponse.json({ category: updated });
+    }
+
+    // Periksa apakah kategori adalah default "Lainnya"
+    const { data: existingCat } = await supabaseAdmin
+      .from("categories")
+      .select("id, name, is_default")
+      .eq("id", id)
+      .single();
+
+    if (existingCat?.name.toLowerCase() === "lainnya" && existingCat?.is_default && name && name.trim().toLowerCase() !== "lainnya") {
+      return NextResponse.json({ error: "Nama kategori default 'Lainnya' tidak dapat diubah." }, { status: 400 });
     }
 
     const { data: category, error } = await supabaseAdmin
@@ -187,9 +224,9 @@ export async function DELETE(req: NextRequest) {
 
     if (!isSupabaseConfigured()) {
       const existing = mockStore.getCategories().find((c) => c.id === id);
-      if (existing?.is_default) {
+      if (existing?.name.toLowerCase() === "lainnya" || existing?.is_default) {
         return NextResponse.json(
-          { error: "Kategori bawaan sistem tidak dapat dihapus." },
+          { error: "Kategori default 'Lainnya' tidak dapat dihapus." },
           { status: 400 }
         );
       }
@@ -203,28 +240,40 @@ export async function DELETE(req: NextRequest) {
     // Check if category is default in Supabase
     const { data: cat } = await supabaseAdmin
       .from("categories")
-      .select("id, is_default, type, family_id")
+      .select("id, name, is_default, type, family_id")
       .eq("id", id)
       .single();
 
-    if (cat?.is_default) {
+    if (cat?.name.toLowerCase() === "lainnya" || cat?.is_default) {
       return NextResponse.json(
-        { error: "Kategori bawaan sistem tidak dapat dihapus." },
+        { error: "Kategori default 'Lainnya' tidak dapat dihapus." },
         { status: 400 }
       );
     }
 
-    // Determine fallback category
+    // Determine fallback category (utamakan kategori Lainnya)
     let fallbackId = fallbackIdParam;
     if (!fallbackId) {
-      const { data: fallbackCat } = await supabaseAdmin
+      const { data: lainnyaCat } = await supabaseAdmin
         .from("categories")
         .select("id")
-        .eq("is_default", true)
+        .ilike("name", "lainnya")
         .eq("type", cat?.type || "expense")
         .limit(1)
-        .single();
-      fallbackId = fallbackCat?.id || null;
+        .maybeSingle();
+
+      if (lainnyaCat) {
+        fallbackId = lainnyaCat.id;
+      } else {
+        const { data: fallbackCat } = await supabaseAdmin
+          .from("categories")
+          .select("id")
+          .eq("is_default", true)
+          .eq("type", cat?.type || "expense")
+          .limit(1)
+          .single();
+        fallbackId = fallbackCat?.id || null;
+      }
     }
 
     // Reassign existing transactions to fallback category

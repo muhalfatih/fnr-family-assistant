@@ -258,6 +258,16 @@ const mockCategories: Category[] = [
     is_default: true,
     created_at: "2026-01-01T00:00:00Z",
   },
+  {
+    id: "cat-011",
+    family_id: "fam-001",
+    name: "Lainnya",
+    type: "expense",
+    icon: "Tag",
+    color: "#64748b",
+    is_default: true,
+    created_at: "2026-01-01T00:00:00Z",
+  },
 ];
 
 const mockBudgets: Budget[] = [
@@ -311,6 +321,15 @@ const mockBudgets: Budget[] = [
     family_id: "fam-001",
     category_id: "cat-006",
     target_amount: 2000000,
+    period: "monthly",
+    month_year: "2026-09",
+    created_at: "2026-09-01T00:00:00Z",
+  },
+  {
+    id: "bud-007",
+    family_id: "fam-001",
+    category_id: "cat-011",
+    target_amount: 1000000,
     period: "monthly",
     month_year: "2026-09",
     created_at: "2026-09-01T00:00:00Z",
@@ -871,6 +890,18 @@ class MockDataStore {
 
   // Categories
   public getCategories() {
+    if (!this.data.categories.some((c) => c.name.toLowerCase() === "lainnya")) {
+      this.data.categories.push({
+        id: "cat-011",
+        family_id: "fam-001",
+        name: "Lainnya",
+        type: "expense",
+        icon: "Tag",
+        color: "#64748b",
+        is_default: true,
+        created_at: "2026-01-01T00:00:00Z",
+      });
+    }
     return [...this.data.categories];
   }
   public addCategory(cat: {
@@ -913,10 +944,14 @@ class MockDataStore {
   public updateCategory(id: string, updates: Partial<Category>) {
     const idx = this.data.categories.findIndex((c) => c.id === id);
     if (idx === -1) return null;
+    const cat = this.data.categories[idx];
+    const isLainnya = cat.name.toLowerCase() === "lainnya" && cat.is_default;
+    const newName = isLainnya ? cat.name : (updates.name !== undefined ? updates.name.trim() : cat.name);
+
     this.data.categories[idx] = {
-      ...this.data.categories[idx],
+      ...cat,
       ...updates,
-      name: updates.name !== undefined ? updates.name.trim() : this.data.categories[idx].name,
+      name: newName,
     };
     return this.data.categories[idx];
   }
@@ -924,8 +959,15 @@ class MockDataStore {
     const cat = this.data.categories.find((c) => c.id === id);
     if (!cat) return false;
 
+    // Kategori default "Lainnya" tidak boleh dihapus
+    if (cat.name.toLowerCase() === "lainnya" && cat.is_default) {
+      return false;
+    }
+
+    // Cari kategori Lainnya sebagai fallback utama, atau kategori default lainnya
     const fallbackId =
       fallbackCategoryId ||
+      this.data.categories.find((c) => c.id !== id && c.type === cat.type && c.name.toLowerCase() === "lainnya")?.id ||
       this.data.categories.find((c) => c.id !== id && c.type === cat.type && c.is_default)?.id ||
       this.data.categories.find((c) => c.id !== id && c.type === cat.type)?.id ||
       null;
