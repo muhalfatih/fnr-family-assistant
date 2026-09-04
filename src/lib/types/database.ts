@@ -81,6 +81,7 @@ export interface ReceiptItem {
   name: string;
   qty: number;
   price: number;
+  raw_name?: string;
 }
 
 export interface TransactionMetadata {

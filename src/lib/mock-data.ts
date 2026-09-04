@@ -365,11 +365,11 @@ const mockTransactions: Transaction[] = [
     parsed_metadata: {
       merchant: "Superindo Dago",
       items: [
-        { name: "Beras Pandan Wangi 5kg", qty: 2, price: 185000 },
-        { name: "Minyak Goreng 2L", qty: 3, price: 105000 },
-        { name: "Daging Sapi Segar 1kg", qty: 2, price: 280000 },
-        { name: "Buah & Sayur Segar", qty: 1, price: 420000 },
-        { name: "Kebutuhan Dapur & Susu", qty: 1, price: 675000 },
+        { name: "Beras Pandan Wangi 5kg", raw_name: "BRS PANDAN WANGI 5KG", qty: 2, price: 185000 },
+        { name: "Minyak Goreng 2L", raw_name: "MYK GRNG 2L", qty: 3, price: 105000 },
+        { name: "Daging Sapi Segar 1kg", raw_name: "DGG SAPI SGR 1KG", qty: 2, price: 280000 },
+        { name: "Buah & Sayur Segar", raw_name: "BUAH & SAYUR SEGAR", qty: 1, price: 420000 },
+        { name: "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)", raw_name: "INDOMILK SKMP POUCH S", qty: 10, price: 18500 },
       ],
       confidence: 0.98,
     },

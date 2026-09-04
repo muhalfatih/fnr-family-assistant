@@ -244,10 +244,20 @@ export function TransactionDetailModal({
                     return (
                       <div key={idx} className="p-2.5 flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground truncate">{item.name}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {qty}x @ {formatRupiah(price)}
+                          <p className="font-medium text-foreground truncate" title={item.name}>
+                            {item.name}
                           </p>
+                          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                            <span>{qty}x @ {formatRupiah(price)}</span>
+                            {item.raw_name && item.raw_name.trim().toLowerCase() !== item.name.trim().toLowerCase() && (
+                              <span
+                                className="font-mono text-[9.5px] px-1.5 py-0.5 bg-muted/80 text-muted-foreground border border-border/60 rounded"
+                                title={`Kode Asli Cetakan Struk: ${item.raw_name}`}
+                              >
+                                Struk: {item.raw_name}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="font-semibold text-foreground tabular-nums shrink-0">
                           {formatRupiah(subtotal)}

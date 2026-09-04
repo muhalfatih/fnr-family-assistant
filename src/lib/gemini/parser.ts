@@ -1,9 +1,11 @@
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
+import { normalizeReceiptItemName } from "./receipt-dictionary.ts";
 
 export interface ParsedReceiptItem {
   name: string;
   qty: number;
   price: number;
+  raw_name?: string;
 }
 
 export interface GeminiParsedTransaction {
@@ -44,8 +46,21 @@ Rules:
      * "CASH", "TUNAI", "BAYAR", "DIBAYAR", "TENDERED" is the physical cash bill handed to cashier (e.g. Rp 50.000). NEVER use CASH/TUNAI as the expense amount if a TOTAL or KEMBALI is present!
      * "KEMBALI", "KEMBALIAN", "CHANGE" is the change returned (e.g. Rp 3.400).
      * Verification Formula: Actual Expense = TOTAL = CASH - KEMBALI (e.g. 50.000 - 3.400 = 46.600).
-   - If paper crease, fold, or tear obscures the TOTAL line, calculate the sum of itemized purchases or subtract KEMBALI from CASH.
-   - Extract merchant name, transaction date (YYYY-MM-DD), and itemized lines with qty and unit price.
+    - If paper crease, fold, or tear obscures the TOTAL line, calculate the sum of itemized purchases or subtract KEMBALI from CASH.
+    - Extract merchant name, transaction date (YYYY-MM-DD), and itemized lines with qty and unit price.
+    - TRANSLATE & DE-ABBREVIATE INDONESIAN SUPERMARKET RECEIPT CODES:
+      * POS cash registers in Indonesia (Indomaret, Alfamart, Superindo, Hypermart, etc.) use cryptic abbreviations.
+      * You MUST expand these into clean, friendly Indonesian product names for "name":
+        - "SKMP" -> "Susu Kental Manis Putih (SKMP)"
+        - "SKMC" -> "Susu Kental Manis Cokelat (SKMC)"
+        - "MYK GRG" / "MYK GOR" / "MYK GRNG" -> "Minyak Goreng"
+        - "POUCH" / "PCH" -> "Kemasan Pouch"
+        - "DET" -> "Deterjen", "RNS" -> "Rinso"
+        - "TLR" / "TLLR" -> "Telur", "AYM" -> "Ayam", "NGR" -> "Negeri"
+        - "PCR SWT" -> "Pocari Sweat", "AQ" / "AQUA" / "MNRL" -> "Aqua Air Mineral"
+        - "BTL" -> "Botol", "KLG" -> "Kaleng", "RFL" / "REFILL" -> "Isi Ulang (Refill)"
+      * Example: "INDOMILK SKMP POUCH S" -> name: "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)", raw_name: "INDOMILK SKMP POUCH S"
+      * Store the exact printed text from receipt in "raw_name", and the expanded friendly name in "name".
 3. For voice notes, transcribe the spoken Indonesian words accurately into the transcription field.
 4. Extract wallet hints if mentioned (e.g. "bca", "mandiri", "gopay", "ovo", "cash", "tunai", "kantong").
 `;
@@ -68,9 +83,10 @@ const responseSchema: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
-          name: { type: Type.STRING },
+          name: { type: Type.STRING, description: "Clear translated Indonesian product name" },
           qty: { type: Type.INTEGER },
           price: { type: Type.INTEGER },
+          raw_name: { type: Type.STRING, description: "Exact original text code printed on the receipt" },
         },
         required: ["name", "qty", "price"],
       },
@@ -168,6 +184,17 @@ export function verifyAndReconcileReceipt(
   if (!parsed || !parsed.items || parsed.items.length === 0) {
     return parsed;
   }
+
+  // Normalize each item name using the deterministic Indonesian retail dictionary
+  parsed.items = parsed.items.map((item) => {
+    const rawCode = item.raw_name || item.name;
+    const normalized = normalizeReceiptItemName(rawCode);
+    return {
+      ...item,
+      name: normalized.name,
+      raw_name: item.raw_name || (normalized.name !== rawCode ? rawCode : undefined),
+    };
+  });
 
   // Calculate sum of itemized purchases
   const sumItems = parsed.items.reduce((acc, item) => {
