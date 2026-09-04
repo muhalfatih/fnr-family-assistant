@@ -36,6 +36,7 @@ import {
   Tag,
   Wallet,
   Code,
+  RefreshCw,
 } from "lucide-react";
 
 interface ActivityLogTableProps {
@@ -157,9 +158,11 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
                 variant="ghost"
                 size="sm"
                 onClick={onRefresh}
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+                className="gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+                title="Segarkan data log"
               >
-                Segarkan
+                <RefreshCw className="size-3" aria-hidden="true" />
+                <span>Segarkan</span>
               </Button>
             )}
           </div>

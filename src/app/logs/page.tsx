@@ -41,11 +41,12 @@ export default function LogsPage() {
               variant="outline"
               size="sm"
               onClick={() => mutate()}
-              disabled={isLoading}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md active:scale-98"
+              disabled={isLoading || isValidating}
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
+              title="Segarkan riwayat log"
             >
               <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
-              <span>Segarkan</span>
+              <span className="hidden sm:inline">Segarkan</span>
             </Button>
           </div>
         </div>

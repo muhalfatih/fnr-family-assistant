@@ -293,7 +293,8 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="h-8 text-xs px-2.5 rounded-md shrink-0"
+              disabled={isValidatingTx}
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingTx ? "animate-spin" : ""}`} aria-hidden="true" />

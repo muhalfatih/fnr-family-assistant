@@ -87,7 +87,8 @@ export default function FamilyPage() {
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="h-8 text-xs px-2.5 rounded-md shrink-0"
+              disabled={isValidatingMembers}
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingMembers ? "animate-spin" : ""}`} aria-hidden="true" />

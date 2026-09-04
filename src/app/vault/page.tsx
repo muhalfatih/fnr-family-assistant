@@ -160,7 +160,8 @@ export default function VaultPage() {
               variant="outline"
               size="sm"
               onClick={() => mutate()}
-              className="h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
+              disabled={isValidating}
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
               title="Segarkan data dokumen"
             >
               <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
