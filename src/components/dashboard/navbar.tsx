@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +30,9 @@ import {
   FolderLock,
   Users,
   Terminal,
+  LogOut,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
 
@@ -40,8 +42,70 @@ interface NavbarProps {
 
 export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [activeUser, setActiveUser] = useState<{
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  }>({
+    name: "Ayah (Fatih)",
+    email: "ayah@keluarga.hub",
+    role: "admin",
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("fnr_user");
+      if (stored) {
+        setActiveUser(JSON.parse(stored));
+      } else {
+        fetch("/api/auth/me")
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.authenticated && data?.user) {
+              setActiveUser(data.user);
+              localStorage.setItem("fnr_user", JSON.stringify(data.user));
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {}
+  }, []);
+
+  const avatarInitials = useMemo(() => {
+    const name = activeUser.name || "Ayah";
+    if (
+      name.toLowerCase().includes("ibu") ||
+      name.toLowerCase().includes("bunda") ||
+      name.toLowerCase().includes("rania")
+    )
+      return "IB";
+    if (
+      name.toLowerCase().includes("ayah") ||
+      name.toLowerCase().includes("fatih")
+    )
+      return "AY";
+    if (
+      name.toLowerCase().includes("kakak") ||
+      name.toLowerCase().includes("zaid")
+    )
+      return "ZK";
+    return name.substring(0, 2).toUpperCase();
+  }, [activeUser.name]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    localStorage.removeItem("fnr_user");
+    toast.success("Anda telah berhasil keluar.");
+    router.replace("/login");
+    router.refresh();
+  };
 
   const navLinks = [
     { href: "/", label: "Keuangan", icon: WalletCards },
@@ -120,16 +184,31 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                     <Activity className="size-3.5 text-primary" aria-hidden="true" />
                     <span>Cek Status API & Bot</span>
                   </Button>
-                  <div className="flex items-center gap-2.5 pt-2">
-                    <Avatar className="size-8">
-                      <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground">
-                        AY
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 text-xs">
-                      <p className="font-semibold leading-tight text-foreground truncate">Ayah (Admin)</p>
-                      <p className="text-[11px] text-muted-foreground truncate">ayah@keluarga.hub</p>
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Avatar className="size-8">
+                        <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground">
+                          {avatarInitials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 text-xs">
+                        <p className="font-semibold leading-tight text-foreground truncate">
+                          {activeUser.name || "Ayah (Admin)"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {activeUser.email || "ayah@keluarga.hub"}
+                        </p>
+                      </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleLogout}
+                      title="Keluar (Logout)"
+                      className="size-8 text-destructive hover:bg-destructive/10 cursor-pointer rounded-lg shrink-0"
+                    >
+                      <LogOut className="size-4" />
+                    </Button>
                   </div>
                 </div>
               </SheetContent>
@@ -182,10 +261,10 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative size-8 rounded-full p-0">
+                <Button variant="ghost" className="relative size-8 rounded-full p-0 cursor-pointer">
                   <Avatar className="size-8">
                     <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground">
-                      AY
+                      {avatarInitials}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -193,8 +272,8 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Ayah (Admin)</p>
-                    <p className="text-xs leading-none text-muted-foreground">ayah@keluarga.hub</p>
+                    <p className="text-sm font-medium leading-none">{activeUser.name || "Ayah (Admin)"}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{activeUser.email || "ayah@keluarga.hub"}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -207,6 +286,14 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                 </Link>
                 <DropdownMenuItem>Pengaturan Bot & Webhook</DropdownMenuItem>
                 <DropdownMenuItem>Integrasi Cloudflare R2 & Google Sheets</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 font-medium"
+                >
+                  <LogOut className="size-4 text-destructive" aria-hidden="true" />
+                  <span>Keluar (Logout)</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
