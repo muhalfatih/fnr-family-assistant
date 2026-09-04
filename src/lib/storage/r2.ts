@@ -278,3 +278,94 @@ export async function getPresignedDocViewUrl(
     return "";
   }
 }
+
+export interface DeleteReceiptMediaParams {
+  fileId?: string | null;
+  viewUrl?: string | null;
+  mediaUrl?: string | null;
+}
+
+/**
+ * Permanently deletes transaction receipt media from Cloudflare R2, local storage, or Google Drive
+ */
+export async function deleteReceiptMedia(
+  media: DeleteReceiptMediaParams
+): Promise<{ deletedFrom: string[]; errors: string[] }> {
+  const deletedFrom: string[] = [];
+  const errors: string[] = [];
+
+  const candidateKeyOrId = media.fileId || "";
+  const candidateUrl = media.viewUrl || media.mediaUrl || "";
+
+  // 1. Delete from Local Storage if stored on disk
+  try {
+    let localFileName = "";
+    if (candidateKeyOrId.startsWith("local_receipts/")) {
+      localFileName = candidateKeyOrId.replace(/^local_receipts\//, "");
+    } else if (candidateKeyOrId.startsWith("local_")) {
+      localFileName = candidateKeyOrId.replace(/^local_/, "");
+    } else if (candidateUrl.includes("/uploads/receipts/")) {
+      localFileName = candidateUrl.split("/uploads/receipts/").pop() || "";
+    }
+
+    if (localFileName) {
+      const cleanFileName = path.basename(localFileName);
+      const localFilePath = path.join(process.cwd(), "public", "uploads", "receipts", cleanFileName);
+      if (fs.existsSync(localFilePath)) {
+        fs.unlinkSync(localFilePath);
+        deletedFrom.push(`local_storage:${cleanFileName}`);
+        console.log(`[Storage] Deleted local receipt file: ${cleanFileName}`);
+      }
+    }
+  } catch (err: any) {
+    errors.push(`local_storage: ${err.message}`);
+  }
+
+  // 2. Delete from Cloudflare R2 if stored in bucket
+  try {
+    const client = getR2Client();
+    const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+
+    let r2Key = "";
+    if (candidateKeyOrId.startsWith("receipts/")) {
+      r2Key = candidateKeyOrId;
+    } else if (candidateUrl.includes("/receipts/")) {
+      const match = candidateUrl.match(/(receipts\/[^\?\#]+)/);
+      if (match) r2Key = match[1];
+    }
+
+    if (client && bucket && r2Key) {
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: bucket,
+          Key: r2Key,
+        })
+      );
+      deletedFrom.push(`cloudflare_r2:${r2Key}`);
+      console.log(`[Storage] Deleted Cloudflare R2 object: ${r2Key}`);
+    }
+  } catch (err: any) {
+    errors.push(`cloudflare_r2: ${err.message}`);
+  }
+
+  // 3. Delete from Google Drive if stored as a Drive file ID
+  try {
+    const isGoogleDriveId =
+      candidateKeyOrId &&
+      !candidateKeyOrId.includes("/") &&
+      !candidateKeyOrId.startsWith("local_") &&
+      candidateKeyOrId.length >= 20;
+
+    if (isGoogleDriveId) {
+      const { deleteFileFromDrive } = await import("@/lib/google/drive");
+      const gdriveDeleted = await deleteFileFromDrive(candidateKeyOrId);
+      if (gdriveDeleted) {
+        deletedFrom.push(`google_drive:${candidateKeyOrId}`);
+      }
+    }
+  } catch (err: any) {
+    errors.push(`google_drive: ${err.message}`);
+  }
+
+  return { deletedFrom, errors };
+}

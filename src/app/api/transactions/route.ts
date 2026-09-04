@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { appendTransactionToSheet } from "@/lib/google/sheets";
 import { mockStore } from "@/lib/mock-data";
+import { deleteReceiptMedia } from "@/lib/storage/r2";
 
 export async function GET(req: NextRequest) {
   try {
@@ -129,18 +130,39 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing transaction id" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      mockStore.deleteTransaction(id);
-      return NextResponse.json({ success: true });
+    let targetTx: any = null;
+
+    if (isSupabaseConfigured()) {
+      // 1. Fetch transaction first to obtain media pointers
+      const { data: tx } = await supabaseAdmin
+        .from("transactions")
+        .select("id, drive_file_id, drive_view_url, media_url")
+        .eq("id", id)
+        .maybeSingle();
+      targetTx = tx;
+
+      const { error } = await supabaseAdmin.from("transactions").delete().eq("id", id);
+      if (error) {
+        console.warn("[Transactions DELETE] Supabase delete notice:", error.message);
+      }
     }
 
-    const { error } = await supabaseAdmin.from("transactions").delete().eq("id", id);
-    if (error) {
-      mockStore.deleteTransaction(id);
-      return NextResponse.json({ success: true });
+    if (!targetTx) {
+      targetTx = mockStore.getTransactions().find((t: any) => t.id === id) || null;
     }
 
-    return NextResponse.json({ success: true });
+    mockStore.deleteTransaction(id);
+
+    // 2. Clean up media storage (R2 / Local / Google Drive) to save space
+    if (targetTx && (targetTx.drive_file_id || targetTx.drive_view_url || targetTx.media_url)) {
+      deleteReceiptMedia({
+        fileId: targetTx.drive_file_id,
+        viewUrl: targetTx.drive_view_url,
+        mediaUrl: targetTx.media_url,
+      }).catch((err) => console.warn("[Transactions DELETE] Storage cleanup notice:", err));
+    }
+
+    return NextResponse.json({ success: true, deletedId: id });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }

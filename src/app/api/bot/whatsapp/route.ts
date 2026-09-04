@@ -5,7 +5,7 @@ import {
   parseFinancialInputWithGemini,
   answerFinancialQuestionWithGemini,
 } from "@/lib/gemini/parser";
-import { uploadReceiptToR2 } from "@/lib/storage/r2";
+import { uploadReceiptToR2, deleteReceiptMedia } from "@/lib/storage/r2";
 import { appendTransactionToSheet } from "@/lib/google/sheets";
 import {
   sendWhatsAppTextMessage,
@@ -652,6 +652,83 @@ async function processWhatsAppMessage(
       parsedMetadata: { action: "vault", documentCount: targetDocs.length },
     });
     return;
+  }
+
+  // 5e. Undo / Cancel Last Transaction Action
+  if (
+    actionId?.startsWith("undo_") ||
+    lowerText === "batal" ||
+    lowerText === "batalkan" ||
+    lowerText === "undo" ||
+    lowerText === "hapus transaksi terakhir"
+  ) {
+    let targetTxId: string | null = actionId?.startsWith("undo_") ? actionId.replace("undo_", "") : null;
+    let targetTx: any = null;
+
+    if (isSupabaseConfigured()) {
+      if (targetTxId) {
+        const { data: tx } = await supabaseAdmin
+          .from("transactions")
+          .select("id, description, amount, drive_file_id, drive_view_url, media_url")
+          .eq("id", targetTxId)
+          .maybeSingle();
+        targetTx = tx;
+      } else {
+        const { data: txList } = await supabaseAdmin
+          .from("transactions")
+          .select("id, description, amount, drive_file_id, drive_view_url, media_url")
+          .eq("family_id", familyId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (txList && txList.length > 0) {
+          targetTx = txList[0];
+          targetTxId = targetTx.id;
+        }
+      }
+
+      if (targetTxId) {
+        await supabaseAdmin.from("transactions").delete().eq("id", targetTxId);
+      }
+    }
+
+    if (!targetTx && !targetTxId) {
+      const mockTxs = mockStore.getTransactions();
+      if (mockTxs.length > 0) {
+        targetTx = mockTxs[0];
+        targetTxId = targetTx.id;
+      }
+    }
+
+    if (targetTxId) {
+      mockStore.deleteTransaction(targetTxId);
+    }
+
+    if (targetTx) {
+      // Clean up media storage (R2 / Local / Google Drive)
+      if (targetTx.drive_file_id || targetTx.drive_view_url || targetTx.media_url) {
+        deleteReceiptMedia({
+          fileId: targetTx.drive_file_id,
+          viewUrl: targetTx.drive_view_url,
+          mediaUrl: targetTx.media_url,
+        }).catch((err) => console.warn("[WhatsApp Undo] Storage cleanup notice:", err));
+      }
+
+      const desc = targetTx.description || "Transaksi";
+      const amtStr = targetTx.amount ? ` (${formatRupiah(targetTx.amount)})` : "";
+      completeBotProcess(taskId, "success");
+      await sendWhatsAppTextMessage(
+        senderPhone,
+        `❌ *Transaksi "${desc}"${amtStr} berhasil dibatalkan dan bukti media telah dibersihkan dari penyimpanan.*`
+      );
+      return;
+    } else {
+      completeBotProcess(taskId, "success");
+      await sendWhatsAppTextMessage(
+        senderPhone,
+        "⚠️ Tidak ada transaksi terbaru yang dapat dibatalkan."
+      );
+      return;
+    }
   }
 
   try {

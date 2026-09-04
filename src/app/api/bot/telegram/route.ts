@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { mockStore } from "@/lib/mock-data";
 import {
   parseFinancialInputWithGemini,
   answerFinancialQuestionWithGemini,
 } from "@/lib/gemini/parser";
-import { uploadReceiptToR2 } from "@/lib/storage/r2";
+import { uploadReceiptToR2, deleteReceiptMedia } from "@/lib/storage/r2";
 import { appendTransactionToSheet } from "@/lib/google/sheets";
 import {
   sendTelegramMessage,
@@ -188,20 +189,46 @@ export async function POST(req: NextRequest) {
 
     if (data.startsWith("undo:")) {
       const transactionId = data.replace("undo:", "");
-      const { error } = await supabaseAdmin.from("transactions").delete().eq("id", transactionId);
 
-      if (error) {
-        await answerTelegramCallbackQuery(cq.id, "Gagal membatalkan transaksi.");
-      } else {
-        await answerTelegramCallbackQuery(cq.id, "Transaksi berhasil dibatalkan & dihapus!");
-        if (chatId && messageId) {
-          await editTelegramMessageText(
-            chatId,
-            messageId,
-            "❌ *Transaksi ini telah dibatalkan & dihapus dari database.*",
-            { inline_keyboard: [] }
-          );
+      // 1. Fetch transaction first to obtain media pointers
+      let targetTx: any = null;
+      if (isSupabaseConfigured()) {
+        const { data: tx } = await supabaseAdmin
+          .from("transactions")
+          .select("id, drive_file_id, drive_view_url, media_url")
+          .eq("id", transactionId)
+          .maybeSingle();
+        targetTx = tx;
+
+        const { error } = await supabaseAdmin.from("transactions").delete().eq("id", transactionId);
+        if (error) {
+          await answerTelegramCallbackQuery(cq.id, "Gagal membatalkan transaksi.");
+          return NextResponse.json({ ok: true });
         }
+      }
+
+      if (!targetTx) {
+        targetTx = mockStore.getTransactions().find((t: any) => t.id === transactionId) || null;
+      }
+      mockStore.deleteTransaction(transactionId);
+
+      // 2. Clean up media storage (Cloudflare R2 / Local / Google Drive) to save space
+      if (targetTx && (targetTx.drive_file_id || targetTx.drive_view_url || targetTx.media_url)) {
+        deleteReceiptMedia({
+          fileId: targetTx.drive_file_id,
+          viewUrl: targetTx.drive_view_url,
+          mediaUrl: targetTx.media_url,
+        }).catch((err) => console.warn("[Telegram Undo] Media cleanup notice:", err));
+      }
+
+      await answerTelegramCallbackQuery(cq.id, "Transaksi & bukti media berhasil dihapus!");
+      if (chatId && messageId) {
+        await editTelegramMessageText(
+          chatId,
+          messageId,
+          "❌ *Transaksi ini telah dibatalkan & bukti media telah dibersihkan dari penyimpanan.*",
+          { inline_keyboard: [] }
+        );
       }
       return NextResponse.json({ ok: true });
     }
