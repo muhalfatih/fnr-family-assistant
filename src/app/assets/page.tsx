@@ -101,16 +101,11 @@ export default function AssetsPage() {
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <Landmark className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Aset & Liabilitas
               </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">
-                Pemantauan kekayaan bersih keluarga (Net Worth), kepemilikan aset, dan progres cicilan hutang.
-              </p>
               {isValidatingAssets && !isLoadingAssets && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
@@ -118,15 +113,18 @@ export default function AssetsPage() {
                 </span>
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Pemantauan kekayaan bersih keluarga (Net Worth), kepemilikan aset, dan progres cicilan hutang.
+            </p>
           </div>
 
-          {/* Horizontal Scrollable Action Toolbar for Mobile */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto shrink-0 touch-pan-x -mx-1 px-1">
+          {/* Structured Responsive Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0"
+              className="h-8 text-xs px-2.5 rounded-md shrink-0"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingAssets ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -137,7 +135,7 @@ export default function AssetsPage() {
               variant="outline"
               size="sm"
               onClick={() => setIsAssetModalOpen(true)}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shrink-0 whitespace-nowrap"
+              className="h-8 text-xs px-3 rounded-md shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
             >
               <Gem className="size-3.5 text-foreground" aria-hidden="true" />
               <span>Tambah Aset</span>
@@ -146,7 +144,7 @@ export default function AssetsPage() {
             <Button
               size="sm"
               onClick={() => setIsLiabilityModalOpen(true)}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap"
+              className="h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Hutang</span>
@@ -165,17 +163,17 @@ export default function AssetsPage() {
           />
         )}
 
-        {/* Canonical Shadcn Tabs Navigation with Mobile Scrollable Pills */}
-        <Tabs defaultValue="all" className="space-y-6">
+        {/* Canonical Shadcn Tabs Navigation with Responsive Segmented Grid / Scroll */}
+        <Tabs defaultValue="all" className="space-y-5 sm:space-y-6">
           <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-            <TabsList className="w-full sm:w-auto flex justify-start sm:inline-flex bg-muted/50 p-1 border border-border/50 h-auto gap-1">
-              <TabsTrigger value="all" className="text-xs px-3 py-1.5 shrink-0">
+            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex sm:inline-flex bg-muted/60 p-1 border border-border/60 h-auto gap-1">
+              <TabsTrigger value="all" className="text-xs px-2 sm:px-3 py-1.5 truncate">
                 Semua ({assets.length + liabilities.length})
               </TabsTrigger>
-              <TabsTrigger value="assets" className="text-xs px-3 py-1.5 shrink-0">
+              <TabsTrigger value="assets" className="text-xs px-2 sm:px-3 py-1.5 truncate">
                 Aset Fisik ({assets.length})
               </TabsTrigger>
-              <TabsTrigger value="liabilities" className="text-xs px-3 py-1.5 shrink-0">
+              <TabsTrigger value="liabilities" className="text-xs px-2 sm:px-3 py-1.5 truncate">
                 Kewajiban ({liabilities.length})
               </TabsTrigger>
             </TabsList>

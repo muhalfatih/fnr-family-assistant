@@ -136,26 +136,26 @@ export function FinancialCharts({
 
   return (
     <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-      {/* 1. Bar Chart: Arus Kas Bulanan (50% Column) */}
+      {/* 1. Bar Chart: Tren Arus Kas (50% Column) */}
       <Card className="flex flex-col justify-between rounded-xl border border-border/80 bg-card h-full">
-        <CardHeader className="p-5 pb-3">
-          <CardTitle className="text-base font-semibold">Tren Arus Kas</CardTitle>
+        <CardHeader className="p-4 sm:p-5 pb-2 sm:pb-3">
+          <CardTitle className="text-sm sm:text-base font-semibold">Tren Arus Kas</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Perbandingan total pemasukan dan pengeluaran per bulan
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-5 pt-0">
+        <CardContent className="p-4 sm:p-5 pt-0">
           {!hasCashFlowData ? (
-            <div className="h-[280px] flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
+            <div className="h-[220px] sm:h-[280px] flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
               <p className="text-sm font-medium">Belum ada data arus kas.</p>
               <p className="text-xs mt-1">Grafik akan otomatis terisi saat transaksi tercatat di sistem.</p>
             </div>
           ) : (
-            <div className="h-[280px] w-full">
-              <ChartContainer config={cashFlowConfig} className="h-[280px] w-full">
+            <div className="h-[220px] sm:h-[280px] w-full">
+              <ChartContainer config={cashFlowConfig} className="h-[220px] sm:h-[280px] w-full">
                 <BarChart
                   data={cashFlowData}
-                  margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+                  margin={{ top: 10, right: 10, left: -22, bottom: 0 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -166,13 +166,13 @@ export function FinancialCharts({
                   <XAxis
                     dataKey="month"
                     stroke="#888888"
-                    fontSize={12}
+                    fontSize={11}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
                     stroke="#888888"
-                    fontSize={11}
+                    fontSize={10}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(val) => formatCompactRupiah(val)}
@@ -188,7 +188,7 @@ export function FinancialCharts({
                     }
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }}
+                    wrapperStyle={{ fontSize: "11px", paddingTop: "6px" }}
                     formatter={(value) =>
                       value === "income" ? "Pemasukan" : "Pengeluaran"
                     }
@@ -214,29 +214,29 @@ export function FinancialCharts({
 
       {/* 2. Donut Chart: Proporsi Belanja per Kategori (50% Column) */}
       <Card className="flex flex-col justify-between rounded-xl border border-border/80 bg-card h-full">
-        <CardHeader className="p-5 pb-3">
-          <CardTitle className="text-base font-semibold">Distribusi Belanja</CardTitle>
+        <CardHeader className="p-4 sm:p-5 pb-2 sm:pb-3">
+          <CardTitle className="text-sm sm:text-base font-semibold">Distribusi Belanja</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Proporsi pengeluaran kategori bulan ini
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-5 pt-0 flex flex-col items-center">
+        <CardContent className="p-4 sm:p-5 pt-0 flex flex-col items-center">
           {filteredCategoryData.length === 0 ? (
-            <div className="h-[280px] flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
+            <div className="h-[220px] sm:h-[280px] flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
               <p className="text-sm font-medium">Belum ada data pengeluaran kategori.</p>
               <p className="text-xs mt-1">Diagram akan menampilkan rincian persentase belanja yang terjadi.</p>
             </div>
           ) : (
             <>
-              <div className="h-[200px] w-full relative flex items-center justify-center">
-                <ChartContainer config={categoryConfig} className="h-[200px] w-full aspect-auto">
+              <div className="h-[190px] sm:h-[200px] w-full relative flex items-center justify-center">
+                <ChartContainer config={categoryConfig} className="h-[190px] sm:h-[200px] w-full aspect-auto">
                   <PieChart>
                     <Pie
                       data={filteredCategoryData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={58}
-                      outerRadius={82}
+                      innerRadius={52}
+                      outerRadius={76}
                       paddingAngle={3}
                       dataKey="value"
                       shape={renderPieShape}

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatCompactNumber } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, Gem, Landmark, Wallet, ArrowUpRight } from "lucide-react";
@@ -67,47 +67,50 @@ export function NetWorthSummary({
         </div>
 
         {/* Bottom: 3-Pillar Ledger Strip (Kas + Aset Fisik - Hutang) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3 border-t">
           {/* Pillar 1: Kas */}
-          <div className="p-3 rounded-lg bg-muted/40 border space-y-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Wallet className="size-3.5 text-blue-500" aria-hidden="true" />
-                <span>Saldo Kas Aktif</span>
+          <div className="p-2 sm:p-3 rounded-lg bg-muted/40 border space-y-0.5 sm:space-y-1">
+            <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 truncate">
+                <Wallet className="size-3 sm:size-3.5 text-blue-500 shrink-0" aria-hidden="true" />
+                <span className="truncate">Kas Aktif</span>
               </span>
             </div>
-            <p className="text-lg font-bold tracking-tight tabular-nums text-foreground">
-              {formatRupiah(totalCash)}
+            <p className="text-xs sm:text-lg font-bold tracking-tight tabular-nums text-foreground truncate" title={formatRupiah(totalCash)}>
+              <span className="sm:hidden">{formatCompactNumber(totalCash)}</span>
+              <span className="hidden sm:inline">{formatRupiah(totalCash)}</span>
             </p>
-            <p className="text-[11px] text-muted-foreground">Rekening bank & tunai</p>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">Bank & tunai</p>
           </div>
 
           {/* Pillar 2: Aset Fisik & Investasi */}
-          <div className="p-3 rounded-lg bg-muted/40 border space-y-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Gem className="size-3.5 text-amber-500" aria-hidden="true" />
-                <span>Nilai Aset Fisik</span>
+          <div className="p-2 sm:p-3 rounded-lg bg-muted/40 border space-y-0.5 sm:space-y-1">
+            <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 truncate">
+                <Gem className="size-3 sm:size-3.5 text-amber-500 shrink-0" aria-hidden="true" />
+                <span className="truncate">Aset Fisik</span>
               </span>
             </div>
-            <p className="text-lg font-bold tracking-tight tabular-nums text-foreground">
-              {formatRupiah(totalAssets)}
+            <p className="text-xs sm:text-lg font-bold tracking-tight tabular-nums text-foreground truncate" title={formatRupiah(totalAssets)}>
+              <span className="sm:hidden">{formatCompactNumber(totalAssets)}</span>
+              <span className="hidden sm:inline">{formatRupiah(totalAssets)}</span>
             </p>
-            <p className="text-[11px] text-muted-foreground">Properti, emas & kendaraan</p>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">Properti & emas</p>
           </div>
 
           {/* Pillar 3: Kewajiban / Hutang */}
-          <div className="p-3 rounded-lg bg-muted/40 border space-y-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Landmark className="size-3.5 text-destructive" aria-hidden="true" />
-                <span>Total Sisa Hutang</span>
+          <div className="p-2 sm:p-3 rounded-lg bg-muted/40 border space-y-0.5 sm:space-y-1">
+            <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 truncate">
+                <Landmark className="size-3 sm:size-3.5 text-destructive shrink-0" aria-hidden="true" />
+                <span className="truncate">Hutang</span>
               </span>
             </div>
-            <p className="text-lg font-bold tracking-tight tabular-nums text-destructive">
-              {formatRupiah(totalLiabilities)}
+            <p className="text-xs sm:text-lg font-bold tracking-tight tabular-nums text-destructive truncate" title={formatRupiah(totalLiabilities)}>
+              <span className="sm:hidden">{formatCompactNumber(totalLiabilities)}</span>
+              <span className="hidden sm:inline">{formatRupiah(totalLiabilities)}</span>
             </p>
-            <p className="text-[11px] text-muted-foreground">KPR & cicilan aktif</p>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">KPR & cicilan</p>
           </div>
         </div>
       </CardContent>

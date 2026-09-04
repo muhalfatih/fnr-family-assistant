@@ -81,13 +81,13 @@ export default function FamilyPage() {
             </div>
           </div>
 
-          {/* Horizontal Scrollable Action Toolbar for Mobile */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto shrink-0 touch-pan-x -mx-1 px-1">
+          {/* Structured Responsive Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0"
+              className="h-8 text-xs px-2.5 rounded-md shrink-0"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingMembers ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -100,7 +100,7 @@ export default function FamilyPage() {
                 setMemberToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap"
+              className="h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Anggota</span>
@@ -109,25 +109,25 @@ export default function FamilyPage() {
         </div>
 
         {/* Integrated Quick Info Strip (Clean, Calm & Non-Redundant) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border/70 bg-card/60 text-card-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border border-border/70 bg-card/60 text-card-foreground">
           <div className="flex items-center gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
             <div>
               <p className="text-xs text-muted-foreground">Total Pengeluaran Keluarga</p>
-              <p className="text-lg sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-base sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
                 {formatRupiah(totalExpense)}
               </p>
             </div>
             <div className="h-8 w-px bg-border/60 hidden sm:block" />
-            <div className="hidden sm:block">
+            <div>
               <p className="text-xs text-muted-foreground">Anggota Terdaftar</p>
-              <p className="text-lg sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-base sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
                 {members.length} <span className="text-xs font-normal text-muted-foreground">Orang</span>
               </p>
             </div>
             <div className="h-8 w-px bg-border/60 hidden md:block" />
             <div className="hidden md:block">
               <p className="text-xs text-muted-foreground">Terhubung ke Telegram</p>
-              <p className="text-lg sm:text-xl font-bold font-mono tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-base sm:text-xl font-bold font-mono tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {connectedTelegram} <span className="text-xs font-normal text-muted-foreground">/ {members.length}</span>
               </p>
             </div>

@@ -44,7 +44,7 @@ export function BudgetProgress({ budgets, onOpenManageBudget }: BudgetProgressPr
           </Button>
         )}
       </CardHeader>
-      <CardContent className="p-5 pt-2 flex flex-col gap-4">
+      <CardContent className="p-4 sm:p-5 pt-2 flex flex-col gap-3 sm:gap-4">
         {budgets.length === 0 ? (
           <p className="text-sm text-muted-foreground italic py-6 text-center">
             Belum ada alokasi anggaran bulan ini.
@@ -62,34 +62,43 @@ export function BudgetProgress({ budgets, onOpenManageBudget }: BudgetProgressPr
               : "bg-emerald-600 dark:bg-emerald-500";
 
             return (
-              <div key={b.id} className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  <span className="font-medium truncate min-w-0 text-foreground">
+              <div key={b.id} className="flex flex-col gap-1.5 p-2 sm:p-2.5 rounded-lg hover:bg-muted/30 transition-colors border border-border/40 sm:border-transparent">
+                {/* Row 1: Category Name & Badge */}
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-semibold text-xs sm:text-sm truncate min-w-0 text-foreground" title={b.name}>
                     {b.name}
                   </span>
-                  <div className="flex items-center gap-1.5 shrink-0 tabular-nums">
-                    <span className={isOver ? "font-semibold text-destructive" : "text-muted-foreground"}>
-                      {formatRupiah(b.spent)}
-                    </span>
-                    <span className="text-muted-foreground">/ {formatRupiah(b.target)}</span>
-                    <Badge
-                      variant={isOver ? "destructive" : "outline"}
-                      className={`text-[10px] px-1 py-0 font-medium ${
-                        isOver
-                          ? ""
-                          : isWarning
-                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {percent}%
-                    </Badge>
-                  </div>
+                  <Badge
+                    variant={isOver ? "destructive" : "outline"}
+                    className={`text-[10.5px] font-mono font-semibold px-1.5 py-0 shrink-0 ${
+                      isOver
+                        ? ""
+                        : isWarning
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        : "text-muted-foreground border-border/80"
+                    }`}
+                  >
+                    {percent}%
+                  </Badge>
                 </div>
 
+                {/* Row 2: Spent / Target Numbers */}
+                <div className="flex items-center justify-between text-[11px] sm:text-xs tabular-nums text-muted-foreground">
+                  <span>
+                    Terpakai:{" "}
+                    <strong className={isOver ? "font-semibold text-destructive" : "font-medium text-foreground"}>
+                      {formatRupiah(b.spent)}
+                    </strong>
+                  </span>
+                  <span>
+                    Pagu: <strong className="font-medium text-foreground">{formatRupiah(b.target)}</strong>
+                  </span>
+                </div>
+
+                {/* Row 3: Progress Bar */}
                 <Progress
                   value={Math.min(100, percent)}
-                  className="h-1.5"
+                  className="h-1.5 mt-0.5"
                   indicatorClassName={indicatorColor}
                 />
               </div>

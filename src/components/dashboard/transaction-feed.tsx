@@ -80,23 +80,23 @@ export function TransactionFeed({
             </div>
 
             {/* Filter Controls */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 sm:w-48">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-44">
                 <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" aria-hidden="true" />
                 <Input
                   placeholder="Cari transaksi..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-background"
+                  className="h-8 pl-8 text-xs bg-background w-full"
                 />
               </div>
 
-              <div className="flex items-center rounded-lg bg-muted/60 p-0.5 border border-border/60">
+              <div className="flex items-center justify-center rounded-lg bg-muted/60 p-0.5 border border-border/60 shrink-0">
                 <Button
                   variant={filterType === "all" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setFilterType("all")}
-                  className="h-7 text-xs px-2.5 rounded-md"
+                  className="h-7 text-xs px-2.5 rounded-md flex-1 sm:flex-initial"
                 >
                   Semua
                 </Button>
@@ -104,7 +104,7 @@ export function TransactionFeed({
                   variant={filterType === "expense" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setFilterType("expense")}
-                  className="h-7 text-xs px-2.5 rounded-md"
+                  className="h-7 text-xs px-2.5 rounded-md flex-1 sm:flex-initial"
                 >
                   Keluar
                 </Button>
@@ -112,7 +112,7 @@ export function TransactionFeed({
                   variant={filterType === "income" ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setFilterType("income")}
-                  className="h-7 text-xs px-2.5 rounded-md"
+                  className="h-7 text-xs px-2.5 rounded-md flex-1 sm:flex-initial"
                 >
                   Masuk
                 </Button>
@@ -144,11 +144,11 @@ export function TransactionFeed({
                     <div
                       key={tx.id}
                       onClick={() => setSelectedTxForDetail(tx)}
-                      className="p-3.5 sm:px-5 transition-colors hover:bg-muted/40 cursor-pointer group"
+                      className="p-3 sm:p-3.5 sm:px-5 transition-colors hover:bg-muted/40 cursor-pointer group"
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
                         {/* Left: Icon & Info */}
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                           <div
                             className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
                               isIncome
@@ -168,12 +168,12 @@ export function TransactionFeed({
                           </div>
 
                           <div className="flex flex-col min-w-0 flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
                               {enableTooltip ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span
-                                      className="font-medium text-sm truncate text-foreground cursor-pointer hover:underline decoration-dotted underline-offset-2"
+                                      className="font-medium text-xs sm:text-sm truncate text-foreground cursor-pointer hover:underline decoration-dotted underline-offset-2"
                                       tabIndex={0}
                                     >
                                       {fullTitle}
@@ -199,7 +199,7 @@ export function TransactionFeed({
                                   </TooltipContent>
                                 </Tooltip>
                               ) : (
-                                <span className="font-medium text-sm truncate text-foreground">
+                                <span className="font-medium text-xs sm:text-sm truncate text-foreground">
                                   {fullTitle}
                                 </span>
                               )}
@@ -207,7 +207,7 @@ export function TransactionFeed({
                               {tx.wallet && (
                                 <Badge
                                   variant="outline"
-                                  className="inline-flex shrink-0 whitespace-nowrap text-nowrap max-w-[130px] truncate text-[10px] font-medium px-1.5 py-0 border-border/80 bg-muted/30 text-muted-foreground"
+                                  className="hidden xs:inline-flex shrink-0 whitespace-nowrap text-nowrap max-w-[120px] truncate text-[10px] font-medium px-1.5 py-0 border-border/80 bg-muted/30 text-muted-foreground"
                                   title={tx.wallet.name}
                                 >
                                   {tx.wallet.name}
@@ -215,99 +215,121 @@ export function TransactionFeed({
                               )}
                             </div>
 
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate mt-0.5">
+                            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground truncate mt-0.5">
                               <span className="shrink-0">{formatDateIndo(tx.transaction_date)}</span>
                               <span>•</span>
                               <span className="truncate">{tx.category?.name || "Umum"}</span>
                               {tx.member && (
                                 <>
-                                  <span>•</span>
-                                  <span className="truncate text-foreground font-medium">{tx.member.full_name}</span>
+                                  <span className="hidden xs:inline">•</span>
+                                  <span className="hidden xs:inline truncate text-foreground font-medium">{tx.member.full_name}</span>
                                 </>
                               )}
                             </div>
                           </div>
                         </div>
 
-                      {/* Right: Amount, Receipt Badge & Actions */}
-                      <div className="flex items-center gap-2 shrink-0 pl-2">
-                        {/* Receipt toggle / quick preview button */}
-                        {hasReceipt && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTxForDetail(tx);
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 px-2 py-0.5 rounded-md transition-colors"
-                            title="Buka Preview Struk R2"
-                          >
-                            <ImageIcon className="size-3" aria-hidden="true" />
-                            <span className="hidden sm:inline">Struk</span>
-                          </button>
-                        )}
-
-                        {hasItems && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleExpand(tx.id);
-                            }}
-                            className="h-7 text-[11px] px-2 text-muted-foreground gap-1"
-                          >
-                            <span>{tx.parsed_metadata?.items?.length || 0} item</span>
-                            {isExpanded ? (
-                              <ChevronUp className="size-3" aria-hidden="true" />
-                            ) : (
-                              <ChevronDown className="size-3" aria-hidden="true" />
+                        {/* Right: Amount, Receipt Badge & Actions */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pl-1.5 sm:pl-2">
+                          {/* Micro indicator chips for mobile */}
+                          <div className="flex items-center gap-1 sm:hidden">
+                            {hasReceipt && (
+                              <span className="inline-flex items-center justify-center size-5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400" title="Lampiran Struk R2">
+                                <ImageIcon className="size-3" aria-hidden="true" />
+                              </span>
                             )}
-                          </Button>
-                        )}
+                            {hasItems && (
+                              <span className="text-[9.5px] font-mono font-medium text-muted-foreground bg-muted px-1 py-0.5 rounded" title={`${tx.parsed_metadata?.items?.length} item tercatat`}>
+                                {tx.parsed_metadata?.items?.length}i
+                              </span>
+                            )}
+                          </div>
 
-                        <span
-                          className={`font-semibold text-sm sm:text-base tabular-nums ${
-                            isIncome
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {isIncome ? "+" : "-"}
-                          {formatRupiah(tx.amount)}
-                        </span>
+                          {/* Desktop Inline Actions (hidden on mobile) */}
+                          {hasReceipt && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTxForDetail(tx);
+                              }}
+                              className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 px-2 py-0.5 rounded-md transition-colors"
+                              title="Buka Preview Struk R2"
+                            >
+                              <ImageIcon className="size-3" aria-hidden="true" />
+                              <span>Struk</span>
+                            </button>
+                          )}
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedTxForDetail(tx);
-                          }}
-                          className="size-7 text-muted-foreground hover:text-primary rounded-md opacity-80 group-hover:opacity-100 transition-opacity"
-                          title="Lihat Detail Transaksi"
-                          aria-label={`Lihat detail transaksi ${tx.description || "ini"}`}
-                        >
-                          <Eye className="size-3.5" aria-hidden="true" />
-                        </Button>
+                          {hasItems && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpand(tx.id);
+                              }}
+                              className="hidden sm:inline-flex h-7 text-[11px] px-2 text-muted-foreground gap-1"
+                            >
+                              <span>{tx.parsed_metadata?.items?.length || 0} item</span>
+                              {isExpanded ? (
+                                <ChevronUp className="size-3" aria-hidden="true" />
+                              ) : (
+                                <ChevronDown className="size-3" aria-hidden="true" />
+                              )}
+                            </Button>
+                          )}
 
-                        {onDeleteTransaction && (
+                          <div className="flex flex-col items-end">
+                            <span
+                              className={`font-semibold text-xs sm:text-base tabular-nums ${
+                                isIncome
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {isIncome ? "+" : "-"}
+                              {formatRupiah(tx.amount)}
+                            </span>
+                            {tx.wallet && (
+                              <span className="xs:hidden text-[9.5px] text-muted-foreground font-mono truncate max-w-[70px]">
+                                {tx.wallet.name}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Desktop Detail Button */}
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setTxToDelete(tx);
+                              setSelectedTxForDetail(tx);
                             }}
-                            className="size-7 text-muted-foreground hover:text-destructive rounded-md"
-                            title="Hapus Transaksi"
-                            aria-label={`Hapus transaksi ${tx.description || "ini"}`}
+                            className="hidden sm:inline-flex size-7 text-muted-foreground hover:text-primary rounded-md opacity-80 group-hover:opacity-100 transition-opacity"
+                            title="Lihat Detail Transaksi"
+                            aria-label={`Lihat detail transaksi ${tx.description || "ini"}`}
                           >
-                            <Trash2 className="size-3.5" aria-hidden="true" />
+                            <Eye className="size-3.5" aria-hidden="true" />
                           </Button>
-                        )}
+
+                          {onDeleteTransaction && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTxToDelete(tx);
+                              }}
+                              className="hidden sm:inline-flex size-7 text-muted-foreground hover:text-destructive rounded-md"
+                              title="Hapus Transaksi"
+                              aria-label={`Hapus transaksi ${tx.description || "ini"}`}
+                            >
+                              <Trash2 className="size-3.5" aria-hidden="true" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
                     {/* Seamless Nested Receipt Items (Guide Thread & Enhanced Spacing) */}
                     {isExpanded && hasItems && tx.parsed_metadata?.items && (

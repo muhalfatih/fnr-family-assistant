@@ -252,16 +252,11 @@ export default function DashboardPage() {
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <WalletCards className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Keuangan & Arus Kas
               </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">
-                Pusat kendali keuangan, analitik arus kas, dan saldo rekening keluarga.
-              </p>
               {isValidatingTx && !isLoadingTx && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
@@ -269,20 +264,23 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Pusat kendali keuangan, analitik arus kas, dan saldo rekening keluarga.
+            </p>
           </div>
 
-          {/* Horizontal Scrollable Action & Filter Toolbar for Mobile */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto shrink-0 touch-pan-x -mx-1 px-1">
+          {/* Structured Responsive Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-auto min-w-[140px] sm:min-w-[150px] h-8 text-xs px-2.5 rounded-md shrink-0 bg-background" aria-label="Filter Periode Bulan">
+              <SelectTrigger className="flex-1 sm:flex-initial sm:w-[170px] h-8 text-xs px-2.5 rounded-md bg-background" aria-label="Filter Periode Bulan">
                 <SelectValue placeholder="Pilih Periode" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="all" className="text-xs">Semua Periode</SelectItem>
-                  <SelectItem value="2026-12" className="text-xs">Desember 2026 (Mendatang)</SelectItem>
-                  <SelectItem value="2026-11" className="text-xs">November 2026 (Mendatang)</SelectItem>
-                  <SelectItem value="2026-10" className="text-xs">Oktober 2026 (Mendatang)</SelectItem>
+                  <SelectItem value="2026-12" className="text-xs">Desember 2026</SelectItem>
+                  <SelectItem value="2026-11" className="text-xs">November 2026</SelectItem>
+                  <SelectItem value="2026-10" className="text-xs">Oktober 2026</SelectItem>
                   <SelectItem value="2026-09" className="text-xs font-semibold">September 2026 (Bulan Ini)</SelectItem>
                   <SelectItem value="2026-08" className="text-xs">Agustus 2026</SelectItem>
                   <SelectItem value="2026-07" className="text-xs">Juli 2026</SelectItem>
@@ -295,7 +293,7 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0"
+              className="h-8 text-xs px-2.5 rounded-md shrink-0"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingTx ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -305,7 +303,7 @@ export default function DashboardPage() {
             <Button
               size="sm"
               onClick={() => setIsAddModalOpen(true)}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap"
+              className="h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Catat Transaksi</span>
@@ -313,14 +311,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Canonical Shadcn Tabs Navigation with Scrollable Mobile Pills */}
-        <Tabs defaultValue="overview" className="space-y-6">
+        {/* Canonical Shadcn Tabs Navigation with Responsive Segmented Grid / Scroll */}
+        <Tabs defaultValue="overview" className="space-y-5 sm:space-y-6">
           <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-            <TabsList className="w-full sm:w-auto flex justify-start sm:inline-flex bg-muted/50 p-1 border border-border/50 h-auto gap-1">
-              <TabsTrigger value="overview" className="text-xs px-3 py-1.5 shrink-0">Ringkasan</TabsTrigger>
-              <TabsTrigger value="transactions" className="text-xs px-3 py-1.5 shrink-0">Transaksi ({transactions.length})</TabsTrigger>
-              <TabsTrigger value="budgets" className="text-xs px-3 py-1.5 shrink-0">Anggaran ({budgets.length})</TabsTrigger>
-              <TabsTrigger value="wallets" className="text-xs px-3 py-1.5 shrink-0">Rekening ({wallets.length})</TabsTrigger>
+            <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex sm:inline-flex bg-muted/60 p-1 border border-border/60 h-auto gap-1">
+              <TabsTrigger value="overview" className="text-xs px-2 sm:px-3 py-1.5 truncate">Ringkasan</TabsTrigger>
+              <TabsTrigger value="transactions" className="text-xs px-2 sm:px-3 py-1.5 truncate">Transaksi ({transactions.length})</TabsTrigger>
+              <TabsTrigger value="budgets" className="text-xs px-2 sm:px-3 py-1.5 truncate">Anggaran ({budgets.length})</TabsTrigger>
+              <TabsTrigger value="wallets" className="text-xs px-2 sm:px-3 py-1.5 truncate">Rekening ({wallets.length})</TabsTrigger>
             </TabsList>
           </div>
 
