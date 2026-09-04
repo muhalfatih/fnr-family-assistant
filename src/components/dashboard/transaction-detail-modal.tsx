@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { formatRupiah, formatDateIndo } from "@/lib/utils";
 import { Transaction } from "@/lib/types/database";
 import {
@@ -33,6 +34,7 @@ import {
   RefreshCw,
   ZoomIn,
   ZoomOut,
+  X,
 } from "lucide-react";
 
 interface TransactionDetailModalProps {
@@ -50,13 +52,92 @@ export function TransactionDetailModal({
 }: TransactionDetailModalProps) {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
-  const [imageZoomed, setImageZoomed] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  React.useEffect(() => {
+  useEffect(() => {
     setImageLoading(true);
     setImageError(false);
-    setImageZoomed(false);
+    setIsLightboxOpen(false);
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
   }, [transaction?.id]);
+
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.5, 4));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.5, 0.5));
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomLevel > 1) {
+      e.preventDefault();
+      setPanPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && zoomLevel > 1) {
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({ x: touch.clientX - panPosition.x, y: touch.clientY - panPosition.y });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isDragging && e.touches.length === 1 && zoomLevel > 1) {
+      const touch = e.touches[0];
+      setPanPosition({
+        x: touch.clientX - dragStart.x,
+        y: touch.clientY - dragStart.y,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      setZoomLevel((prev) => Math.min(prev + 0.25, 4));
+    } else {
+      setZoomLevel((prev) => Math.max(prev - 0.25, 0.5));
+    }
+  };
+
+  // Keyboard shortcut: Escape closes lightbox
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setIsLightboxOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [isLightboxOpen]);
 
   if (!transaction) return null;
 
@@ -131,7 +212,7 @@ export function TransactionDetailModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl gap-5">
         <DialogHeader className="space-y-3 pb-3 border-b border-border/70">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pr-8 sm:pr-10">
             <div className="flex items-center gap-2">
               <Badge
                 variant={isExpense ? "destructive" : "default"}
@@ -303,10 +384,11 @@ export function TransactionDetailModal({
                   <img
                     src={mediaUrl}
                     alt={transaction.description || "Struk Belanja"}
-                    className={`w-full h-full object-contain transition-transform duration-300 ${
-                      imageZoomed ? "scale-150 cursor-zoom-out" : "cursor-zoom-in"
-                    }`}
-                    onClick={() => setImageZoomed(!imageZoomed)}
+                    className="w-full h-full object-contain cursor-zoom-in transition-transform duration-200 hover:scale-[1.01]"
+                    onClick={() => {
+                      handleResetZoom();
+                      setIsLightboxOpen(true);
+                    }}
                     onLoad={() => setImageLoading(false)}
                     onError={() => {
                       setImageLoading(false);
@@ -314,30 +396,30 @@ export function TransactionDetailModal({
                     }}
                   />
 
-                  {/* Zoom Hint / Toggle Icon in Top-Right */}
-                  <button
-                    type="button"
-                    onClick={() => setImageZoomed(!imageZoomed)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 backdrop-blur-md text-white/90 hover:text-white transition-opacity opacity-80 hover:opacity-100 z-20"
-                    title={imageZoomed ? "Perkecil (Zoom Out)" : "Perbesar (Zoom In)"}
-                  >
-                    {imageZoomed ? <ZoomOut className="size-3.5" /> : <ZoomIn className="size-3.5" />}
-                  </button>
+                  {/* Floating Action Buttons in Top-Right */}
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleResetZoom();
+                        setIsLightboxOpen(true);
+                      }}
+                      className="p-1.5 rounded-lg bg-black/60 backdrop-blur-md text-white/90 hover:text-white hover:bg-black/80 transition-all opacity-80 hover:opacity-100 shadow-sm"
+                      title="Perbesar Layar Penuh (Zoom Fullscreen)"
+                      aria-label="Perbesar layar penuh"
+                    >
+                      <Maximize2 className="size-3.5" />
+                    </button>
 
-                  {/* Overlay Action Bar */}
-                  <div className="absolute bottom-2 inset-x-2 flex items-center justify-between p-2 rounded-lg bg-black/70 backdrop-blur-md text-white opacity-90 group-hover:opacity-100 transition-opacity z-20">
-                    <span className="text-[10px] font-medium flex items-center gap-1">
-                      <CheckCircle2 className="size-3 text-emerald-400" />
-                      Cloudflare R2 Archive
-                    </span>
                     <a
                       href={mediaUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-semibold hover:underline bg-white/20 px-2 py-0.5 rounded-md text-white"
+                      className="p-1.5 rounded-lg bg-black/60 backdrop-blur-md text-white/90 hover:text-white hover:bg-black/80 transition-all opacity-80 hover:opacity-100 shadow-sm inline-flex items-center justify-center"
+                      title="Buka Gambar di Tab Baru"
+                      aria-label="Buka di tab baru"
                     >
-                      <span>Buka Tab Baru</span>
-                      <ExternalLink className="size-3" />
+                      <ExternalLink className="size-3.5" />
                     </a>
                   </div>
                 </div>
@@ -422,20 +504,6 @@ export function TransactionDetailModal({
           )}
 
           <div className="flex items-center gap-2 justify-end">
-            {mediaUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="text-xs gap-1.5"
-              >
-                <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="size-3.5" />
-                  Lihat Media Asli
-                </a>
-              </Button>
-            )}
-
             <Button
               variant="default"
               size="sm"
@@ -447,6 +515,125 @@ export function TransactionDetailModal({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Fullscreen Interactive Lightbox for Receipt Image */}
+      {isLightboxOpen && mediaUrl && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col select-none animate-in fade-in-0 duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsLightboxOpen(false);
+            }
+          }}
+        >
+          {/* Top Bar: Title & Controls */}
+          <div className="flex items-center justify-between p-3 sm:p-4 bg-black/50 border-b border-white/10 text-white z-10 shrink-0">
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <ImageIcon className="size-4 text-primary shrink-0" />
+              <span className="text-xs sm:text-sm font-medium truncate">
+                {transaction.description || (merchant ? `Struk ${merchant}` : "Bukti Struk Transaksi")}
+              </span>
+              <span className="text-[11px] text-white/60 tabular-nums hidden sm:inline">
+                ({Math.round(zoomLevel * 100)}%)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Zoom Out Button */}
+              <button
+                type="button"
+                onClick={handleZoomOut}
+                disabled={zoomLevel <= 0.5}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors"
+                title="Perkecil (Zoom Out)"
+                aria-label="Perkecil"
+              >
+                <ZoomOut className="size-4" />
+              </button>
+
+              {/* Zoom Level Indicator / Reset */}
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white tabular-nums font-medium transition-colors"
+                title="Reset Ukuran (100%)"
+              >
+                {Math.round(zoomLevel * 100)}%
+              </button>
+
+              {/* Zoom In Button */}
+              <button
+                type="button"
+                onClick={handleZoomIn}
+                disabled={zoomLevel >= 4}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors"
+                title="Perbesar (Zoom In)"
+                aria-label="Perbesar"
+              >
+                <ZoomIn className="size-4" />
+              </button>
+
+              {/* Buka Tab Baru */}
+              <a
+                href={mediaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                title="Buka Gambar Asli di Tab Baru"
+                aria-label="Buka di tab baru"
+              >
+                <ExternalLink className="size-4" />
+              </a>
+
+              <div className="h-4 w-px bg-white/20 mx-1" />
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(false)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-destructive text-white transition-colors"
+                title="Tutup (Esc)"
+                aria-label="Tutup"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Center Image Canvas (Pan & Zoom) */}
+          <div
+            className={`flex-1 overflow-hidden flex items-center justify-center p-4 relative ${
+              zoomLevel > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
+            }`}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onWheel={handleWheel}
+          >
+            <img
+              src={mediaUrl}
+              alt={transaction.description || "Struk Belanja"}
+              draggable={false}
+              style={{
+                transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoomLevel})`,
+                transition: isDragging ? "none" : "transform 0.15s ease-out",
+              }}
+              className="max-h-[85vh] max-w-[90vw] object-contain select-none pointer-events-auto"
+            />
+          </div>
+
+          {/* Bottom Hint */}
+          <div className="p-2 text-center bg-black/50 text-[11px] text-white/50 border-t border-white/10 shrink-0">
+            <span className="hidden sm:inline">Gunakan scroll mouse untuk zoom in/out, drag mouse untuk menggeser gambar • </span>
+            <span>Tekan Esc atau klik di luar gambar untuk menutup</span>
+          </div>
+        </div>,
+        document.body
+      )}
     </Dialog>
   );
 }
