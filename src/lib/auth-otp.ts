@@ -7,6 +7,8 @@ export interface AuthenticatedUser {
   name: string;
   email: string;
   role: string;
+  telegramChatId?: number | null;
+  whatsappNumber?: string | null;
 }
 
 export interface OtpRecord {
@@ -106,7 +108,7 @@ export function verifySignedChallenge(tokenStr: string): { valid: boolean; paylo
 }
 
 /**
- * Mask target for privacy display (e.g. +62 812-****-7890 or 123***789)
+ * Mask target for privacy display (e.g. +62 812-****-7890 or ID 123***789)
  */
 export function maskTarget(identifier: string, channel: "whatsapp" | "telegram"): string {
   if (channel === "whatsapp") {
@@ -118,7 +120,13 @@ export function maskTarget(identifier: string, channel: "whatsapp" | "telegram")
     }
     return `+${cleaned}`;
   } else {
-    const clean = identifier.replace(/^@/, "").trim();
+    const clean = identifier.replace(/^@/, "").replace(/^id:?\s*/i, "").trim();
+    if (/^\d+$/.test(clean)) {
+      if (clean.length > 5) {
+        return `ID ${clean.substring(0, 3)}***${clean.substring(clean.length - 2)}`;
+      }
+      return `ID ${clean}`;
+    }
     if (clean.length > 4) {
       return `@${clean.substring(0, 2)}***${clean.substring(clean.length - 2)}`;
     }
@@ -128,12 +136,19 @@ export function maskTarget(identifier: string, channel: "whatsapp" | "telegram")
 
 /**
  * Look up family member based on channel and identifier
+ * Supports:
+ * - WhatsApp: phone (+62, 62, 08, etc.)
+ * - Telegram: numeric Chat ID, registered phone number, full name, or common family alias
  * Queries real database in Supabase first, falls back to mockStore
  */
 export async function findMemberByIdentifier(
   channel: "whatsapp" | "telegram",
   identifier: string
 ): Promise<AuthenticatedUser | null> {
+  const cleanInput = identifier.replace(/^@/, "").replace(/^id:?\s*/i, "").trim().toLowerCase();
+  const digitsOnly = cleanInput.replace(/\D/g, "");
+  const normalizedPhone = normalizePhoneNumber(identifier);
+
   // 1. Prioritize querying Supabase Cloud database
   if (isSupabaseConfigured()) {
     try {
@@ -145,35 +160,44 @@ export async function findMemberByIdentifier(
         console.error("[Auth] Error fetching family_members from Supabase:", error);
       } else if (members && members.length > 0) {
         if (channel === "whatsapp") {
-          const normalizedInput = normalizePhoneNumber(identifier);
           for (const m of members) {
             if (m.whatsapp_number) {
               const normalizedMember = normalizePhoneNumber(m.whatsapp_number);
-              if (normalizedMember === normalizedInput) {
+              if (normalizedMember === normalizedPhone) {
                 return {
                   id: m.id,
                   name: m.full_name,
                   email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
                   role: m.role || "member",
+                  telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+                  whatsappNumber: m.whatsapp_number,
                 };
               }
             }
           }
         } else if (channel === "telegram") {
-          const clean = identifier.replace(/^@/, "").trim().toLowerCase();
           for (const m of members) {
             const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id).trim() : "";
             const memberNameLower = m.full_name.toLowerCase();
+            const memberPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
 
-            const isChatIdMatch = chatIdStr && chatIdStr === clean;
-            const isNameMatch = memberNameLower.includes(clean);
+            // A. Numeric Chat ID match
+            const isChatIdMatch = chatIdStr && (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly));
 
-            if (isChatIdMatch || isNameMatch) {
+            // B. Registered Phone number match (if user entered phone on Telegram tab)
+            const isPhoneMatch = Boolean(normalizedPhone && memberPhone && normalizedPhone === memberPhone);
+
+            // C. Name or Substring match
+            const isNameMatch = memberNameLower === cleanInput || memberNameLower.includes(cleanInput);
+
+            if (isChatIdMatch || isPhoneMatch || isNameMatch) {
               return {
                 id: m.id,
                 name: m.full_name,
                 email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
                 role: m.role || "member",
+                telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+                whatsappNumber: m.whatsapp_number,
               };
             }
           }
@@ -188,41 +212,44 @@ export async function findMemberByIdentifier(
   const mockMembers = mockStore.getMembers();
 
   if (channel === "whatsapp") {
-    const normalizedInput = normalizePhoneNumber(identifier);
     for (const m of mockMembers) {
       if (m.whatsapp_number) {
         const normalizedMember = normalizePhoneNumber(m.whatsapp_number);
-        if (normalizedMember === normalizedInput) {
+        if (normalizedMember === normalizedPhone) {
           return {
             id: m.id,
             name: m.full_name,
             email: m.id === "mem-001" ? "ayah@keluarga.hub" : m.id === "mem-002" ? "ibu@keluarga.hub" : `${m.id}@keluarga.hub`,
             role: m.role || "member",
+            telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+            whatsappNumber: m.whatsapp_number,
           };
         }
       }
     }
   } else if (channel === "telegram") {
-    const clean = identifier.replace(/^@/, "").trim().toLowerCase();
     for (const m of mockMembers) {
       const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id) : "";
       const memberNameLower = m.full_name.toLowerCase();
+      const memberPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
 
-      // Cocokkan chat ID angka atau alias nama/username umum
-      const isChatIdMatch = chatIdStr && chatIdStr === clean;
+      const isChatIdMatch = chatIdStr && (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly));
+      const isPhoneMatch = Boolean(normalizedPhone && memberPhone && normalizedPhone === memberPhone);
       const isNameMatch =
-        ((clean === "ayah" || clean === "fatih") && m.id === "mem-001") ||
-        ((clean === "ibu" || clean === "bunda" || clean === "rania") && m.id === "mem-002") ||
-        ((clean === "kakak" || clean === "zaid") && m.id === "mem-003") ||
-        ((clean === "adik" || clean === "maryam") && m.id === "mem-004") ||
-        memberNameLower.includes(clean);
+        ((cleanInput === "ayah" || cleanInput === "fatih") && m.id === "mem-001") ||
+        ((cleanInput === "ibu" || cleanInput === "bunda" || cleanInput === "rania") && m.id === "mem-002") ||
+        ((cleanInput === "kakak" || cleanInput === "zaid") && m.id === "mem-003") ||
+        ((cleanInput === "adik" || cleanInput === "maryam") && m.id === "mem-004") ||
+        memberNameLower.includes(cleanInput);
 
-      if (isChatIdMatch || isNameMatch) {
+      if (isChatIdMatch || isPhoneMatch || isNameMatch) {
         return {
           id: m.id,
           name: m.full_name,
           email: m.id === "mem-001" ? "ayah@keluarga.hub" : m.id === "mem-002" ? "ibu@keluarga.hub" : `${m.id}@keluarga.hub`,
           role: m.role || "member",
+          telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+          whatsappNumber: m.whatsapp_number,
         };
       }
     }

@@ -406,7 +406,7 @@ function LoginForm() {
             ) : (
               <div className="space-y-1.5">
                 <Label htmlFor="telegramInput" className="text-xs font-medium text-foreground">
-                  ID Chat atau Username Telegram
+                  ID Chat, Nama, atau No. HP Telegram
                 </Label>
                 <div className="relative flex items-center">
                   <Send className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
@@ -418,16 +418,24 @@ function LoginForm() {
                       setTelegramId(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="123456789 atau @username"
+                    placeholder="Contoh: 123456789, Fatih, atau 0857..."
                     className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
                     autoFocus
                     required
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Ketik ID Chat angka Anda atau kirim <code>/myid</code> ke bot Telegram keluarga.
-                </p>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Ketik ID Chat atau kirim <code>/myid</code> ke bot.</span>
+                  <a
+                    href="https://t.me/fnr_assistant_bot"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline font-medium inline-flex items-center gap-0.5"
+                  >
+                    Buka Bot ↗
+                  </a>
+                </div>
               </div>
             )}
 

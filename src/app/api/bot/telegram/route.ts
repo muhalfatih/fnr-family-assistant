@@ -355,6 +355,34 @@ export async function POST(req: NextRequest) {
     // 2b. Handle Quick Button / Text Commands
     const text = message.text?.trim() || "";
 
+    // 0. Command: /myid, /id, /chatid, "cek id", "my id"
+    const lowerCommand = text.toLowerCase().replace(/^\//, "").trim();
+    if (
+      lowerCommand === "myid" ||
+      lowerCommand === "id" ||
+      lowerCommand === "chatid" ||
+      lowerCommand === "cek id" ||
+      lowerCommand === "my id" ||
+      lowerCommand.startsWith("start id")
+    ) {
+      const linkedInfo = member
+        ? `✅ *Status Akun:* Terhubung dengan *${member.full_name}* (${member.role === "admin" ? "Admin" : "Anggota"})`
+        : `⚠️ *Status Akun:* Belum ditautkan ke anggota keluarga. Minta Admin menautkan ID ini di menu *Keluarga* pada Web Dashboard.`;
+
+      await sendTelegramMessage(
+        chatId,
+        `🆔 *ID Chat Telegram Anda:*\n\n` +
+          `\`${chatId}\`\n\n` +
+          `👆 _Ketuk angka di atas untuk menyalin._\n\n` +
+          `Gunakan ID ini untuk:\n` +
+          `1️⃣ Menautkan profil di menu *Keluarga* di Web Dashboard.\n` +
+          `2️⃣ Masuk / Login ke Web Dashboard pada tab Telegram.\n\n` +
+          linkedInfo,
+        MAIN_KEYBOARD
+      );
+      return NextResponse.json({ ok: true });
+    }
+
     // 1. Command: /start, /help, /menu, ❓ Bantuan
     if (
       text === "/start" ||
@@ -366,6 +394,7 @@ export async function POST(req: NextRequest) {
         chatId,
         `👋 Halo *${senderName}*! Selamat datang di *F&R Family Assistant* 🏡\n\n` +
           `Saya asisten keuangan keluarga Anda yang terhubung langsung dengan Web Dashboard.\n\n` +
+          `🆔 *ID Chat Telegram Anda:* \`${chatId}\` _(Ketuk untuk menyalin)_\n\n` +
           `*Pilihan Aksi Cepat:* (Gunakan tombol di bawah layar)\n` +
           `• 📊 *Ringkasan Keuangan*: Total kas, pengeluaran & sisa surplus\n` +
           `• 💳 *Saldo Rekening*: Cek saldo BCA, Mandiri, Gopay, & Cash\n` +
@@ -565,9 +594,15 @@ export async function POST(req: NextRequest) {
     let driveViewUrl: string | null = null;
     let rawPrompt: string = text || "[Media]";
 
-    if (message.photo && message.photo.length > 0) {
+    const isPhoto = Boolean(message.photo && message.photo.length > 0);
+    const isDocumentImage = Boolean(
+      message.document &&
+      (message.document.mime_type?.startsWith("image/") || message.document.mime_type === "application/pdf")
+    );
+
+    if (isPhoto || isDocumentImage) {
       mediaType = "image";
-      rawPrompt = message.caption || "[Foto Struk]";
+      rawPrompt = message.caption || (isDocumentImage ? "[Dokumen Struk]" : "[Foto Struk]");
     } else if (message.voice || message.audio) {
       mediaType = "audio";
       rawPrompt = "[Pesan Suara]";
@@ -613,7 +648,7 @@ export async function POST(req: NextRequest) {
       [{ text: "⛔ Batalkan Proses", callback_data: `cancel_task:${taskId}` }],
     ];
 
-    if (message.photo && message.photo.length > 0) {
+    if (isPhoto || isDocumentImage) {
       sendTelegramChatAction(chatId, "upload_photo").catch(() => {});
       const tempMsg = await sendTelegramMessage(
         chatId,
@@ -625,14 +660,24 @@ export async function POST(req: NextRequest) {
         updateProcessLoadingMessage(taskId, loadingMessageId);
       }
 
-      const photo = message.photo[message.photo.length - 1]; // highest res
-      const downloaded = await downloadTelegramFile(photo.file_id);
+      let fileIdToDownload = "";
+      let originalName = `struk_${Date.now()}.jpg`;
+
+      if (isPhoto) {
+        const photo = message.photo[message.photo.length - 1]; // highest res
+        fileIdToDownload = photo.file_id;
+      } else if (isDocumentImage) {
+        fileIdToDownload = message.document.file_id;
+        originalName = message.document.file_name || originalName;
+      }
+
+      const downloaded = await downloadTelegramFile(fileIdToDownload);
 
       if (downloaded) {
         // Upload to Cloudflare R2 (with resilient local storage fallback)
         const r2Result = await uploadReceiptToR2(
           downloaded.buffer,
-          `struk_${Date.now()}.jpg`,
+          originalName,
           downloaded.mimeType
         );
         if (r2Result) {
@@ -796,9 +841,17 @@ export async function POST(req: NextRequest) {
         category_id: categoryId,
         type: parsed.type,
         amount: parsed.amount,
-        description: parsed.description,
+        transaction_date: (() => {
+          if (parsed.transaction_date) {
+            const d = new Date(parsed.transaction_date);
+            if (!isNaN(d.getTime())) return d.toISOString();
+          }
+          return new Date().toISOString();
+        })(),
+        description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
         raw_prompt: rawPrompt,
         media_type: mediaType,
+        media_url: driveViewUrl || null,
         drive_file_id: driveFileId,
         drive_view_url: driveViewUrl,
         parsed_metadata: {
@@ -837,6 +890,7 @@ export async function POST(req: NextRequest) {
 
     let replyText =
       `✅ *${typeText} Berhasil Dicatat!*\n\n` +
+      (parsed.merchant_name ? `🏪 *Toko:* ${parsed.merchant_name}\n` : "") +
       `💵 *Nominal:* \`${formatRupiah(parsed.amount)}\`\n` +
       `🏷️ *Kategori:* ${categoryDisplayName}\n` +
       `💳 *Dompet:* ${chosenWallet.name}\n` +

@@ -29,8 +29,21 @@ export async function POST(req: NextRequest) {
       const msg =
         channel === "whatsapp"
           ? "Nomor WhatsApp belum terdaftar dalam daftar anggota keluarga."
-          : "ID Telegram belum terdaftar dalam daftar anggota keluarga.";
+          : "ID Telegram, nomor HP, atau nama anggota belum terdaftar dalam keluarga.";
       return NextResponse.json({ error: msg }, { status: 404 });
+    }
+
+    // Jika login Telegram tetapi profil belum ditautkan dengan Chat ID numerik
+    const numericInput = identifier.trim().replace(/^id:?\s*/i, "").replace(/^@/, "");
+    const resolvedChatId = user.telegramChatId || (/^\d+$/.test(numericInput) ? numericInput : null);
+
+    if (channel === "telegram" && !resolvedChatId) {
+      return NextResponse.json(
+        {
+          error: `Akun anggota "${user.name}" ditemukan, namun Chat ID Telegram belum dihubungkan pada profil Anda. Silakan hubungkan ID Telegram di menu Keluarga pada Web Dashboard atau login menggunakan opsi WhatsApp.`,
+        },
+        { status: 400 }
+      );
     }
 
     // 2. Terbitkan OTP dan Magic Token
@@ -86,13 +99,7 @@ export async function POST(req: NextRequest) {
       }
     } else if (channel === "telegram") {
       try {
-        // Tentukan Chat ID numerik target
-        let targetChatId: string | number = record.identifier;
-        if (!/^\d+$/.test(String(targetChatId))) {
-          // Jika username, gunakan Chat ID bawaan profil yang cocok
-          targetChatId = record.user.id === "mem-001" ? 123456789 : 987654321;
-        }
-
+        const targetChatId = resolvedChatId!;
         const tgResult = await sendTelegramMessage(targetChatId, messageText);
         if (tgResult && tgResult.ok) {
           isDispatched = true;

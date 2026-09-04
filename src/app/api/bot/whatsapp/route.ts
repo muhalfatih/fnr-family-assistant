@@ -187,7 +187,13 @@ async function resolveWallet(
       chosenWallet = newWallet;
     }
 
-    return chosenWallet || { id: "wal-cash", name: "Dompet Tunai" };
+    if (chosenWallet) return chosenWallet;
+
+    // Fallback: fetch any active wallet from Supabase to guarantee valid UUID
+    const { data: anyWallet } = await supabaseAdmin.from("wallets").select("*").limit(1).maybeSingle();
+    if (anyWallet) return anyWallet;
+
+    return { id: "wal-cash", name: "Dompet Tunai" };
   } catch (e) {
     console.error("[WhatsApp] Exception in resolveWallet:", e);
     return { id: "wal-cash", name: "Dompet Tunai" };
@@ -812,10 +818,17 @@ async function processWhatsAppMessage(
               category_id: categoryId,
               type: parsed.type,
               amount: parsed.amount,
-              transaction_date: parsed.transaction_date ? new Date(parsed.transaction_date).toISOString() : new Date().toISOString(),
+              transaction_date: (() => {
+                if (parsed.transaction_date) {
+                  const d = new Date(parsed.transaction_date);
+                  if (!isNaN(d.getTime())) return d.toISOString();
+                }
+                return new Date().toISOString();
+              })(),
               description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
               raw_prompt: caption || "Struk Foto WhatsApp",
               media_type: "image",
+              media_url: r2ViewUrl || null,
               drive_file_id: r2FileId,
               drive_view_url: r2ViewUrl,
               parsed_metadata: {
@@ -872,7 +885,7 @@ async function processWhatsAppMessage(
       }
 
       const receiptArchiveNote = r2ViewUrl
-        ? `\n📁 Bukti struk berhasil diarsipkan.`
+        ? `\n📁 Bukti struk berhasil diarsipkan ke Cloudflare R2.`
         : "";
 
       const replySuccess =
@@ -885,15 +898,21 @@ async function processWhatsAppMessage(
         receiptArchiveNote;
 
       completeBotProcess(taskId, "success", undefined, {
-        aiModel: "Gemini 2.5 Flash OCR",
+        aiModel: "Gemini 3.5 Flash Lite OCR",
         transactionId: newTx.id,
         parsedMetadata: parsed,
       });
 
+      const receiptButtons = [
+        { id: `undo_${newTx.id}`, title: "❌ Batalkan" },
+        { id: "action_summary", title: "📊 Ringkasan" },
+        { id: "action_balance", title: "💳 Cek Saldo" },
+      ];
+
       await sendWhatsAppInteractiveButtons(
         senderPhone,
         replySuccess,
-        DEFAULT_WHATSAPP_BUTTONS,
+        receiptButtons,
         "Pencatatan Struk Otomatis"
       );
       return;

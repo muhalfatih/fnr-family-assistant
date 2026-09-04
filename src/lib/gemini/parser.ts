@@ -116,7 +116,7 @@ const responseSchema: Schema = {
   properties: {
     confidence: { type: Type.NUMBER, description: "Confidence score between 0.0 and 1.0" },
     type: { type: Type.STRING, enum: ["expense", "income", "transfer"] },
-    amount: { type: Type.INTEGER, description: "Total transaction amount in clean integer IDR" },
+    amount: { type: Type.NUMBER, description: "Total transaction amount in clean number IDR" },
     category: { type: Type.STRING, description: "Standard Indonesian category" },
     wallet_hint: { type: Type.STRING, nullable: true, description: "Mentioned wallet name like BCA, Gopay, Tunai" },
     to_wallet_hint: { type: Type.STRING, nullable: true, description: "Destination wallet for transfer" },
@@ -130,8 +130,8 @@ const responseSchema: Schema = {
         type: Type.OBJECT,
         properties: {
           name: { type: Type.STRING, description: "Clear translated Indonesian product name" },
-          qty: { type: Type.INTEGER },
-          price: { type: Type.INTEGER },
+          qty: { type: Type.NUMBER, description: "Quantity of items" },
+          price: { type: Type.NUMBER, description: "Unit price of item" },
           raw_name: { type: Type.STRING, description: "Exact original text code printed on the receipt" },
         },
         required: ["name", "qty", "price"],
@@ -141,8 +141,35 @@ const responseSchema: Schema = {
   required: ["confidence", "type", "amount", "category", "description", "items"],
 };
 
+// Candidate model hierarchy: Prioritizes Lite versions per user request
+const LITE_FIRST_MODELS = [
+  "gemini-3.5-flash-lite", // Primary choice (Lite)
+  "gemini-3.1-flash-lite", // Secondary Lite
+  "gemini-3.5-flash",      // Standard Flash fallback
+  "gemini-3-flash-preview", // Preview Flash fallback
+];
+
+function cleanAndParseJson(text: string): any {
+  if (!text) return null;
+  const trimmed = text.trim();
+  // Strip Markdown code fences if present
+  const cleaned = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  // Find first { and last } to avoid trailing noise
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const jsonCandidate = cleaned.substring(firstBrace, lastBrace + 1);
+    return JSON.parse(jsonCandidate);
+  }
+  return JSON.parse(cleaned);
+}
+
 /**
- * Parses text, image, or audio buffer using Gemini 2.5 Flash
+ * Parses text, image, or audio buffer using Gemini 3.5 Flash Lite (with multi-model fallback)
  */
 export async function parseFinancialInputWithGemini(options: {
   text?: string;
@@ -157,67 +184,166 @@ export async function parseFinancialInputWithGemini(options: {
     return null;
   }
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey });
 
-    const contents: any[] = [];
+  const contents: any[] = [];
 
-    if (options.text) {
-      contents.push({ text: `Analisis teks transaksi berikut:\n"${options.text}"` });
-    }
+  if (options.text) {
+    contents.push({ text: `Analisis teks transaksi berikut:\n"${options.text}"` });
+  }
 
-    if (options.imageBuffer) {
-      contents.push({
-        inlineData: {
-          mimeType: options.imageMimeType || "image/jpeg",
-          data: options.imageBuffer.toString("base64"),
-        },
-      });
-      contents.push({
-        text:
-          "Ekstrak transaksi dari foto nota/struk belanja di atas.\n" +
-          "PERINGATAN KHUSUS STRUK:\n" +
-          "- Ambil nominal TOTAL / TAGIHAN belanja yang sebenarnya (bukan uang CASH/TUNAI yang diserahkan ke kasir).\n" +
-          "- Jika terdapat baris CASH dan KEMBALI, total belanja sebenarnya adalah TOTAL = CASH - KEMBALI.\n" +
-          "- Pastikan nominal transaksi konsisten dengan penjumlahan harga rincian item.",
-      });
-    }
-
-    if (options.audioBuffer) {
-      contents.push({
-        inlineData: {
-          mimeType: options.audioMimeType || "audio/ogg",
-          data: options.audioBuffer.toString("base64"),
-        },
-      });
-      contents.push({ text: "Dengarkan pesan suara bahasa Indonesia ini, transkripsikan, lalu ekstrak transaksi ke format JSON." });
-    }
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash-lite",
-      contents,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema,
-        temperature: 0.1,
+  if (options.imageBuffer) {
+    contents.push({
+      inlineData: {
+        mimeType: options.imageMimeType || "image/jpeg",
+        data: options.imageBuffer.toString("base64"),
       },
     });
-
-    const responseText = response.text;
-    if (!responseText) {
-      return null;
-    }
-
-    const parsed: GeminiParsedTransaction = JSON.parse(responseText);
-    if (options.imageBuffer) {
-      return verifyAndReconcileReceipt(parsed);
-    }
-    return parsed;
-  } catch (err) {
-    console.error("❌ Error running Gemini parser:", err);
-    return null;
+    contents.push({
+      text:
+        "Ekstrak transaksi dari foto nota/struk belanja di atas.\n" +
+        "PERINGATAN KHUSUS STRUK:\n" +
+        "- Ambil nominal TOTAL / TAGIHAN belanja yang sebenarnya (bukan uang CASH/TUNAI yang diserahkan ke kasir).\n" +
+        "- Jika terdapat baris CASH dan KEMBALI, total belanja sebenarnya adalah TOTAL = CASH - KEMBALI.\n" +
+        "- Pastikan nominal transaksi konsisten dengan penjumlahan harga rincian item.\n" +
+        "- Format output wajib berupa JSON objek sesuai skema.",
+    });
   }
+
+  if (options.audioBuffer) {
+    contents.push({
+      inlineData: {
+        mimeType: options.audioMimeType || "audio/ogg",
+        data: options.audioBuffer.toString("base64"),
+      },
+    });
+    contents.push({ text: "Dengarkan pesan suara bahasa Indonesia ini, transkripsikan, lalu ekstrak transaksi ke format JSON." });
+  }
+
+  let lastError: any = null;
+
+  // Try models in order: gemini-3.5-flash-lite -> gemini-3.1-flash-lite -> gemini-3.5-flash
+  for (const modelName of LITE_FIRST_MODELS) {
+    // Mode A: Structured Output via responseSchema / responseJsonSchema
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          responseSchema,
+          responseJsonSchema: responseSchema,
+          temperature: 0.1,
+        },
+      });
+
+      const responseText = response.text;
+      if (responseText) {
+        const rawParsed = cleanAndParseJson(responseText);
+        if (rawParsed && typeof rawParsed === "object") {
+          const parsed: GeminiParsedTransaction = {
+            confidence: Number(rawParsed.confidence) || 0.9,
+            type: rawParsed.type === "income" || rawParsed.type === "transfer" ? rawParsed.type : "expense",
+            amount: Math.round(Number(rawParsed.amount) || 0),
+            category: rawParsed.category || "Lain-lain",
+            wallet_hint: rawParsed.wallet_hint || null,
+            to_wallet_hint: rawParsed.to_wallet_hint || null,
+            description: rawParsed.description || "Transaksi Struk",
+            items: Array.isArray(rawParsed.items)
+              ? rawParsed.items.map((it: any) => ({
+                  name: String(it.name || "Item"),
+                  qty: Number(it.qty) || 1,
+                  price: Math.round(Number(it.price) || 0),
+                  raw_name: it.raw_name ? String(it.raw_name) : undefined,
+                }))
+              : [],
+            merchant_name: rawParsed.merchant_name || null,
+            transaction_date: rawParsed.transaction_date || null,
+            transcription: rawParsed.transcription || null,
+          };
+
+          if (options.imageBuffer) {
+            return verifyAndReconcileReceipt(parsed);
+          }
+          return parsed;
+        }
+      }
+    } catch (modeAErr: any) {
+      lastError = modeAErr;
+      console.warn(`[Gemini Parser] Mode A (Structured) failed on ${modelName}:`, modeAErr.message || modeAErr);
+    }
+
+    // Mode B: Fail-safe prompt-based JSON extraction without strict responseSchema
+    try {
+      const promptModeBContents = [
+        ...contents,
+        {
+          text:
+            "\nKEMBALIKAN OUTPUT STRICTLY DALAM FORMAT JSON VALID TANPA TEKS LAIN:\n" +
+            "{\n" +
+            '  "confidence": 0.95,\n' +
+            '  "type": "expense",\n' +
+            '  "amount": 50000,\n' +
+            '  "category": "Makanan & Minuman",\n' +
+            '  "wallet_hint": "BCA",\n' +
+            '  "description": "Pembelian Indomaret",\n' +
+            '  "merchant_name": "Indomaret",\n' +
+            '  "transaction_date": "2026-09-04",\n' +
+            '  "items": [{"name": "Roti", "qty": 1, "price": 15000, "raw_name": "ROTI"}]\n' +
+            "}",
+        },
+      ];
+
+      const responseModeB = await ai.models.generateContent({
+        model: modelName,
+        contents: promptModeBContents,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          temperature: 0.1,
+        },
+      });
+
+      const textB = responseModeB.text;
+      if (textB) {
+        const rawParsedB = cleanAndParseJson(textB);
+        if (rawParsedB && typeof rawParsedB === "object" && rawParsedB.amount) {
+          const parsed: GeminiParsedTransaction = {
+            confidence: Number(rawParsedB.confidence) || 0.85,
+            type: rawParsedB.type === "income" || rawParsedB.type === "transfer" ? rawParsedB.type : "expense",
+            amount: Math.round(Number(rawParsedB.amount) || 0),
+            category: rawParsedB.category || "Lain-lain",
+            wallet_hint: rawParsedB.wallet_hint || null,
+            to_wallet_hint: rawParsedB.to_wallet_hint || null,
+            description: rawParsedB.description || (rawParsedB.merchant_name ? `Struk: ${rawParsedB.merchant_name}` : "Transaksi Struk"),
+            items: Array.isArray(rawParsedB.items)
+              ? rawParsedB.items.map((it: any) => ({
+                  name: String(it.name || "Item"),
+                  qty: Number(it.qty) || 1,
+                  price: Math.round(Number(it.price) || 0),
+                  raw_name: it.raw_name ? String(it.raw_name) : undefined,
+                }))
+              : [],
+            merchant_name: rawParsedB.merchant_name || null,
+            transaction_date: rawParsedB.transaction_date || null,
+            transcription: rawParsedB.transcription || null,
+          };
+
+          if (options.imageBuffer) {
+            return verifyAndReconcileReceipt(parsed);
+          }
+          return parsed;
+        }
+      }
+    } catch (modeBErr: any) {
+      lastError = modeBErr;
+      console.warn(`[Gemini Parser] Mode B (Prompt JSON) failed on ${modelName}:`, modeBErr.message || modeBErr);
+    }
+  }
+
+  console.error("❌ All Gemini candidate models failed to parse receipt input:", lastError?.message || lastError);
+  return null;
 }
 
 /**
@@ -325,15 +451,25 @@ Instruksi Menjawab:
 6. PENTING: Anda adalah Asisten Keuangan Keluarga F&R. Jika pertanyaan pengguna berada di luar topik keuangan atau dokumen keluarga (seperti meminta cerita umum, coding, puisi, politik, dll.), tolak secara singkat & ramah dalam 1-2 kalimat, lalu arahkan kembali ke pencatatan transaksi atau cek saldo keluarga.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash-lite",
-      contents: prompt,
-      config: {
-        temperature: 0.2,
-      },
-    });
+    for (const modelName of LITE_FIRST_MODELS) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            temperature: 0.2,
+          },
+        });
 
-    return response.text || "Maaf, saya tidak dapat memproses jawaban saat ini.";
+        if (response && response.text) {
+          return response.text;
+        }
+      } catch (err: any) {
+        console.warn(`[Gemini Q&A] Model ${modelName} failed, trying next:`, err.message || err);
+      }
+    }
+
+    return "Maaf, saya belum dapat memproses jawaban saat ini.";
   } catch (err: any) {
     console.error("❌ Error running Gemini Q&A:", err);
     return "Maaf, terjadi kendala saat menghubungi AI Gemini: " + err.message;
@@ -390,21 +526,27 @@ ${JSON.stringify(rawItemCodes, null, 2)}
       },
     };
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash-lite",
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: translationSchema,
-        temperature: 0.1,
-      },
-    });
+    for (const modelName of LITE_FIRST_MODELS) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            responseMimeType: "application/json",
+            responseSchema: translationSchema,
+            temperature: 0.1,
+          },
+        });
 
-    if (response.text) {
-      const parsed = JSON.parse(response.text);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        if (response.text) {
+          const parsed = cleanAndParseJson(response.text);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Gemini Translator] Model ${modelName} failed:`, err.message || err);
       }
     }
   } catch (err) {
