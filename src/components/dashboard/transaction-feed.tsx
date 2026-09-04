@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag, Eye, Image as ImageIcon } from "lucide-react";
+import { FileText, ExternalLink, ChevronDown, ChevronUp, Trash2, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, ShoppingBag, Paperclip } from "lucide-react";
 import { TransactionDetailModal } from "@/components/dashboard/transaction-detail-modal";
 
 interface TransactionFeedProps {
@@ -143,8 +143,17 @@ export function TransactionFeed({
                   return (
                     <div
                       key={tx.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedTxForDetail(tx)}
-                      className="p-3 sm:p-3.5 sm:px-5 transition-colors hover:bg-muted/40 cursor-pointer group"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedTxForDetail(tx);
+                        }
+                      }}
+                      className="p-3 sm:p-3.5 sm:px-5 transition-colors hover:bg-muted/40 cursor-pointer group focus-visible:outline-none focus-visible:bg-muted/50"
+                      aria-label={`Lihat detail transaksi ${fullTitle}`}
                     >
                       <div className="flex items-center justify-between gap-2.5 sm:gap-3">
                         {/* Left: Icon & Info */}
@@ -204,6 +213,15 @@ export function TransactionFeed({
                                 </span>
                               )}
 
+                              {hasReceipt && (
+                                <span title="Memiliki lampiran media/struk" className="inline-flex shrink-0">
+                                  <Paperclip
+                                    className="size-3 sm:size-3.5 text-muted-foreground/70"
+                                    aria-hidden="true"
+                                  />
+                                </span>
+                              )}
+
                               {tx.wallet && (
                                 <Badge
                                   variant="outline"
@@ -229,36 +247,18 @@ export function TransactionFeed({
                           </div>
                         </div>
 
-                        {/* Right: Amount, Receipt Badge & Actions */}
+                        {/* Right: Amount, Items Count & Actions */}
                         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pl-1.5 sm:pl-2">
-                          {/* Micro indicator chips for mobile */}
-                          <div className="flex items-center gap-1 sm:hidden">
-                            {hasReceipt && (
-                              <span className="inline-flex items-center justify-center size-5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400" title="Lampiran Struk R2">
-                                <ImageIcon className="size-3" aria-hidden="true" />
-                              </span>
-                            )}
-                            {hasItems && (
-                              <span className="text-[9.5px] tabular-nums font-medium text-muted-foreground bg-muted px-1 py-0.5 rounded" title={`${tx.parsed_metadata?.items?.length} item tercatat`}>
+                          {/* Micro indicator chip for items on mobile */}
+                          {hasItems && (
+                            <div className="flex items-center sm:hidden">
+                              <span
+                                className="text-[9.5px] tabular-nums font-medium text-muted-foreground bg-muted px-1 py-0.5 rounded"
+                                title={`${tx.parsed_metadata?.items?.length} item tercatat`}
+                              >
                                 {tx.parsed_metadata?.items?.length}i
                               </span>
-                            )}
-                          </div>
-
-                          {/* Desktop Inline Actions (hidden on mobile) */}
-                          {hasReceipt && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedTxForDetail(tx);
-                              }}
-                              className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 px-2 py-0.5 rounded-md transition-colors"
-                              title="Buka Preview Struk R2"
-                            >
-                              <ImageIcon className="size-3" aria-hidden="true" />
-                              <span>Struk</span>
-                            </button>
+                            </div>
                           )}
 
                           {hasItems && (
@@ -297,21 +297,6 @@ export function TransactionFeed({
                               </span>
                             )}
                           </div>
-
-                          {/* Desktop Detail Button */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTxForDetail(tx);
-                            }}
-                            className="hidden sm:inline-flex size-7 text-muted-foreground hover:text-primary rounded-md opacity-80 group-hover:opacity-100 transition-opacity"
-                            title="Lihat Detail Transaksi"
-                            aria-label={`Lihat detail transaksi ${tx.description || "ini"}`}
-                          >
-                            <Eye className="size-3.5" aria-hidden="true" />
-                          </Button>
 
                           {onDeleteTransaction && (
                             <Button
