@@ -53,6 +53,18 @@ Rules:
       * You MUST expand these into complete, natural, and clear Indonesian product names for "name" using the format:
         [Kategori Produk] [Brand] [Varian/Rasa] [Ukuran/Berat/Isi]
       * Crucial Retail Category Decryption Rules:
+        - Deconstruct Concatenated / No-Space POS Cashier Codes:
+          * POS cash registers in Indonesia (Indomaret, Alfamart, Superindo, Hypermart, etc.) frequently join words together without spaces to fit 16-20 character column limits (e.g. "INDOMIEGRSPCJUMBO129").
+          * You MUST deconstruct these into individual brand, variant, flavor, and unit tokens:
+            - "INDOMIEGRSPCJUMBO129" / "Indomiegrspcjumbo129" -> name: "Indomie Goreng Spesial Jumbo 129g", raw_name: "INDOMIEGRSPCJUMBO129"
+            - "INDOMIEGRG85" -> name: "Indomie Goreng 85g", raw_name: "INDOMIEGRG85"
+            - "INDOMIEAYMBWG" -> name: "Indomie Kuah Rasa Ayam Bawang", raw_name: "INDOMIEAYMBWG"
+            - "INDOMIESOTO" -> name: "Indomie Kuah Rasa Soto Mie", raw_name: "INDOMIESOTO"
+            - "MIESDPGRG90" -> name: "Mie Sedaap Goreng 90g", raw_name: "MIESDPGRG90"
+            - "ULTRAMILKCKLT250" -> name: "Susu UHT Ultra Milk Rasa Cokelat 250ml", raw_name: "ULTRAMILKCKLT250"
+            - "BEARBRAND189" -> name: "Susu Steril Bear Brand 189ml", raw_name: "BEARBRAND189"
+            - "BIMOLIGR2L" -> name: "Minyak Goreng Bimoli 2L", raw_name: "BIMOLIGR2L"
+            - "SUNLIGHTJERUK755" -> name: "Sunlight Pencuci Piring Jeruk Nipis 755ml", raw_name: "SUNLIGHTJERUK755"
         - Bakery & Roti:
           * "SR." / "SR.TOGO" / "SR TOGO" -> "Sari Roti Sandwich To Go"
           * "RTI TWR" -> "Roti Tawar", "RTI KPS" -> "Roti Kupas"
@@ -78,6 +90,7 @@ Rules:
         - "BISKUAT GLDN VNL 105" / "Biskuat Gldn Vnl" -> name: "Biskuit Biskuat Energi Golden Vanilla 105g", raw_name: "BISKUAT GLDN VNL 105"
         - "INDOMILK SKMP POUCH S" -> name: "Indomilk Susu Kental Manis Putih (SKMP) Kemasan Pouch (S)", raw_name: "INDOMILK SKMP POUCH S"
         - "ULTRA PLAIN 250ML" -> name: "Susu UHT Ultra Milk Plain 250ml", raw_name: "ULTRA PLAIN 250ML"
+        - "INDOMIEGRSPCJUMBO129" / "Indomiegrspcjumbo129" -> name: "Indomie Goreng Spesial Jumbo 129g", raw_name: "INDOMIEGRSPCJUMBO129"
       * Store the exact printed text from receipt in "raw_name", and the expanded friendly complete name in "name".
 3. For voice notes, transcribe the spoken Indonesian words accurately into the transcription field.
 4. Extract wallet hints if mentioned (e.g. "bca", "mandiri", "gopay", "ovo", "cash", "tunai", "kantong").
