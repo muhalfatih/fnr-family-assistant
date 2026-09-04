@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { VaultDocument } from "@/app/api/documents/route";
 import { DocumentCard } from "@/components/vault/document-card";
+import { DocumentDetailModal } from "@/components/vault/document-detail-modal";
 import { AddDocumentModal } from "@/components/vault/add-document-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export default function VaultPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [documentToEdit, setDocumentToEdit] = useState<VaultDocument | null>(null);
+  const [documentForDetail, setDocumentForDetail] = useState<VaultDocument | null>(null);
   const [isSendingReminder, setIsSendingReminder] = useState(false);
 
   // SWR Caching & Real-time Auto-sync Hook
@@ -144,7 +146,7 @@ export default function VaultPage() {
                 Arsip digital keluarga, pelacakan masa berlaku berkas, dan notifikasi pengingat otomatis ke Telegram.
               </p>
               {isValidating && !isLoading && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
                   <span>Sync</span>
                 </span>
@@ -158,7 +160,7 @@ export default function VaultPage() {
               variant="outline"
               size="sm"
               onClick={() => mutate()}
-              className="h-8 text-xs px-2.5 rounded-md shrink-0"
+              className="h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
               title="Segarkan data dokumen"
             >
               <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -170,7 +172,7 @@ export default function VaultPage() {
               size="sm"
               onClick={handleTriggerReminder}
               disabled={isSendingReminder}
-              className="h-8 text-xs px-2.5 rounded-md shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
+              className="h-8 text-xs px-3 rounded-md shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial active:scale-98"
               title="Picu scanner pengingat dokumen jatuh tempo ke WhatsApp & Telegram"
             >
               {isSendingReminder ? (
@@ -187,9 +189,9 @@ export default function VaultPage() {
                 setDocumentToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
+              className="h-8 text-xs px-3.5 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial active:scale-98"
             >
-              <Plus className="size-3.5" aria-hidden="true" />
+              <Plus className="size-4 sm:size-3.5" aria-hidden="true" />
               <span>Tambah Dokumen</span>
             </Button>
           </div>
@@ -197,19 +199,19 @@ export default function VaultPage() {
 
         {/* Integrated Status Alert Bars if Expiring or Expired */}
         {(counts.expiringSoon > 0 || counts.expired > 0) && (
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/70 bg-card/60 text-xs">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/70 bg-card/60 text-xs">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
               <AlertTriangle className="size-4 text-amber-500 shrink-0" aria-hidden="true" />
               <span>Perhatian Dokumen:</span>
             </span>
             {counts.expired > 0 && (
-              <Badge variant="destructive" className="gap-1 text-[11px] font-mono">
+              <Badge variant="destructive" className="gap-1 text-[11px] tabular-nums px-2 py-0.5">
                 <XCircle className="size-3" aria-hidden="true" />
                 <span>{counts.expired} Kedaluwarsa</span>
               </Badge>
             )}
             {counts.expiringSoon > 0 && (
-              <Badge variant="secondary" className="gap-1 text-[11px] font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+              <Badge variant="secondary" className="gap-1 text-[11px] tabular-nums px-2 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
                 <AlertTriangle className="size-3" aria-hidden="true" />
                 <span>{counts.expiringSoon} Segera Habis</span>
               </Badge>
@@ -218,20 +220,20 @@ export default function VaultPage() {
         )}
 
         {/* Filters and Search Toolbar */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 min-w-0 max-w-full">
           {/* Search + Category Dropdown */}
-          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 flex-1 w-full max-w-md">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" aria-hidden="true" />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 w-full max-w-md min-w-0">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-3 size-3.5 text-muted-foreground" aria-hidden="true" />
               <Input
                 placeholder="Cari nama atau nomor dokumen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 text-xs h-8 rounded-md w-full"
+                className="pl-9 text-xs sm:text-sm h-9 rounded-md w-full"
               />
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full xs:w-[140px] h-8 text-xs shrink-0 rounded-md">
+              <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs sm:text-sm shrink-0 rounded-md">
                 <SelectValue placeholder="Kategori" />
               </SelectTrigger>
               <SelectContent>
@@ -247,7 +249,7 @@ export default function VaultPage() {
           </div>
 
           {/* Status Filter Tabs with Integrated Badge Counters and Mobile Horizontal Scroll */}
-          <div className="flex items-center rounded-md border border-border/70 p-0.5 bg-muted/40 text-xs gap-1 overflow-x-auto no-scrollbar w-full lg:w-auto touch-pan-x">
+          <div className="flex items-center rounded-lg border border-border/70 p-1 bg-muted/40 text-xs gap-1 overflow-x-auto no-scrollbar w-full lg:w-auto touch-pan-x min-w-0 max-w-full shrink-0">
             {[
               { id: "all", label: "Semua", count: counts.total },
               { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
@@ -258,14 +260,14 @@ export default function VaultPage() {
               <button
                 key={st.id}
                 onClick={() => setSelectedStatus(st.id)}
-                className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs shrink-0 ${
+                className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap flex items-center gap-1.5 text-xs font-medium shrink-0 active:scale-95 ${
                   selectedStatus === st.id
-                    ? "bg-background text-foreground font-semibold shadow-sm"
+                    ? "bg-background text-foreground font-semibold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <span>{st.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full tabular-nums font-mono ${
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full tabular-nums ${
                   st.danger
                     ? "bg-destructive text-destructive-foreground"
                     : st.alert
@@ -281,16 +283,16 @@ export default function VaultPage() {
 
         {/* Documents Grid Feed */}
         {isInitialLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} className="h-[180px] rounded-xl" />
             ))}
           </div>
         ) : filteredDocuments.length === 0 ? (
-          <div className="py-16 px-4 text-center rounded-xl border border-dashed text-muted-foreground">
-            <FolderLock className="size-8 mx-auto mb-2 text-muted-foreground/40" aria-hidden="true" />
-            <p className="text-xs font-semibold text-foreground">Tidak Ada Dokumen yang Sesuai</p>
-            <p className="text-[11px] mt-1 max-w-sm mx-auto text-muted-foreground">
+          <div className="py-16 px-4 text-center rounded-xl border border-dashed border-border text-muted-foreground bg-muted/10">
+            <FolderLock className="size-9 mx-auto mb-2 text-muted-foreground/40" aria-hidden="true" />
+            <p className="text-sm font-semibold text-foreground">Tidak Ada Dokumen yang Sesuai</p>
+            <p className="text-xs mt-1 max-w-sm mx-auto text-muted-foreground">
               Belum ada dokumen yang terdaftar pada kategori atau status ini. Klik "Tambah Dokumen" untuk mengarsipkan berkas keluarga Anda.
             </p>
             <Button
@@ -302,25 +304,35 @@ export default function VaultPage() {
                 setSearchQuery("");
                 setIsAddModalOpen(true);
               }}
-              className="mt-4 text-xs gap-1.5 h-8"
+              className="mt-4 text-xs gap-1.5 h-8 px-3 rounded-md"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Dokumen Sekarang</span>
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             {filteredDocuments.map((doc) => (
               <DocumentCard
                 key={doc.id}
                 document={doc}
                 onEdit={handleEditDocument}
                 onDelete={handleDeleteDocument}
+                onViewDetails={(d) => setDocumentForDetail(d)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Modal Detail & Preview Dokumen */}
+      <DocumentDetailModal
+        document={documentForDetail}
+        isOpen={!!documentForDetail}
+        onClose={() => setDocumentForDetail(null)}
+        onEdit={handleEditDocument}
+        onDelete={handleDeleteDocument}
+      />
 
       {/* Modal Tambah / Edit Dokumen */}
       <AddDocumentModal

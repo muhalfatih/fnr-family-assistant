@@ -189,7 +189,7 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
 
                   {/* Additional Metadata Details */}
                   {service.details && Object.keys(service.details).length > 0 && (
-                    <div className="ml-9 mt-0.5 p-2 rounded bg-muted/40 text-[11px] font-mono text-muted-foreground flex flex-col gap-0.5">
+                    <div className="ml-9 mt-0.5 p-2 rounded bg-muted/40 text-[11px] tabular-nums text-muted-foreground flex flex-col gap-0.5">
                       {Object.entries(service.details).map(([key, val]) => (
                         <div key={key} className="flex items-center justify-between">
                           <span className="text-foreground/70">{key}:</span>

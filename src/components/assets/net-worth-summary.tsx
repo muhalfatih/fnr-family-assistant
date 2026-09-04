@@ -46,7 +46,7 @@ export function NetWorthSummary({
           <div className="min-w-[240px] space-y-1.5 text-right md:text-left">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Komposisi Neraca:</span>
-              <span className="font-mono font-medium text-foreground">
+              <span className="tabular-nums font-medium text-foreground">
                 Hutang {debtToAssetRatio}% / Ekuitas {assetRatio}%
               </span>
             </div>

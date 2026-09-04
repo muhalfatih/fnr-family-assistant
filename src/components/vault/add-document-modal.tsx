@@ -142,9 +142,9 @@ export function AddDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="sm:max-w-[500px] w-full max-w-[95vw] sm:max-w-[500px] max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl sm:rounded-xl">
+        <DialogHeader className="text-left space-y-1">
+          <DialogTitle className="text-base sm:text-lg font-bold">
             {documentToEdit ? "Edit Dokumen" : "Tambah Dokumen ke Brankas"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
@@ -154,14 +154,14 @@ export function AddDocumentModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {errorMsg && (
-            <div className="p-3 text-xs rounded-md bg-destructive/15 text-destructive border border-destructive/20">
+            <div className="p-3 text-xs rounded-lg bg-destructive/15 text-destructive border border-destructive/20">
               {errorMsg}
             </div>
           )}
 
           {/* 1. Nama Dokumen */}
           <div className="space-y-1.5">
-            <Label htmlFor="title" className="text-xs font-medium text-foreground">
+            <Label htmlFor="title" className="text-xs font-semibold text-foreground">
               Nama Dokumen <span className="text-destructive ml-0.5">*</span>
             </Label>
             <Input
@@ -169,19 +169,19 @@ export function AddDocumentModal({
               placeholder="Contoh: STNK Honda HR-V / KTP Ayah"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-xs h-9"
+              className="text-xs sm:text-sm h-10 sm:h-9 rounded-lg"
               required
             />
           </div>
 
-          {/* 2. Kategori Dokumen */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* 2. Kategori & Nomor Dokumen (Single col on mobile, 2 col on sm+) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Kategori <span className="text-destructive ml-0.5">*</span>
               </Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-9 text-xs w-full">
+                <SelectTrigger className="h-10 sm:h-9 text-xs sm:text-sm w-full rounded-lg">
                   <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,9 +198,8 @@ export function AddDocumentModal({
               </Select>
             </div>
 
-            {/* 3. Nomor Dokumen */}
             <div className="space-y-1.5">
-              <Label htmlFor="docNumber" className="text-xs font-medium text-foreground">
+              <Label htmlFor="docNumber" className="text-xs font-semibold text-foreground">
                 Nomor Dokumen
               </Label>
               <Input
@@ -208,22 +207,22 @@ export function AddDocumentModal({
                 placeholder="Contoh: B 1234 XYZ / NIK"
                 value={documentNumber}
                 onChange={(e) => setDocumentNumber(e.target.value)}
-                className="text-xs font-mono h-9"
+                className="text-xs sm:text-sm tabular-nums h-10 sm:h-9 rounded-lg"
               />
             </div>
           </div>
 
-          {/* 4. Masa Berlaku Switch & Tanggal */}
-          <div className="p-3.5 rounded-lg border bg-muted/30 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-foreground">Memiliki Masa Berlaku?</span>
+          {/* 3. Masa Berlaku Switch & Tanggal */}
+          <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-foreground">Memiliki Masa Berlaku?</span>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="hasExpiry"
                   checked={hasExpiry}
                   onChange={(e) => setHasExpiry(e.target.checked)}
-                  className="rounded size-4 accent-primary text-primary focus:ring-primary cursor-pointer"
+                  className="rounded size-4.5 accent-primary text-primary focus:ring-primary cursor-pointer"
                 />
                 <label htmlFor="hasExpiry" className="text-xs text-muted-foreground cursor-pointer select-none">
                   {hasExpiry ? "Ada batas waktu" : "Seumur hidup / Permanen"}
@@ -232,9 +231,9 @@ export function AddDocumentModal({
             </div>
 
             {hasExpiry && (
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/60">
                 <div className="space-y-1.5">
-                  <Label htmlFor="expiryDate" className="text-xs font-medium text-foreground">
+                  <Label htmlFor="expiryDate" className="text-xs font-semibold text-foreground">
                     Tanggal Kedaluwarsa <span className="text-destructive ml-0.5">*</span>
                   </Label>
                   <DatePicker
@@ -245,11 +244,11 @@ export function AddDocumentModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Ingatkan Sebelum
                   </Label>
                   <Select value={reminderDays} onValueChange={setReminderDays}>
-                    <SelectTrigger className="h-9 text-xs w-full">
+                    <SelectTrigger className="h-10 sm:h-9 text-xs sm:text-sm w-full rounded-lg">
                       <SelectValue placeholder="Pilih Waktu" />
                     </SelectTrigger>
                     <SelectContent>
@@ -267,10 +266,10 @@ export function AddDocumentModal({
             )}
           </div>
 
-          {/* 5. Unggah Berkas Fisik (Cloudflare R2) */}
+          {/* 4. Unggah Berkas Fisik (Cloudflare R2) */}
           <div className="space-y-1.5 pt-1">
-            <Label htmlFor="docFile" className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <UploadCloud className="size-3.5 text-primary" aria-hidden="true" />
+            <Label htmlFor="docFile" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <UploadCloud className="size-4 text-primary" aria-hidden="true" />
               <span>Unggah Berkas Dokumen (PDF / Foto Dokumen)</span>
             </Label>
             <Input
@@ -281,11 +280,11 @@ export function AddDocumentModal({
                 const file = e.target.files?.[0] || null;
                 setSelectedFile(file);
               }}
-              className="text-xs file:text-xs file:h-7 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:font-medium h-9"
+              className="text-xs file:text-xs file:h-8 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:font-medium h-10 sm:h-9 rounded-lg"
             />
             {selectedFile ? (
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <FileCheck className="size-3" aria-hidden="true" />
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                <FileCheck className="size-3.5" aria-hidden="true" />
                 <span>Berkas terpilih: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</span>
               </p>
             ) : (
@@ -305,16 +304,26 @@ export function AddDocumentModal({
               placeholder="https://example.com/dokumen.pdf atau tautan berkas..."
               value={driveUrl}
               onChange={(e) => setDriveUrl(e.target.value)}
-              className="text-xs font-mono h-9"
+              className="text-xs h-10 sm:h-9 rounded-lg"
               disabled={!!selectedFile}
             />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs px-3">
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto h-11 sm:h-9 text-xs px-4 rounded-lg active:scale-98"
+            >
               Batal
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs px-3">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto gap-1.5 h-11 sm:h-9 text-xs px-4 rounded-lg shadow-sm active:scale-98"
+            >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               <span>{documentToEdit ? "Simpan Perubahan" : "Simpan ke Brankas"}</span>
             </Button>

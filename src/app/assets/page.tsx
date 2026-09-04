@@ -107,7 +107,7 @@ export default function AssetsPage() {
                 Aset & Liabilitas
               </h1>
               {isValidatingAssets && !isLoadingAssets && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
                   <span>Sync</span>
                 </span>

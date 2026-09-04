@@ -207,7 +207,7 @@ export function TransactionFeed({
                               {tx.wallet && (
                                 <Badge
                                   variant="outline"
-                                  className="hidden xs:inline-flex shrink-0 whitespace-nowrap text-nowrap max-w-[120px] truncate text-[10px] font-medium px-1.5 py-0 border-border/80 bg-muted/30 text-muted-foreground"
+                                  className="hidden sm:inline-flex shrink-0 whitespace-nowrap text-nowrap max-w-[120px] truncate text-[10px] font-medium px-1.5 py-0 border-border/80 bg-muted/30 text-muted-foreground"
                                   title={tx.wallet.name}
                                 >
                                   {tx.wallet.name}
@@ -221,8 +221,8 @@ export function TransactionFeed({
                               <span className="truncate">{tx.category?.name || "Umum"}</span>
                               {tx.member && (
                                 <>
-                                  <span className="hidden xs:inline">•</span>
-                                  <span className="hidden xs:inline truncate text-foreground font-medium">{tx.member.full_name}</span>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span className="hidden sm:inline truncate text-foreground font-medium">{tx.member.full_name}</span>
                                 </>
                               )}
                             </div>
@@ -239,7 +239,7 @@ export function TransactionFeed({
                               </span>
                             )}
                             {hasItems && (
-                              <span className="text-[9.5px] font-mono font-medium text-muted-foreground bg-muted px-1 py-0.5 rounded" title={`${tx.parsed_metadata?.items?.length} item tercatat`}>
+                              <span className="text-[9.5px] tabular-nums font-medium text-muted-foreground bg-muted px-1 py-0.5 rounded" title={`${tx.parsed_metadata?.items?.length} item tercatat`}>
                                 {tx.parsed_metadata?.items?.length}i
                               </span>
                             )}
@@ -292,7 +292,7 @@ export function TransactionFeed({
                               {formatRupiah(tx.amount)}
                             </span>
                             {tx.wallet && (
-                              <span className="xs:hidden text-[9.5px] text-muted-foreground font-mono truncate max-w-[70px]">
+                              <span className="sm:hidden text-[9.5px] text-muted-foreground truncate max-w-[70px]">
                                 {tx.wallet.name}
                               </span>
                             )}

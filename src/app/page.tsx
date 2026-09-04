@@ -258,7 +258,7 @@ export default function DashboardPage() {
                 Keuangan & Arus Kas
               </h1>
               {isValidatingTx && !isLoadingTx && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
                   <span>Sync</span>
                 </span>
@@ -448,11 +448,11 @@ export default function DashboardPage() {
                           <span className="font-semibold text-sm truncate text-foreground">
                             {w.name}
                           </span>
-                          <Badge variant="outline" className="text-[10px] uppercase font-mono px-1.5 py-0 shrink-0">
+                          <Badge variant="outline" className="text-[10px] uppercase px-1.5 py-0 shrink-0">
                             {w.type}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground font-mono truncate">
+                        <p className="text-xs text-muted-foreground tabular-nums truncate">
                           {w.account_number && w.account_number !== "-" ? w.account_number : "Kas Pribadi"}
                         </p>
                       </div>

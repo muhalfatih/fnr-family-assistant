@@ -15,9 +15,9 @@ export function AppShell({
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar onAddTransaction={onAddTransaction} />
-      <SidebarInset>
+      <SidebarInset className="min-w-0 max-w-full overflow-x-hidden">
         <AppHeader />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 w-full">
           {children}
         </div>
       </SidebarInset>

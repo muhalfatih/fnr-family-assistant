@@ -28,7 +28,7 @@ export default function LogsPage() {
                 Monitor riwayat percakapan bot Telegram & WhatsApp, status latensi AI, serta kendali kill-switch proses aktif.
               </p>
               {isValidating && !isLoading && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
                   <span>Sync</span>
                 </span>
@@ -36,13 +36,13 @@ export default function LogsPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto shrink-0 justify-end md:justify-start">
             <Button
               variant="outline"
               size="sm"
               onClick={() => mutate()}
               disabled={isLoading}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md active:scale-98"
             >
               <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
               <span>Segarkan</span>

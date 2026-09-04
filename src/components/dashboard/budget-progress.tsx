@@ -70,7 +70,7 @@ export function BudgetProgress({ budgets, onOpenManageBudget }: BudgetProgressPr
                   </span>
                   <Badge
                     variant={isOver ? "destructive" : "outline"}
-                    className={`text-[10.5px] font-mono font-semibold px-1.5 py-0 shrink-0 ${
+                    className={`text-[10.5px] tabular-nums font-semibold px-1.5 py-0 shrink-0 ${
                       isOver
                         ? ""
                         : isWarning

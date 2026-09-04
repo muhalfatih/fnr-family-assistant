@@ -73,7 +73,7 @@ export default function FamilyPage() {
                 Kelola profil anggota keluarga, tautan akun bot Telegram, dan pantau kontribusi belanja bulanan.
               </p>
               {isValidatingMembers && !isLoadingMembers && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
                   <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
                   <span>Sync</span>
                 </span>
@@ -113,27 +113,27 @@ export default function FamilyPage() {
           <div className="flex items-center gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
             <div>
               <p className="text-xs text-muted-foreground">Total Pengeluaran Keluarga</p>
-              <p className="text-base sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-base sm:text-xl font-bold tracking-tight tabular-nums text-foreground mt-0.5">
                 {formatRupiah(totalExpense)}
               </p>
             </div>
             <div className="h-8 w-px bg-border/60 hidden sm:block" />
             <div>
               <p className="text-xs text-muted-foreground">Anggota Terdaftar</p>
-              <p className="text-base sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-base sm:text-xl font-bold tracking-tight tabular-nums text-foreground mt-0.5">
                 {members.length} <span className="text-xs font-normal text-muted-foreground">Orang</span>
               </p>
             </div>
             <div className="h-8 w-px bg-border/60 hidden md:block" />
             <div className="hidden md:block">
               <p className="text-xs text-muted-foreground">Terhubung ke Telegram</p>
-              <p className="text-base sm:text-xl font-bold font-mono tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-base sm:text-xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {connectedTelegram} <span className="text-xs font-normal text-muted-foreground">/ {members.length}</span>
               </p>
             </div>
           </div>
 
-          <div className="text-xs text-muted-foreground font-mono self-start sm:self-auto">
+          <div className="text-xs text-muted-foreground tabular-nums self-start sm:self-auto">
             Bulan: <span className="font-semibold text-foreground">September 2026</span>
           </div>
         </div>

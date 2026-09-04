@@ -93,7 +93,7 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
               <span>Telegram Chat:</span>
             </span>
             {isConnectedTelegram ? (
-              <Badge variant="outline" className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+              <Badge variant="outline" className="text-[11px] tabular-nums text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
                 ● ID: {member.telegram_chat_id}
               </Badge>
             ) : (
@@ -107,7 +107,7 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
                 <Phone className="size-3 text-emerald-500" aria-hidden="true" />
                 <span>WhatsApp:</span>
               </span>
-              <span className="text-xs font-mono text-muted-foreground">
+              <span className="text-xs tabular-nums text-muted-foreground">
                 {member.whatsapp_number}
               </span>
             </div>

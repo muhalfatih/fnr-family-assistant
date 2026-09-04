@@ -50,7 +50,7 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
       return (
         <div className="rounded-lg border border-border bg-popover p-2.5 text-xs space-y-1">
           <p className="font-semibold text-foreground">{data.name}</p>
-          <p className="text-primary font-mono tabular-nums">{formatRupiah(data.value)}</p>
+          <p className="text-primary font-semibold tabular-nums">{formatRupiah(data.value)}</p>
           <p className="text-muted-foreground tabular-nums">{data.percentage}% dari total pengeluaran</p>
         </div>
       );
@@ -73,7 +73,7 @@ export function ContributionCharts({ contributions, unassigned, totalExpense }: 
                 Persentase pengeluaran keluarga bulan ini
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-[11px] font-mono font-normal">
+            <Badge variant="outline" className="text-[11px] tabular-nums font-normal">
               Total: {formatRupiah(totalExpense)}
             </Badge>
           </div>

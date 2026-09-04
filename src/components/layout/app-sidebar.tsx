@@ -97,7 +97,7 @@ export function AppSidebar({
                 <div className="flex flex-col gap-0.5 leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="font-semibold text-xs text-foreground tracking-tight flex items-center gap-1.5">
                     F&R Family Hub
-                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono">
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 tabular-nums">
                       v2.0
                     </Badge>
                   </span>
@@ -190,7 +190,7 @@ export function AppSidebar({
             </Avatar>
             <div className="flex flex-col text-left leading-none">
               <span className="text-xs font-semibold text-foreground truncate">Keluarga Inti</span>
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono">
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-emerald-500 inline-block" />
                 Online
               </span>

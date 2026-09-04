@@ -196,7 +196,7 @@ export function AddMemberModal({
               placeholder="Contoh: 123456789"
               value={telegramChatId}
               onChange={(e) => setTelegramChatId(e.target.value)}
-              className="text-xs font-mono h-9"
+              className="text-xs tabular-nums h-9"
             />
             <p className="text-[11px] text-muted-foreground">
               Jika diisi, semua transaksi foto struk atau chat yang dikirim nomor Telegram ini akan otomatis diatribusikan ke anggota ini.
@@ -213,7 +213,7 @@ export function AddMemberModal({
               placeholder="Contoh: +6281234567890"
               value={whatsappNumber}
               onChange={(e) => setWhatsappNumber(e.target.value)}
-              className="text-xs font-mono h-9"
+              className="text-xs tabular-nums h-9"
             />
           </div>
 

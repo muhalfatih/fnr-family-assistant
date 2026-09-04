@@ -220,7 +220,7 @@ export function TransactionDetailModal({
                   <MessageSquare className="size-3 text-muted-foreground" />
                   Pesan / Input Asli:
                 </span>
-                <p className="italic text-foreground/90 font-mono text-[11px] leading-relaxed bg-background/50 p-2 rounded-lg border border-border/40">
+                <p className="italic text-foreground/90 text-[11px] leading-relaxed bg-background/50 p-2 rounded-lg border border-border/40">
                   "{rawPrompt}"
                 </p>
               </div>
@@ -248,10 +248,10 @@ export function TransactionDetailModal({
                             {item.name}
                           </p>
                           <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                            <span>{qty}x @ {formatRupiah(price)}</span>
+                            <span className="tabular-nums">{qty}x @ {formatRupiah(price)}</span>
                             {item.raw_name && item.raw_name.trim().toLowerCase() !== item.name.trim().toLowerCase() && (
                               <span
-                                className="font-mono text-[9.5px] px-1.5 py-0.5 bg-muted/80 text-muted-foreground border border-border/60 rounded"
+                                className="tabular-nums text-[9.5px] px-1.5 py-0.5 bg-muted/80 text-muted-foreground border border-border/60 rounded"
                                 title={`Kode Asli Cetakan Struk: ${item.raw_name}`}
                               >
                                 Struk: {item.raw_name}

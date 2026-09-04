@@ -62,7 +62,7 @@ export function AppHeader() {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem className="min-w-0">
-                <BreadcrumbPage className="text-xs sm:text-sm font-semibold text-foreground truncate max-w-[160px] xs:max-w-[200px] sm:max-w-none">
+                <BreadcrumbPage className="text-xs sm:text-sm font-semibold text-foreground truncate max-w-[160px] sm:max-w-none">
                   {currentPage.title}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -74,7 +74,7 @@ export function AppHeader() {
           <Badge
             variant="outline"
             onClick={() => setIsApiModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground cursor-pointer hover:bg-muted/80 hover:text-foreground transition-colors select-none h-7 px-2.5"
+            className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer hover:bg-muted/80 hover:text-foreground transition-colors select-none h-7 px-2.5"
             title="Klik untuk melihat status koneksi API"
           >
             <span className="size-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
@@ -98,7 +98,7 @@ export function AppHeader() {
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-0.5">
                   <p className="font-semibold text-xs text-foreground">Ayah (Admin)</p>
-                  <p className="text-[11px] text-muted-foreground font-mono">ayah@keluarga.hub</p>
+                  <p className="text-[11px] text-muted-foreground">ayah@keluarga.hub</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
