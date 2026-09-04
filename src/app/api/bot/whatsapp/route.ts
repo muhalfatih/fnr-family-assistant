@@ -90,7 +90,7 @@ async function getFamilyFinancialData(familyId: string) {
       supabaseAdmin.from("categories").select("*").eq("family_id", familyId),
       supabaseAdmin.from("budgets").select("*, category:categories(*)").eq("family_id", familyId).eq("month_year", currentMonth),
       supabaseAdmin.from("transactions").select("amount, type, category_id").eq("family_id", familyId).gte("transaction_date", startDate).lte("transaction_date", endDate),
-      supabaseAdmin.from("transactions").select("*, category:categories(name, color), wallet:wallets(name)").eq("family_id", familyId).order("transaction_date", { ascending: false }).limit(5),
+      supabaseAdmin.from("transactions").select("*, category:categories(name, color), wallet:wallets!transactions_wallet_id_fkey(name)").eq("family_id", familyId).order("transaction_date", { ascending: false }).limit(5),
     ]);
 
     const wallets = walletsRes?.data || mockStore.getWallets();
@@ -313,6 +313,39 @@ async function processWhatsAppMessage(
             console.error("[WhatsApp] Failed to auto-create family in Supabase:", createFamErr);
           }
           familyId = newFamily?.id || null;
+        }
+      }
+
+      // Auto-link sender to an existing or new family member profile
+      if (familyId && !member) {
+        const { data: existingMembers } = await supabaseAdmin
+          .from("family_members")
+          .select("*")
+          .eq("family_id", familyId)
+          .order("created_at", { ascending: true });
+
+        if (existingMembers && existingMembers.length > 0) {
+          const targetMember = existingMembers.find((m: any) => !m.whatsapp_number) || existingMembers[0];
+          await supabaseAdmin
+            .from("family_members")
+            .update({ whatsapp_number: normalizedPhone })
+            .eq("id", targetMember.id);
+          member = { ...targetMember, whatsapp_number: normalizedPhone };
+          defaultWalletId = member.default_wallet_id || null;
+        } else {
+          const { data: createdMember } = await supabaseAdmin
+            .from("family_members")
+            .insert({
+              family_id: familyId,
+              full_name: senderName || "Ayah (Fatih)",
+              role: "admin",
+              whatsapp_number: normalizedPhone,
+            })
+            .select()
+            .single();
+          if (createdMember) {
+            member = createdMember;
+          }
         }
       }
     } catch (e) {
@@ -715,7 +748,7 @@ async function processWhatsAppMessage(
                 source: "whatsapp",
               },
             })
-            .select("*, category:categories(name), wallet:wallets(name)")
+            .select()
             .single();
 
           if (txErr) {
@@ -849,7 +882,7 @@ async function processWhatsAppMessage(
             source: "whatsapp",
           },
         })
-        .select("*, category:categories(name), wallet:wallets(name)")
+        .select()
         .single();
 
       if (txErr || !newTx) {
@@ -866,7 +899,7 @@ async function processWhatsAppMessage(
         `📝 Keterangan: *${parsed.description}*\n` +
         `💰 Nominal: *${formatRupiah(parsed.amount)}*\n` +
         `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
-        `💳 Dompet: *${newTx.wallet?.name || "Dompet Utama"}*`;
+        `💳 Dompet: *${newTx.wallet?.name || chosenWallet.name || "Dompet Utama"}*`;
 
       completeBotProcess(taskId, "success");
       recordChatLog({
@@ -1008,7 +1041,7 @@ async function processWhatsAppMessage(
                 engine: usedFastPath ? "fast_path_regex" : "gemini_ai",
               },
             })
-            .select("*, category:categories(name), wallet:wallets(name)")
+            .select()
             .single();
 
           if (txErr) {
@@ -1044,7 +1077,7 @@ async function processWhatsAppMessage(
         `📝 Keterangan: *${parsed.description}*\n` +
         `💰 Nominal: *${parsed.type === "income" ? "+" : "-"}${formatRupiah(parsed.amount)}*\n` +
         `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
-        `💳 Dompet: *${newTx.wallet?.name || "Dompet Utama"}*`;
+        `💳 Dompet: *${newTx.wallet?.name || chosenWallet.name || "Dompet Utama"}*`;
 
       completeBotProcess(taskId, "success", undefined, {
         aiModel: usedFastPath ? "Fast-Path Regex (<0.8s)" : "Gemini 2.5 Flash",

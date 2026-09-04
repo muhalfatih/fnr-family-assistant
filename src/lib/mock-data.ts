@@ -1127,4 +1127,11 @@ class MockDataStore {
   }
 }
 
-export const mockStore = MockDataStore.getInstance();
+// Global singleton attached to globalThis to persist mock data across Next.js API chunks in local dev
+const globalForMock = globalThis as unknown as {
+  mockDataStoreInstance?: MockDataStore;
+};
+
+export const mockStore =
+  globalForMock.mockDataStoreInstance || MockDataStore.getInstance();
+globalForMock.mockDataStoreInstance = mockStore;
