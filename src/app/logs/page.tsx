@@ -13,12 +13,12 @@ export default function LogsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <Terminal className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <Terminal className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Log Chat & Pemantauan Proses
               </h1>

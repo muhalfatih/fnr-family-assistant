@@ -149,14 +149,14 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
               />
             </div>
 
-            {/* Channel and Status Tabs */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center rounded-md border p-0.5 bg-muted/40 text-xs">
+            {/* Channel and Status Tabs with Mobile Horizontal Scroll */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 w-full md:w-auto touch-pan-x">
+              <div className="flex items-center rounded-md border p-0.5 bg-muted/40 text-xs shrink-0">
                 {["all", "telegram", "whatsapp"].map((ch) => (
                   <button
                     key={ch}
                     onClick={() => setSelectedChannel(ch)}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors capitalize ${
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors capitalize shrink-0 ${
                       selectedChannel === ch
                         ? "bg-background text-foreground font-semibold shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -167,7 +167,7 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
                 ))}
               </div>
 
-              <div className="flex items-center rounded-md border p-0.5 bg-muted/40 text-xs">
+              <div className="flex items-center rounded-md border p-0.5 bg-muted/40 text-xs shrink-0">
                 {[
                   { id: "all", label: "Semua" },
                   { id: "success", label: "Berhasil" },
@@ -177,7 +177,7 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
                   <button
                     key={st.id}
                     onClick={() => setSelectedStatus(st.id)}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors shrink-0 ${
                       selectedStatus === st.id
                         ? "bg-background text-foreground font-semibold shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -253,7 +253,7 @@ export function ActivityLogTable({ logs, isLoading, onRefresh }: ActivityLogTabl
 
       {/* Log Detail Dialog */}
       <Dialog open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className="sm:max-w-[540px]">
+        <DialogContent className="sm:max-w-[540px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <span>Detail Eksekusi Chat AI</span>

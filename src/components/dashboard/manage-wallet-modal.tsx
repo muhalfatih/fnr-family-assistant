@@ -105,7 +105,7 @@ export function ManageWalletModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[440px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit Rekening / Dompet" : "Tambah Rekening / Dompet"}</DialogTitle>

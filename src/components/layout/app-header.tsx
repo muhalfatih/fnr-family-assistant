@@ -49,20 +49,20 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md transition-all">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
+      <header className="sticky top-0 z-30 flex h-13 sm:h-12 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-3.5 sm:px-4 backdrop-blur-md transition-all">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <SidebarTrigger className="-ml-1 size-9 sm:size-8 text-foreground" />
+          <Separator orientation="vertical" className="mr-1 sm:mr-2 h-4" />
           <Breadcrumb>
-            <BreadcrumbList>
+            <BreadcrumbList className="gap-1 sm:gap-1.5 text-xs flex-nowrap">
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/" className="text-xs text-muted-foreground">
+                <BreadcrumbLink href="/" className="text-xs text-muted-foreground hover:text-foreground">
                   F&R Hub
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-xs font-medium text-foreground">
+              <BreadcrumbItem className="min-w-0">
+                <BreadcrumbPage className="text-xs sm:text-sm font-semibold text-foreground truncate max-w-[160px] xs:max-w-[200px] sm:max-w-none">
                   {currentPage.title}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -70,7 +70,7 @@ export function AppHeader() {
           </Breadcrumb>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Badge
             variant="outline"
             onClick={() => setIsApiModalOpen(true)}
@@ -86,8 +86,8 @@ export function AppHeader() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 rounded-full p-0">
-                <Avatar className="size-7 border border-border">
+              <Button variant="ghost" size="icon" className="size-9 sm:size-8 rounded-full p-0">
+                <Avatar className="size-7.5 sm:size-7 border border-border">
                   <AvatarFallback className="text-[11px] font-semibold bg-primary text-primary-foreground">
                     AY
                   </AvatarFallback>

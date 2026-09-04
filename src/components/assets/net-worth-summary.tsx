@@ -37,7 +37,7 @@ export function NetWorthSummary({
                 Aset Bersih Keluarga
               </Badge>
             </div>
-            <p className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight tabular-nums text-foreground truncate">
               {formatRupiah(netWorth)}
             </p>
           </div>

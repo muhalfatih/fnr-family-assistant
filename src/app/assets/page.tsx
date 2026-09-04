@@ -97,12 +97,12 @@ export default function AssetsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <Landmark className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <Landmark className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Aset & Liabilitas
               </h1>
@@ -120,12 +120,13 @@ export default function AssetsPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Horizontal Scrollable Action Toolbar for Mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto shrink-0 touch-pan-x -mx-1 px-1">
             <Button
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingAssets ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -136,7 +137,7 @@ export default function AssetsPage() {
               variant="outline"
               size="sm"
               onClick={() => setIsAssetModalOpen(true)}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shrink-0 whitespace-nowrap"
             >
               <Gem className="size-3.5 text-foreground" aria-hidden="true" />
               <span>Tambah Aset</span>
@@ -145,7 +146,7 @@ export default function AssetsPage() {
             <Button
               size="sm"
               onClick={() => setIsLiabilityModalOpen(true)}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Hutang</span>
@@ -164,19 +165,21 @@ export default function AssetsPage() {
           />
         )}
 
-        {/* Canonical Shadcn Tabs Navigation */}
+        {/* Canonical Shadcn Tabs Navigation with Mobile Scrollable Pills */}
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="bg-muted/50 p-1 border border-border/50">
-            <TabsTrigger value="all" className="text-xs">
-              Semua ({assets.length + liabilities.length})
-            </TabsTrigger>
-            <TabsTrigger value="assets" className="text-xs">
-              Aset Fisik & Investasi ({assets.length})
-            </TabsTrigger>
-            <TabsTrigger value="liabilities" className="text-xs">
-              Kewajiban / Hutang ({liabilities.length})
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+            <TabsList className="w-full sm:w-auto flex justify-start sm:inline-flex bg-muted/50 p-1 border border-border/50 h-auto gap-1">
+              <TabsTrigger value="all" className="text-xs px-3 py-1.5 shrink-0">
+                Semua ({assets.length + liabilities.length})
+              </TabsTrigger>
+              <TabsTrigger value="assets" className="text-xs px-3 py-1.5 shrink-0">
+                Aset Fisik ({assets.length})
+              </TabsTrigger>
+              <TabsTrigger value="liabilities" className="text-xs px-3 py-1.5 shrink-0">
+                Kewajiban ({liabilities.length})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 1: ALL (SPLIT GRID) */}
           <TabsContent value="all" className="space-y-6">

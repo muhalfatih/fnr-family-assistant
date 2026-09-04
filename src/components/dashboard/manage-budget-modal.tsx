@@ -194,7 +194,7 @@ export function ManageBudgetModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit}>
           <DialogHeader className="space-y-1.5">
             <DialogTitle className="text-base font-semibold">Atur Pagu Anggaran Bulanan</DialogTitle>

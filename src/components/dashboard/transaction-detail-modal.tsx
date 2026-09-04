@@ -312,8 +312,6 @@ export function TransactionDetailModal({
                 <span className="font-medium text-foreground">
                   {mediaUrl.includes("r2.")
                     ? "Cloudflare R2"
-                    : mediaUrl.includes("drive.google")
-                    ? "Google Drive"
                     : "Penyimpanan Lokal"}
                 </span>
               </div>

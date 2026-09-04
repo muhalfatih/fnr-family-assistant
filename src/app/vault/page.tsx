@@ -129,12 +129,12 @@ export default function VaultPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <FolderLock className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <FolderLock className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Brankas Dokumen & Legalitas
               </h1>
@@ -152,13 +152,13 @@ export default function VaultPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Action Buttons with Horizontal Scrollable Toolbar for Mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto shrink-0 touch-pan-x -mx-1 px-1">
             <Button
               variant="outline"
               size="sm"
               onClick={() => mutate()}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0"
               title="Segarkan data dokumen"
             >
               <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -170,7 +170,7 @@ export default function VaultPage() {
               size="sm"
               onClick={handleTriggerReminder}
               disabled={isSendingReminder}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 whitespace-nowrap"
               title="Picu scanner pengingat dokumen jatuh tempo ke WhatsApp & Telegram"
             >
               {isSendingReminder ? (
@@ -187,7 +187,7 @@ export default function VaultPage() {
                 setDocumentToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Dokumen</span>
@@ -220,7 +220,7 @@ export default function VaultPage() {
         {/* Filters and Search Toolbar */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Search + Category Dropdown */}
-          <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="flex items-center gap-2 flex-1 w-full max-w-md">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" aria-hidden="true" />
               <Input
@@ -246,8 +246,8 @@ export default function VaultPage() {
             </Select>
           </div>
 
-          {/* Status Filter Tabs with Integrated Badge Counters */}
-          <div className="flex items-center rounded-md border border-border/70 p-0.5 bg-muted/40 text-xs gap-1 overflow-x-auto">
+          {/* Status Filter Tabs with Integrated Badge Counters and Mobile Horizontal Scroll */}
+          <div className="flex items-center rounded-md border border-border/70 p-0.5 bg-muted/40 text-xs gap-1 overflow-x-auto no-scrollbar w-full lg:w-auto touch-pan-x">
             {[
               { id: "all", label: "Semua", count: counts.total },
               { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
@@ -258,7 +258,7 @@ export default function VaultPage() {
               <button
                 key={st.id}
                 onClick={() => setSelectedStatus(st.id)}
-                className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs ${
+                className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs shrink-0 ${
                   selectedStatus === st.id
                     ? "bg-background text-foreground font-semibold shadow-sm"
                     : "text-muted-foreground hover:text-foreground"

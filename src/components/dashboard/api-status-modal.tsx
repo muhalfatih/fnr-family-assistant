@@ -115,7 +115,7 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-[560px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center justify-between pr-4">
             <DialogTitle className="flex items-center gap-2">

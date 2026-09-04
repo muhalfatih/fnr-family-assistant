@@ -242,6 +242,7 @@ export function FinancialCharts({
                       shape={renderPieShape}
                       onMouseEnter={(_, index) => setActiveIndex(index)}
                       onMouseLeave={() => setActiveIndex(null)}
+                      onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
                     >
                       {filteredCategoryData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -277,7 +278,7 @@ export function FinancialCharts({
                 </div>
               </div>
 
-              {/* Enhanced Full-Width Category Row List with Minimalist Hover Sync */}
+              {/* Enhanced Full-Width Category Row List with Minimalist Hover Sync & Mobile Tap */}
               <div className="mt-4 w-full divide-y divide-border/60 text-xs">
                 {filteredCategoryData.map((cat, idx) => {
                   const percent = totalExpense > 0 ? Math.round((cat.value / totalExpense) * 100) : 0;
@@ -289,6 +290,7 @@ export function FinancialCharts({
                       key={cat.name}
                       onMouseEnter={() => setActiveIndex(idx)}
                       onMouseLeave={() => setActiveIndex(null)}
+                      onClick={() => setActiveIndex(activeIndex === idx ? null : idx)}
                       className={`flex items-center justify-between py-2 px-1.5 rounded-md cursor-pointer transition-colors duration-150 ${
                         isActive
                           ? "bg-muted/60"

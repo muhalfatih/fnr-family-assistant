@@ -248,12 +248,12 @@ export default function DashboardPage() {
 
   return (
     <AppShell onAddTransaction={() => setIsAddModalOpen(true)}>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <WalletCards className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <WalletCards className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Keuangan & Arus Kas
               </h1>
@@ -271,9 +271,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Horizontal Scrollable Action & Filter Toolbar for Mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto shrink-0 touch-pan-x -mx-1 px-1">
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-auto min-w-[150px] h-8 text-xs px-2.5 rounded-md" aria-label="Filter Periode Bulan">
+              <SelectTrigger className="w-auto min-w-[140px] sm:min-w-[150px] h-8 text-xs px-2.5 rounded-md shrink-0 bg-background" aria-label="Filter Periode Bulan">
                 <SelectValue placeholder="Pilih Periode" />
               </SelectTrigger>
               <SelectContent>
@@ -294,7 +295,7 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingTx ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -304,7 +305,7 @@ export default function DashboardPage() {
             <Button
               size="sm"
               onClick={() => setIsAddModalOpen(true)}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Catat Transaksi</span>
@@ -312,14 +313,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Canonical Shadcn Tabs Navigation */}
+        {/* Canonical Shadcn Tabs Navigation with Scrollable Mobile Pills */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-muted/50 p-1 border border-border/50">
-            <TabsTrigger value="overview" className="text-xs">Ringkasan</TabsTrigger>
-            <TabsTrigger value="transactions" className="text-xs">Transaksi ({transactions.length})</TabsTrigger>
-            <TabsTrigger value="budgets" className="text-xs">Anggaran & Analisis</TabsTrigger>
-            <TabsTrigger value="wallets" className="text-xs">Rekening ({wallets.length})</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+            <TabsList className="w-full sm:w-auto flex justify-start sm:inline-flex bg-muted/50 p-1 border border-border/50 h-auto gap-1">
+              <TabsTrigger value="overview" className="text-xs px-3 py-1.5 shrink-0">Ringkasan</TabsTrigger>
+              <TabsTrigger value="transactions" className="text-xs px-3 py-1.5 shrink-0">Transaksi ({transactions.length})</TabsTrigger>
+              <TabsTrigger value="budgets" className="text-xs px-3 py-1.5 shrink-0">Anggaran ({budgets.length})</TabsTrigger>
+              <TabsTrigger value="wallets" className="text-xs px-3 py-1.5 shrink-0">Rekening ({wallets.length})</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 1: OVERVIEW */}
           <TabsContent value="overview" className="space-y-6">
@@ -369,10 +372,14 @@ export default function DashboardPage() {
             </div>
           </TabsContent>
 
-          {/* TAB 2: TRANSAKSI */}
-          <TabsContent value="transactions">
+          {/* TAB 2: TRANSAKSI LENGKAP */}
+          <TabsContent value="transactions" className="space-y-6">
             {isLoadingTx && transactions.length === 0 ? (
-              <Skeleton className="h-[400px] rounded-xl" />
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-16 rounded-xl" />
+                ))}
+              </div>
             ) : (
               <TransactionFeed
                 transactions={transactions}
@@ -384,7 +391,7 @@ export default function DashboardPage() {
 
           {/* TAB 3: ANGGARAN & ANALISIS */}
           <TabsContent value="budgets" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold tracking-tight">Pengaturan Pagu Anggaran</h2>
                 <p className="text-xs text-muted-foreground">
@@ -395,7 +402,7 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsBudgetModalOpen(true)}
-                className="gap-1.5 h-8 text-xs"
+                className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto"
               >
                 <Plus className="size-3.5" aria-hidden="true" />
                 <span>Atur Pagu Anggaran</span>
@@ -409,7 +416,7 @@ export default function DashboardPage() {
 
           {/* TAB 4: REKENING & MANAJEMEN DOMPET */}
           <TabsContent value="wallets" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold tracking-tight">Rekening & Dompet Kas</h2>
                 <p className="text-xs text-muted-foreground">
@@ -420,7 +427,7 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleOpenAddWallet}
-                className="gap-1.5 h-8 text-xs"
+                className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto"
               >
                 <Plus className="size-3.5" aria-hidden="true" />
                 <span>Tambah Rekening</span>

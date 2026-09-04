@@ -58,12 +58,12 @@ export default function FamilyPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2.5">
-              <Users className="size-6 text-foreground shrink-0" aria-hidden="true" />
+              <Users className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Anggota Keluarga & Kontribusi
               </h1>
@@ -81,12 +81,13 @@ export default function FamilyPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Horizontal Scrollable Action Toolbar for Mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto shrink-0 touch-pan-x -mx-1 px-1">
             <Button
               variant="outline"
               size="sm"
               onClick={refreshAll}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md"
+              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0"
               title="Segarkan data sekarang"
             >
               <RefreshCw className={`size-3.5 ${isValidatingMembers ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -99,7 +100,7 @@ export default function FamilyPage() {
                 setMemberToEdit(null);
                 setIsAddModalOpen(true);
               }}
-              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm"
+              className="gap-1.5 h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               <span>Tambah Anggota</span>
@@ -108,31 +109,31 @@ export default function FamilyPage() {
         </div>
 
         {/* Integrated Quick Info Strip (Clean, Calm & Non-Redundant) */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-border/70 bg-card/60 text-card-foreground">
-          <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border/70 bg-card/60 text-card-foreground">
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
             <div>
               <p className="text-xs text-muted-foreground">Total Pengeluaran Keluarga</p>
-              <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-lg sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
                 {formatRupiah(totalExpense)}
               </p>
             </div>
             <div className="h-8 w-px bg-border/60 hidden sm:block" />
             <div className="hidden sm:block">
               <p className="text-xs text-muted-foreground">Anggota Terdaftar</p>
-              <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
+              <p className="text-lg sm:text-xl font-bold font-mono tracking-tight tabular-nums text-foreground mt-0.5">
                 {members.length} <span className="text-xs font-normal text-muted-foreground">Orang</span>
               </p>
             </div>
             <div className="h-8 w-px bg-border/60 hidden md:block" />
             <div className="hidden md:block">
               <p className="text-xs text-muted-foreground">Terhubung ke Telegram</p>
-              <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-lg sm:text-xl font-bold font-mono tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {connectedTelegram} <span className="text-xs font-normal text-muted-foreground">/ {members.length}</span>
               </p>
             </div>
           </div>
 
-          <div className="text-xs text-muted-foreground font-mono">
+          <div className="text-xs text-muted-foreground font-mono self-start sm:self-auto">
             Bulan: <span className="font-semibold text-foreground">September 2026</span>
           </div>
         </div>
