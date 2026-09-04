@@ -222,18 +222,34 @@ export async function parseFinancialInputWithGemini(options: {
 
   let lastError: any = null;
 
+  const promptContents = [
+    ...contents,
+    {
+      text:
+        "\nKEMBALIKAN OUTPUT STRICTLY DALAM FORMAT JSON VALID (TANPA MARKDOWN / TEKS LAIN):\n" +
+        "{\n" +
+        '  "confidence": 0.95,\n' +
+        '  "type": "expense",\n' +
+        '  "amount": 50000,\n' +
+        '  "category": "Makanan & Minuman",\n' +
+        '  "wallet_hint": "BCA / Mandiri / Tunai",\n' +
+        '  "description": "Pembelian Indomaret",\n' +
+        '  "merchant_name": "Indomaret",\n' +
+        '  "transaction_date": "YYYY-MM-DD",\n' +
+        '  "items": [{"name": "Nama Produk Jelas", "qty": 1, "price": 15000, "raw_name": "KODE ASLI"}]\n' +
+        "}",
+    },
+  ];
+
   // Try models in order: gemini-3.5-flash-lite -> gemini-3.1-flash-lite -> gemini-3.5-flash
   for (const modelName of LITE_FIRST_MODELS) {
-    // Mode A: Structured Output via responseSchema / responseJsonSchema
     try {
       const response = await ai.models.generateContent({
         model: modelName,
-        contents,
+        contents: promptContents,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           responseMimeType: "application/json",
-          responseSchema,
-          responseJsonSchema: responseSchema,
           temperature: 0.1,
         },
       });
@@ -241,7 +257,7 @@ export async function parseFinancialInputWithGemini(options: {
       const responseText = response.text;
       if (responseText) {
         const rawParsed = cleanAndParseJson(responseText);
-        if (rawParsed && typeof rawParsed === "object") {
+        if (rawParsed && typeof rawParsed === "object" && rawParsed.amount) {
           const parsed: GeminiParsedTransaction = {
             confidence: Number(rawParsed.confidence) || 0.9,
             type: rawParsed.type === "income" || rawParsed.type === "transfer" ? rawParsed.type : "expense",
@@ -249,7 +265,7 @@ export async function parseFinancialInputWithGemini(options: {
             category: rawParsed.category || "Lain-lain",
             wallet_hint: rawParsed.wallet_hint || null,
             to_wallet_hint: rawParsed.to_wallet_hint || null,
-            description: rawParsed.description || "Transaksi Struk",
+            description: rawParsed.description || (rawParsed.merchant_name ? `Struk: ${rawParsed.merchant_name}` : "Transaksi Struk"),
             items: Array.isArray(rawParsed.items)
               ? rawParsed.items.map((it: any) => ({
                   name: String(it.name || "Item"),
@@ -269,76 +285,9 @@ export async function parseFinancialInputWithGemini(options: {
           return parsed;
         }
       }
-    } catch (modeAErr: any) {
-      lastError = modeAErr;
-      console.warn(`[Gemini Parser] Mode A (Structured) failed on ${modelName}:`, modeAErr.message || modeAErr);
-    }
-
-    // Mode B: Fail-safe prompt-based JSON extraction without strict responseSchema
-    try {
-      const promptModeBContents = [
-        ...contents,
-        {
-          text:
-            "\nKEMBALIKAN OUTPUT STRICTLY DALAM FORMAT JSON VALID TANPA TEKS LAIN:\n" +
-            "{\n" +
-            '  "confidence": 0.95,\n' +
-            '  "type": "expense",\n' +
-            '  "amount": 50000,\n' +
-            '  "category": "Makanan & Minuman",\n' +
-            '  "wallet_hint": "BCA",\n' +
-            '  "description": "Pembelian Indomaret",\n' +
-            '  "merchant_name": "Indomaret",\n' +
-            '  "transaction_date": "2026-09-04",\n' +
-            '  "items": [{"name": "Roti", "qty": 1, "price": 15000, "raw_name": "ROTI"}]\n' +
-            "}",
-        },
-      ];
-
-      const responseModeB = await ai.models.generateContent({
-        model: modelName,
-        contents: promptModeBContents,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          responseMimeType: "application/json",
-          temperature: 0.1,
-        },
-      });
-
-      const textB = responseModeB.text;
-      if (textB) {
-        const rawParsedB = cleanAndParseJson(textB);
-        if (rawParsedB && typeof rawParsedB === "object" && rawParsedB.amount) {
-          const parsed: GeminiParsedTransaction = {
-            confidence: Number(rawParsedB.confidence) || 0.85,
-            type: rawParsedB.type === "income" || rawParsedB.type === "transfer" ? rawParsedB.type : "expense",
-            amount: Math.round(Number(rawParsedB.amount) || 0),
-            category: rawParsedB.category || "Lain-lain",
-            wallet_hint: rawParsedB.wallet_hint || null,
-            to_wallet_hint: rawParsedB.to_wallet_hint || null,
-            description: rawParsedB.description || (rawParsedB.merchant_name ? `Struk: ${rawParsedB.merchant_name}` : "Transaksi Struk"),
-            items: Array.isArray(rawParsedB.items)
-              ? rawParsedB.items.map((it: any) => ({
-                  name: String(it.name || "Item"),
-                  qty: Number(it.qty) || 1,
-                  price: Math.round(Number(it.price) || 0),
-                  raw_name: it.raw_name ? String(it.raw_name) : undefined,
-                }))
-              : [],
-            merchant_name: rawParsedB.merchant_name || null,
-            transaction_date: rawParsedB.transaction_date || null,
-            transcription: rawParsedB.transcription || null,
-          };
-
-          if (options.imageBuffer) {
-            return verifyAndReconcileReceipt(parsed);
-          }
-          return parsed;
-        }
-      }
-    } catch (modeBErr: any) {
-      lastError = modeBErr;
-      console.warn(`[Gemini Parser] Mode B (Prompt JSON) failed on ${modelName}:`, modeBErr.message || modeBErr);
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[Gemini Parser] Fast-path attempt failed on ${modelName}:`, err.message || err);
     }
   }
 

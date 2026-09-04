@@ -674,25 +674,30 @@ export async function POST(req: NextRequest) {
       const downloaded = await downloadTelegramFile(fileIdToDownload);
 
       if (downloaded) {
-        // Upload to Cloudflare R2 (with resilient local storage fallback)
-        const r2Result = await uploadReceiptToR2(
-          downloaded.buffer,
-          originalName,
-          downloaded.mimeType
-        );
+        // Parallel execution: Upload to Cloudflare R2 and parse with Gemini OCR simultaneously
+        const [r2Result, parsedResult] = await Promise.all([
+          uploadReceiptToR2(
+            downloaded.buffer,
+            originalName,
+            downloaded.mimeType
+          ).catch((err) => {
+            console.error("[Telegram] Error uploading receipt to Cloudflare R2:", err);
+            return null;
+          }),
+          withContinuousChatAction(chatId, "typing", async () => {
+            return await parseFinancialInputWithGemini({
+              text: message.caption,
+              imageBuffer: downloaded.buffer,
+              imageMimeType: downloaded.mimeType,
+            });
+          }),
+        ]);
+
         if (r2Result) {
           driveFileId = r2Result.fileId;
           driveViewUrl = r2Result.url;
         }
-
-        // Parse with Gemini 3 Flash Lite with continuous typing pulse
-        parsed = await withContinuousChatAction(chatId, "typing", async () => {
-          return await parseFinancialInputWithGemini({
-            text: message.caption,
-            imageBuffer: downloaded.buffer,
-            imageMimeType: downloaded.mimeType,
-          });
-        });
+        parsed = parsedResult;
       }
     } else if (message.voice || message.audio) {
       sendTelegramChatAction(chatId, "record_voice").catch(() => {});

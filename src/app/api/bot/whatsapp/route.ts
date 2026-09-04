@@ -756,12 +756,27 @@ async function processWhatsAppMessage(
         return;
       }
 
-      // Parse immediately with Gemini OCR without blocking on storage upload
-      const parsed = await parseFinancialInputWithGemini({
-        imageBuffer: media.buffer,
-        imageMimeType: media.mimeType || "image/jpeg",
-        text: caption || undefined,
-      });
+      // Run Cloudflare R2 upload and Gemini OCR simultaneously
+      const [r2Result, parsed] = await Promise.all([
+        whatsAppConfig.enableAsyncMediaUpload
+          ? uploadReceiptToR2(
+              media.buffer,
+              `Struk_WA_${Date.now()}.jpg`,
+              media.mimeType || "image/jpeg"
+            ).catch((r2Err) => {
+              console.error("[WhatsApp] Error uploading receipt to Cloudflare R2:", r2Err);
+              return null;
+            })
+          : Promise.resolve(null),
+        parseFinancialInputWithGemini({
+          imageBuffer: media.buffer,
+          imageMimeType: media.mimeType || "image/jpeg",
+          text: caption || undefined,
+        }),
+      ]);
+
+      const r2FileId: string | null = r2Result?.fileId || null;
+      const r2ViewUrl: string | null = r2Result?.url || null;
 
       if (!parsed || parsed.amount <= 0) {
         completeBotProcess(taskId, "failed", "Gemini OCR tidak menemukan nominal transaksi valid.");
@@ -770,26 +785,6 @@ async function processWhatsAppMessage(
           "⚠️ AI tidak dapat mendeteksi nominal transaksi yang jelas pada foto struk tersebut. Pastikan foto terang dan terbaca jelas."
         );
         return;
-      }
-
-      // 1. Upload to Cloudflare R2 first so the URL is available for atomic transaction insert
-      let r2FileId: string | null = null;
-      let r2ViewUrl: string | null = null;
-
-      if (whatsAppConfig.enableAsyncMediaUpload) {
-        try {
-          const r2Result = await uploadReceiptToR2(
-            media.buffer,
-            `Struk_WA_${Date.now()}.jpg`,
-            media.mimeType || "image/jpeg"
-          );
-          if (r2Result) {
-            r2FileId = r2Result.fileId;
-            r2ViewUrl = r2Result.url;
-          }
-        } catch (r2Err) {
-          console.error("[WhatsApp] Error uploading receipt to Cloudflare R2:", r2Err);
-        }
       }
 
       // 2. Resolve Wallet
