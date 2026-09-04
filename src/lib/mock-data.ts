@@ -873,6 +873,76 @@ class MockDataStore {
   public getCategories() {
     return [...this.data.categories];
   }
+  public addCategory(cat: {
+    name: string;
+    type?: "income" | "expense";
+    color?: string;
+    icon?: string;
+    family_id?: string;
+    is_default?: boolean;
+    initialTarget?: number;
+    monthYear?: string;
+  }) {
+    const newCategory: Category = {
+      id: `cat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      family_id: cat.family_id || this.data.family.id,
+      name: cat.name.trim(),
+      type: cat.type || "expense",
+      icon: cat.icon || "Tag",
+      color: cat.color || "#3b82f6",
+      is_default: cat.is_default ?? false,
+      created_at: new Date().toISOString(),
+    };
+    this.data.categories.push(newCategory);
+
+    if (cat.initialTarget !== undefined && cat.initialTarget > 0) {
+      const monthYear = cat.monthYear || new Date().toISOString().substring(0, 7);
+      this.data.budgets.push({
+        id: `bud-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        family_id: newCategory.family_id,
+        category_id: newCategory.id,
+        target_amount: Number(cat.initialTarget),
+        period: "monthly",
+        month_year: monthYear,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    return newCategory;
+  }
+  public updateCategory(id: string, updates: Partial<Category>) {
+    const idx = this.data.categories.findIndex((c) => c.id === id);
+    if (idx === -1) return null;
+    this.data.categories[idx] = {
+      ...this.data.categories[idx],
+      ...updates,
+      name: updates.name !== undefined ? updates.name.trim() : this.data.categories[idx].name,
+    };
+    return this.data.categories[idx];
+  }
+  public deleteCategory(id: string, fallbackCategoryId?: string) {
+    const cat = this.data.categories.find((c) => c.id === id);
+    if (!cat) return false;
+
+    const fallbackId =
+      fallbackCategoryId ||
+      this.data.categories.find((c) => c.id !== id && c.type === cat.type && c.is_default)?.id ||
+      this.data.categories.find((c) => c.id !== id && c.type === cat.type)?.id ||
+      null;
+
+    if (fallbackId) {
+      this.data.transactions = this.data.transactions.map((t) => {
+        if (t.category_id === id) {
+          return { ...t, category_id: fallbackId };
+        }
+        return t;
+      });
+    }
+
+    this.data.budgets = this.data.budgets.filter((b) => b.category_id !== id);
+    this.data.categories = this.data.categories.filter((c) => c.id !== id);
+    return true;
+  }
 
   // Budgets
   public getBudgets(monthYear?: string) {
@@ -1135,6 +1205,10 @@ class MockDataStore {
 const globalForMock = globalThis as unknown as {
   mockDataStoreInstance?: MockDataStore;
 };
+
+if (globalForMock.mockDataStoreInstance) {
+  Object.setPrototypeOf(globalForMock.mockDataStoreInstance, MockDataStore.prototype);
+}
 
 export const mockStore =
   globalForMock.mockDataStoreInstance || MockDataStore.getInstance();

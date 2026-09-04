@@ -60,6 +60,17 @@ export default function DashboardPage() {
   const [walletToEdit, setWalletToEdit] = useState<Wallet | null>(null);
   const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isCreateBudgetMode, setIsCreateBudgetMode] = useState(false);
+
+  const handleOpenCreateBudget = () => {
+    setIsCreateBudgetMode(true);
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleOpenManageBudget = () => {
+    setIsCreateBudgetMode(false);
+    setIsBudgetModalOpen(true);
+  };
 
   // SWR Caching & Real-time Auto-sync Hooks
   const { wallets, mutate: mutateWallets } = useWallets();
@@ -358,7 +369,7 @@ export default function DashboardPage() {
               <div className="w-full">
                 <BudgetProgress
                   budgets={budgets}
-                  onOpenManageBudget={() => setIsBudgetModalOpen(true)}
+                  onOpenManageBudget={handleOpenManageBudget}
                 />
               </div>
               <div className="w-full">
@@ -398,18 +409,18 @@ export default function DashboardPage() {
                 </p>
               </div>
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
-                onClick={() => setIsBudgetModalOpen(true)}
-                className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto"
+                onClick={handleOpenCreateBudget}
+                className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto cursor-pointer"
               >
                 <Plus className="size-3.5" aria-hidden="true" />
-                <span>Atur Pagu Anggaran</span>
+                <span>Tambah Anggaran</span>
               </Button>
             </div>
             <BudgetProgress
               budgets={budgets}
-              onOpenManageBudget={() => setIsBudgetModalOpen(true)}
+              onOpenManageBudget={handleOpenManageBudget}
             />
           </TabsContent>
 
@@ -525,10 +536,18 @@ export default function DashboardPage() {
       {/* Modal Atur Pagu Anggaran */}
       <ManageBudgetModal
         isOpen={isBudgetModalOpen}
-        onClose={() => setIsBudgetModalOpen(false)}
+        onClose={() => {
+          setIsBudgetModalOpen(false);
+          setIsCreateBudgetMode(false);
+        }}
         initialMonthYear={selectedPeriod === "all" ? "2026-09" : selectedPeriod}
         budgets={budgets}
         onSaveBudgets={handleSaveBudgets}
+        onRefresh={() => {
+          mutateBudgets();
+          mutateCategories();
+        }}
+        initialCreateOpen={isCreateBudgetMode}
       />
 
       {/* Delete Wallet Alert Dialog */}

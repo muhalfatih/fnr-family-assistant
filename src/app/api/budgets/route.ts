@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
           spent: spentMap[cat.id] || 0,
           target: b ? Number(b.target_amount) : 0,
           color: cat.color || "#3b82f6",
+          is_default: Boolean(cat.is_default),
         };
       });
 
@@ -74,6 +75,7 @@ export async function GET(req: NextRequest) {
           spent: 0,
           target: b ? Number(b.target_amount) : 0,
           color: cat.color || "#3b82f6",
+          is_default: Boolean(cat.is_default),
         };
       });
       return NextResponse.json({ budgets: budgetItems, monthYear });
@@ -111,6 +113,7 @@ export async function GET(req: NextRequest) {
         spent: spentMap[cat.id] || 0,
         target: b ? Number(b.target_amount) : 0,
         color: cat.color || "#3b82f6",
+        is_default: Boolean(cat.is_default),
       };
     });
 
@@ -125,6 +128,7 @@ export async function GET(req: NextRequest) {
       spent: 0,
       target: 0,
       color: cat.color || "#3b82f6",
+      is_default: Boolean(cat.is_default),
     }));
     return NextResponse.json({ budgets: budgetItems, monthYear: "2026-09" });
   }

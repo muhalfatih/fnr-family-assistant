@@ -10,11 +10,13 @@ import { Settings2 } from "lucide-react";
 
 export interface CategoryBudgetItem {
   id: string;
+  category_id?: string;
   name: string;
   spent: number;
   target: number;
   icon?: string;
   color?: string;
+  is_default?: boolean;
 }
 
 interface BudgetProgressProps {

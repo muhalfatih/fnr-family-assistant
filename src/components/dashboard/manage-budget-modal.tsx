@@ -23,7 +23,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CategoryBudgetItem } from "@/components/dashboard/budget-progress";
-import { Calendar, Copy, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Calendar,
+  Copy,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Sparkles,
+  AlertTriangle,
+} from "lucide-react";
+
+const COLOR_PRESETS = [
+  "#10b981", // Emerald
+  "#3b82f6", // Blue
+  "#8b5cf6", // Purple
+  "#ec4899", // Pink
+  "#f59e0b", // Amber
+  "#f97316", // Orange
+  "#06b6d4", // Cyan
+  "#14b8a6", // Teal
+  "#6366f1", // Indigo
+  "#ef4444", // Red
+];
 
 interface ManageBudgetModalProps {
   isOpen: boolean;
@@ -31,6 +56,8 @@ interface ManageBudgetModalProps {
   initialMonthYear?: string;
   budgets: CategoryBudgetItem[];
   onSaveBudgets: (monthYear: string, updatedBudgets: CategoryBudgetItem[]) => Promise<void> | void;
+  onRefresh?: () => void;
+  initialCreateOpen?: boolean;
 }
 
 export function ManageBudgetModal({
@@ -39,6 +66,8 @@ export function ManageBudgetModal({
   initialMonthYear,
   budgets,
   onSaveBudgets,
+  onRefresh,
+  initialCreateOpen = false,
 }: ManageBudgetModalProps) {
   const currentMonthStr = useMemo(() => {
     return new Date().toISOString().substring(0, 7); // e.g. "2026-09"
@@ -51,6 +80,25 @@ export function ManageBudgetModal({
   const [isLoadingMonth, setIsLoadingMonth] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedMsg, setCopiedMsg] = useState<string | null>(null);
+
+  // Creation State
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
+  const [newCategoryTarget, setNewCategoryTarget] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // Edit State
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
+  const [editCategoryColor, setEditCategoryColor] = useState("#3b82f6");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // Deletion State
+  const [deletingCategory, setDeletingCategory] = useState<CategoryBudgetItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Generate structured list of months (3 future months, current month, 6 past months)
   const monthOptions = useMemo(() => {
@@ -120,8 +168,17 @@ export function ManageBudgetModal({
       const initial = initialMonthYear && initialMonthYear !== "all" ? initialMonthYear : currentMonthStr;
       setSelectedMonth(initial);
       fetchMonthBudgets(initial);
+      if (initialCreateOpen) {
+        setIsCreateOpen(true);
+      }
+    } else {
+      setIsCreateOpen(false);
+      setEditingCategoryId(null);
+      setDeletingCategory(null);
+      setCreateError(null);
+      setUpdateError(null);
     }
-  }, [isOpen, initialMonthYear, currentMonthStr, fetchMonthBudgets]);
+  }, [isOpen, initialMonthYear, currentMonthStr, fetchMonthBudgets, initialCreateOpen]);
 
   const handleMonthChange = (newMonth: string) => {
     setSelectedMonth(newMonth);
@@ -130,7 +187,6 @@ export function ManageBudgetModal({
 
   const handleCopyPreviousMonth = async () => {
     try {
-      // Calculate previous month string
       const [yearStr, monthStr] = selectedMonth.split("-");
       const curDate = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10) - 1, 1);
       curDate.setMonth(curDate.getMonth() - 1);
@@ -192,9 +248,115 @@ export function ManageBudgetModal({
     }
   };
 
+  // Create Category Handler
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) {
+      setCreateError("Nama kategori wajib diisi");
+      return;
+    }
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const cleanTarget = parseInt(newCategoryTarget.replace(/[^0-9]/g, "") || "0", 10);
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          type: "expense",
+          color: newCategoryColor,
+          initialTarget: cleanTarget,
+          monthYear: selectedMonth,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal membuat kategori");
+      }
+      setNewCategoryName("");
+      setNewCategoryColor("#3b82f6");
+      setNewCategoryTarget("");
+      setIsCreateOpen(false);
+      await fetchMonthBudgets(selectedMonth);
+      onRefresh?.();
+    } catch (err: any) {
+      setCreateError(err.message || "Gagal membuat kategori baru");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Start Edit Category
+  const handleStartEdit = (cat: CategoryBudgetItem) => {
+    setEditingCategoryId(cat.id);
+    setEditCategoryName(cat.name);
+    setEditCategoryColor(cat.color || "#3b82f6");
+    setUpdateError(null);
+  };
+
+  // Update Category Handler
+  const handleUpdateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategoryId) return;
+    if (!editCategoryName.trim()) {
+      setUpdateError("Nama kategori wajib diisi");
+      return;
+    }
+    setIsUpdating(true);
+    setUpdateError(null);
+    try {
+      const targetCat = items.find((i) => i.id === editingCategoryId);
+      const rawCatId = targetCat?.category_id || (editingCategoryId.startsWith("cat-") ? editingCategoryId.replace(/^cat-/, "") : editingCategoryId);
+      const res = await fetch("/api/categories", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: rawCatId,
+          name: editCategoryName.trim(),
+          color: editCategoryColor,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal memperbarui kategori");
+      }
+      setEditingCategoryId(null);
+      await fetchMonthBudgets(selectedMonth);
+      onRefresh?.();
+    } catch (err: any) {
+      setUpdateError(err.message || "Gagal memperbarui kategori");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Delete Category Handler
+  const handleDeleteCategory = async () => {
+    if (!deletingCategory) return;
+    setIsDeleting(true);
+    try {
+      const rawCatId = deletingCategory.category_id || (deletingCategory.id.startsWith("cat-") ? deletingCategory.id.replace(/^cat-/, "") : deletingCategory.id);
+      const res = await fetch(`/api/categories?id=${encodeURIComponent(rawCatId)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal menghapus kategori");
+      }
+      setDeletingCategory(null);
+      await fetchMonthBudgets(selectedMonth);
+      onRefresh?.();
+    } catch (err: any) {
+      console.error("Failed to delete category:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="sm:max-w-[560px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <form onSubmit={handleSubmit}>
           <DialogHeader className="space-y-1.5">
             <DialogTitle className="text-base font-semibold">Atur Pagu Anggaran Bulanan</DialogTitle>
@@ -265,6 +427,102 @@ export function ManageBudgetModal({
             </div>
           </div>
 
+          {/* Form Tambah Kategori Baru (Inline Card) */}
+          {isCreateOpen && (
+            <div className="mb-3 p-3 sm:p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-3 animate-in fade-in-0 zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="size-3.5 text-primary shrink-0" />
+                  <span className="text-xs font-semibold text-foreground">Tambah Kategori Anggaran Baru</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+                  aria-label="Tutup form tambah"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <Label htmlFor="newCategoryName" className="text-[11px] font-medium">Nama Kategori</Label>
+                  <Input
+                    id="newCategoryName"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Misal: Kucing, Skincare, Kursus"
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="newCategoryTarget" className="text-[11px] font-medium">Target Pagu Bulan Ini (Rp)</Label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-2.5 font-semibold text-muted-foreground text-xs select-none">
+                      Rp
+                    </span>
+                    <Input
+                      id="newCategoryTarget"
+                      value={newCategoryTarget}
+                      onChange={(e) => {
+                        const num = parseInt(e.target.value.replace(/[^0-9]/g, "") || "0", 10);
+                        setNewCategoryTarget(num > 0 ? num.toLocaleString("id-ID") : "");
+                      }}
+                      placeholder="0"
+                      className="h-8 pl-8 text-xs tabular-nums text-right font-semibold bg-background"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium">Warna Label</Label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {COLOR_PRESETS.map((col) => (
+                    <button
+                      key={col}
+                      type="button"
+                      onClick={() => setNewCategoryColor(col)}
+                      className={`size-5 rounded-full transition-transform cursor-pointer ${
+                        newCategoryColor === col ? "scale-125 ring-2 ring-primary ring-offset-1" : "hover:scale-110"
+                      }`}
+                      style={{ backgroundColor: col }}
+                      aria-label={`Pilih warna ${col}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {createError && (
+                <p className="text-[11px] text-destructive font-medium">{createError}</p>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/50">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="h-7 px-3 text-xs"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isCreating}
+                  onClick={handleCreateCategory}
+                  className="h-7 px-3 text-xs gap-1.5"
+                >
+                  <Plus className="size-3" />
+                  <span>{isCreating ? "Menyimpan..." : "Tambah Kategori"}</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Category Input Form */}
           <div className="relative py-1">
             {isLoadingMonth && (
@@ -276,33 +534,183 @@ export function ManageBudgetModal({
               </div>
             )}
 
-            <div className="grid gap-3 max-h-[320px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
               {items.map((b) => (
-                <div key={b.id} className="grid grid-cols-2 gap-3 items-center">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className="size-2 rounded-full shrink-0"
-                      style={{ backgroundColor: b.color || "#3b82f6" }}
-                    />
-                    <Label htmlFor={`budget-${b.id}`} className="text-xs font-medium truncate">
-                      {b.name}
-                    </Label>
+                <div
+                  key={b.id}
+                  className="p-2.5 rounded-lg border border-border/70 bg-card/60 hover:bg-muted/20 transition-colors space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span
+                        className="size-2.5 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/20"
+                        style={{ backgroundColor: b.color || "#3b82f6" }}
+                      />
+                      <span className="text-xs font-medium truncate text-foreground">
+                        {b.name}
+                      </span>
+                      {b.is_default ? (
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-normal text-muted-foreground border-border/60 shrink-0">
+                          Default
+                        </Badge>
+                      ) : (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 font-normal text-primary bg-primary/10">
+                            Kustom
+                          </Badge>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(b)}
+                            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                            title="Ubah nama & warna"
+                            aria-label={`Ubah kategori ${b.name}`}
+                          >
+                            <Pencil className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingCategory(b)}
+                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                            title="Hapus kategori"
+                            aria-label={`Hapus kategori ${b.name}`}
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Target Input */}
+                    <div className="relative flex items-center w-[130px] sm:w-[150px] shrink-0">
+                      <span className="absolute left-2.5 font-semibold text-muted-foreground text-xs select-none">
+                        Rp
+                      </span>
+                      <Input
+                        id={`budget-${b.id}`}
+                        type="text"
+                        value={b.target > 0 ? b.target.toLocaleString("id-ID") : ""}
+                        placeholder="0"
+                        onChange={(e) => handleTargetChange(b.id, e.target.value)}
+                        className="h-8 pl-8 text-xs tabular-nums text-right font-semibold"
+                      />
+                    </div>
                   </div>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-2.5 font-semibold text-muted-foreground text-xs select-none">
-                      Rp
-                    </span>
-                    <Input
-                      id={`budget-${b.id}`}
-                      type="text"
-                      value={b.target > 0 ? b.target.toLocaleString("id-ID") : ""}
-                      placeholder="0"
-                      onChange={(e) => handleTargetChange(b.id, e.target.value)}
-                      className="h-8 pl-8 text-xs tabular-nums text-right font-semibold"
-                    />
-                  </div>
+
+                  {/* Inline Edit Form */}
+                  {editingCategoryId === b.id && (
+                    <div className="pt-2 border-t border-border/70 space-y-2.5 bg-muted/30 p-2.5 rounded-md animate-in fade-in-0 duration-150">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-foreground">Ubah Kategori Kustom</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditingCategoryId(null)}
+                          className="text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium">Nama Kategori</Label>
+                        <Input
+                          value={editCategoryName}
+                          onChange={(e) => setEditCategoryName(e.target.value)}
+                          placeholder="Nama kategori"
+                          className="h-7 text-xs bg-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium">Warna Label</Label>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {COLOR_PRESETS.map((col) => (
+                            <button
+                              key={col}
+                              type="button"
+                              onClick={() => setEditCategoryColor(col)}
+                              className={`size-5 rounded-full transition-transform cursor-pointer ${
+                                editCategoryColor === col ? "scale-125 ring-2 ring-primary ring-offset-1" : "hover:scale-110"
+                              }`}
+                              style={{ backgroundColor: col }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {updateError && (
+                        <p className="text-[11px] text-destructive">{updateError}</p>
+                      )}
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingCategoryId(null)}
+                          className="h-6 px-2 text-[11px]"
+                        >
+                          Batal
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isUpdating}
+                          onClick={handleUpdateCategory}
+                          className="h-6 px-2.5 text-[11px]"
+                        >
+                          {isUpdating ? "Menyimpan..." : "Simpan Perubahan"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inline Delete Confirmation */}
+                  {deletingCategory?.id === b.id && (
+                    <div className="pt-2 border-t border-destructive/30 bg-destructive/5 p-2.5 rounded-md space-y-2 animate-in fade-in-0 duration-150">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
+                        <div className="text-[11px] space-y-1">
+                          <p className="font-semibold text-destructive">Hapus kategori "{b.name}"?</p>
+                          <p className="text-muted-foreground text-[10px] leading-relaxed">
+                            Seluruh riwayat transaksi terkait akan dialihkan ke kategori default agar pembukuan keluarga tetap utuh.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-destructive/20">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeletingCategory(null)}
+                          className="h-6 px-2 text-[11px]"
+                        >
+                          Batal
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={isDeleting}
+                          onClick={handleDeleteCategory}
+                          className="h-6 px-2.5 text-[11px]"
+                        >
+                          {isDeleting ? "Menghapus..." : "Ya, Hapus"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
+
+              {/* Button "+ Tambah Kategori Anggaran Baru" */}
+              {!isCreateOpen && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateOpen(true)}
+                  className="w-full mt-2 border-dashed border-border/80 gap-1.5 h-8 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Tambah Kategori Anggaran Baru</span>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -327,3 +735,4 @@ export function ManageBudgetModal({
     </Dialog>
   );
 }
+
