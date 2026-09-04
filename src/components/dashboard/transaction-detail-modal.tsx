@@ -75,6 +75,7 @@ export function TransactionDetailModal({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setHasMovedDuringDrag(false);
     setIsDragging(true);
     setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
@@ -82,6 +83,7 @@ export function TransactionDetailModal({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
+      e.stopPropagation();
       const dx = Math.abs(e.clientX - (dragStart.x + panPosition.x));
       const dy = Math.abs(e.clientY - (dragStart.y + panPosition.y));
       if (dx > 4 || dy > 4) {
@@ -97,7 +99,8 @@ export function TransactionDetailModal({
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setIsDragging(false);
   };
 
@@ -114,6 +117,7 @@ export function TransactionDetailModal({
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
     setHasMovedDuringDrag(false);
     if (e.touches.length === 1) {
       const touch = e.touches[0];
@@ -124,6 +128,7 @@ export function TransactionDetailModal({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (isDragging && e.touches.length === 1) {
+      e.stopPropagation();
       const touch = e.touches[0];
       const dx = Math.abs(touch.clientX - (dragStart.x + panPosition.x));
       const dy = Math.abs(touch.clientY - (dragStart.y + panPosition.y));
@@ -139,12 +144,14 @@ export function TransactionDetailModal({
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e?: React.TouchEvent) => {
+    if (e) e.stopPropagation();
     setIsDragging(false);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (e.deltaY < 0) {
       setZoomLevel((prev) => Math.min(prev + 0.25, 4));
     } else {
@@ -152,12 +159,14 @@ export function TransactionDetailModal({
     }
   };
 
-  // Keyboard shortcut: Escape closes lightbox
+  // Keyboard shortcut: Escape closes only lightbox when lightbox is active
   useEffect(() => {
     if (!isLightboxOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         setIsLightboxOpen(false);
       }
     };
@@ -236,7 +245,25 @@ export function TransactionDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl gap-5">
+      <DialogContent
+        onPointerDownOutside={(e) => {
+          if (isLightboxOpen) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          if (isLightboxOpen) {
+            e.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isLightboxOpen) {
+            e.preventDefault();
+            setIsLightboxOpen(false);
+          }
+        }}
+        className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl gap-5"
+      >
         <DialogHeader className="space-y-2.5 pb-3 border-b border-border/70">
           <div className="flex items-center gap-2 pr-10">
             <Badge
@@ -564,7 +591,11 @@ export function TransactionDetailModal({
           }}
         >
           {/* Top Bar: Title & Controls */}
-          <div className="flex items-center justify-between p-3 sm:p-4 bg-black/50 border-b border-white/10 text-white z-10 shrink-0">
+          <div
+            className="flex items-center justify-between p-3 sm:p-4 bg-black/50 border-b border-white/10 text-white z-10 shrink-0"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-2 min-w-0 pr-2">
               <ImageIcon className="size-4 text-primary shrink-0" />
               <span className="text-xs sm:text-sm font-medium truncate">
@@ -579,7 +610,11 @@ export function TransactionDetailModal({
               {/* Zoom Out Button */}
               <button
                 type="button"
-                onClick={handleZoomOut}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleZoomOut();
+                }}
                 disabled={zoomLevel <= 0.5}
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors"
                 title="Perkecil (Zoom Out)"
@@ -591,7 +626,11 @@ export function TransactionDetailModal({
               {/* Zoom Level Indicator / Reset */}
               <button
                 type="button"
-                onClick={handleResetZoom}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleResetZoom();
+                }}
                 className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white tabular-nums font-medium transition-colors"
                 title="Reset Ukuran (100%)"
               >
@@ -601,7 +640,11 @@ export function TransactionDetailModal({
               {/* Zoom In Button */}
               <button
                 type="button"
-                onClick={handleZoomIn}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleZoomIn();
+                }}
                 disabled={zoomLevel >= 4}
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:hover:bg-white/10 text-white transition-colors"
                 title="Perbesar (Zoom In)"
@@ -615,6 +658,8 @@ export function TransactionDetailModal({
                 href={mediaUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
                 title="Buka Gambar Asli di Tab Baru"
                 aria-label="Buka di tab baru"
@@ -627,7 +672,11 @@ export function TransactionDetailModal({
               {/* Close Button */}
               <button
                 type="button"
-                onClick={() => setIsLightboxOpen(false)}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsLightboxOpen(false);
+                }}
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-destructive text-white transition-colors"
                 title="Tutup (Esc)"
                 aria-label="Tutup"
@@ -676,7 +725,11 @@ export function TransactionDetailModal({
           </div>
 
           {/* Bottom Hint */}
-          <div className="p-2.5 text-center bg-black/50 text-[11px] text-white/60 border-t border-white/10 shrink-0">
+          <div
+            className="p-2.5 text-center bg-black/50 text-[11px] text-white/60 border-t border-white/10 shrink-0"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
             <span className="hidden sm:inline">Klik gambar atau scroll mouse untuk zoom in/out • Drag untuk menggeser • </span>
             <span>Tekan Esc atau klik di luar gambar untuk menutup</span>
           </div>
