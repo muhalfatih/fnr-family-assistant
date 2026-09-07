@@ -288,13 +288,13 @@ export function AddTransactionModal({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="gap-2 sm:gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="h-9 text-xs px-3"
+              className="w-full sm:w-auto h-9 text-xs px-3"
             >
               Batal
             </Button>
@@ -302,7 +302,7 @@ export function AddTransactionModal({
               type="submit"
               size="sm"
               disabled={isSubmitting}
-              className="gap-1.5 h-9 text-xs px-3"
+              className="w-full sm:w-auto gap-1.5 h-9 text-xs px-3"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               <span>Simpan Transaksi</span>

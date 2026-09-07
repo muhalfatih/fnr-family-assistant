@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -586,7 +587,7 @@ export function ActivityLogTable({
               </div>
 
               {/* Close & Delete Actions */}
-              <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+              <DialogFooter className="pt-2 border-t border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:space-x-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -596,7 +597,7 @@ export function ActivityLogTable({
                     setSelectedLog(null);
                     setLogToDelete(log);
                   }}
-                  className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive/60 gap-1.5 cursor-pointer"
+                  className="w-full sm:w-auto h-9 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 hover:border-destructive/60 gap-1.5 cursor-pointer order-2 sm:order-1"
                 >
                   <Trash2 className="size-3" />
                   <span>Hapus Log Ini</span>
@@ -604,11 +605,11 @@ export function ActivityLogTable({
                 <Button
                   type="button"
                   onClick={() => setSelectedLog(null)}
-                  className="h-8 text-xs px-4 rounded-md active:scale-98 cursor-pointer"
+                  className="w-full sm:w-auto h-9 text-xs px-4 rounded-md cursor-pointer order-1 sm:order-2"
                 >
                   Tutup
                 </Button>
-              </div>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
@@ -624,7 +625,7 @@ export function ActivityLogTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0 pt-2">
-            <AlertDialogCancel disabled={isDeletingSingle} className="h-8 text-xs cursor-pointer">
+            <AlertDialogCancel disabled={isDeletingSingle} className="w-full sm:w-auto h-8.5 text-xs cursor-pointer">
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
@@ -633,7 +634,7 @@ export function ActivityLogTable({
                 handleDeleteSingleLog();
               }}
               disabled={isDeletingSingle}
-              className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto h-8.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
             >
               {isDeletingSingle ? (
                 <>
@@ -661,7 +662,7 @@ export function ActivityLogTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0 pt-2">
-            <AlertDialogCancel disabled={isClearingAll} className="h-8 text-xs cursor-pointer">
+            <AlertDialogCancel disabled={isClearingAll} className="w-full sm:w-auto h-8.5 text-xs cursor-pointer">
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
@@ -670,7 +671,7 @@ export function ActivityLogTable({
                 handleClearAllLogs();
               }}
               disabled={isClearingAll}
-              className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto h-8.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5 cursor-pointer"
             >
               {isClearingAll ? (
                 <>

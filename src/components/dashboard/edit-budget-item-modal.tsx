@@ -260,23 +260,23 @@ export function EditBudgetItemModal({
             )}
           </div>
 
-          <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
-            <Button
-              type="submit"
-              disabled={isSubmitting || !name.trim()}
-              className="w-full h-9 text-xs font-semibold cursor-pointer gap-1.5"
-            >
-              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-              <span>{isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}</span>
-            </Button>
+          <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="w-full h-9 text-xs cursor-pointer"
+              className="w-full sm:w-auto h-9 text-xs cursor-pointer"
             >
               Batal
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting || !name.trim()}
+              className="w-full sm:w-auto h-9 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              <span>{isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}</span>
             </Button>
           </DialogFooter>
         </form>

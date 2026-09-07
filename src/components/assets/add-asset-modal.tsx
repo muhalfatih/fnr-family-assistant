@@ -197,14 +197,14 @@ export function AddAssetModal({
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="h-9 text-xs px-3"
+              className="w-full sm:w-auto h-9 text-xs px-3 cursor-pointer"
             >
               Batal
             </Button>
             <Button
               type="submit"
               size="sm"
-              className="gap-1.5 h-9 text-xs px-3"
+              className="w-full sm:w-auto gap-1.5 h-9 text-xs px-3 cursor-pointer"
             >
               Simpan Aset
             </Button>

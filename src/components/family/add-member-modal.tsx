@@ -218,10 +218,10 @@ export function AddMemberModal({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="h-9 text-xs px-3">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto h-9 text-xs px-3 cursor-pointer">
               Batal
             </Button>
-            <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 h-9 text-xs px-3">
+            <Button type="submit" size="sm" disabled={isSubmitting} className="w-full sm:w-auto gap-1.5 h-9 text-xs px-3 cursor-pointer">
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               <span>{memberToEdit ? "Simpan Perubahan" : "Tambah Anggota"}</span>
             </Button>

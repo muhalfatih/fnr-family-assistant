@@ -582,11 +582,11 @@ export default function DashboardPage() {
               akan dihapus dari daftar rekening kas keluarga.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel className="h-9 text-xs px-3">Batal</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto h-9 text-xs px-3 cursor-pointer">Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => walletToDelete && handleDeleteWallet(walletToDelete.id)}
-              className="h-9 text-xs px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto h-9 text-xs px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
             >
               Hapus Rekening
             </AlertDialogAction>

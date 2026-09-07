@@ -204,20 +204,25 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
           </div>
         </div>
 
-        <DialogFooter className="flex flex-row items-center justify-between sm:justify-between gap-2 pt-2 border-t">
+        <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center justify-between pt-3 border-t mt-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={fetchDiagnostics}
             disabled={isLoading}
-            className="gap-1.5 text-xs"
+            className="w-full sm:w-auto gap-1.5 text-xs order-2 sm:order-1 cursor-pointer"
           >
             <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
             <span>{isLoading ? "Memeriksa..." : "Uji Ulang Koneksi"}</span>
           </Button>
 
-          <Button type="button" size="sm" onClick={onClose}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={onClose}
+            className="w-full sm:w-auto text-xs px-4 order-1 sm:order-2 cursor-pointer"
+          >
             Tutup
           </Button>
         </DialogFooter>

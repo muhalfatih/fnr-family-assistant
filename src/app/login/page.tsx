@@ -348,26 +348,26 @@ function LoginForm() {
             }}
             className="w-full"
           >
-            <TabsList className="grid grid-cols-3 w-full h-9 bg-muted/70 p-1 rounded-lg border border-border/40">
+            <TabsList className="w-full grid grid-cols-3 bg-muted/60 p-1 border border-border/60 h-auto gap-1 rounded-lg">
               <TabsTrigger
                 value="whatsapp"
-                className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="text-xs px-2 sm:px-3 py-1.5 truncate gap-1.5 cursor-pointer"
               >
-                <Smartphone className="size-3.5" />
+                <Smartphone className="size-3.5 shrink-0" />
                 <span>WhatsApp</span>
               </TabsTrigger>
               <TabsTrigger
                 value="telegram"
-                className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="text-xs px-2 sm:px-3 py-1.5 truncate gap-1.5 cursor-pointer"
               >
-                <Send className="size-3.5" />
+                <Send className="size-3.5 shrink-0" />
                 <span>Telegram</span>
               </TabsTrigger>
               <TabsTrigger
                 value="password"
-                className="text-xs font-medium gap-1.5 h-7 rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="text-xs px-2 sm:px-3 py-1.5 truncate gap-1.5 cursor-pointer"
               >
-                <KeyRound className="size-3.5" />
+                <KeyRound className="size-3.5 shrink-0" />
                 <span>Kata Sandi</span>
               </TabsTrigger>
             </TabsList>
@@ -425,17 +425,9 @@ function LoginForm() {
                     required
                   />
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Ketik ID Chat atau kirim <code>/myid</code> ke bot.</span>
-                  <a
-                    href="https://t.me/fnr_assistant_bot"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary hover:underline font-medium inline-flex items-center gap-0.5"
-                  >
-                    Buka Bot ↗
-                  </a>
-                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Ketik ID Chat atau kirim <code>/myid</code> ke bot Telegram.
+                </p>
               </div>
             )}
 

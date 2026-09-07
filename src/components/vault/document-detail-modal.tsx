@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -349,47 +350,53 @@ export function DocumentDetailModal({
               </p>
             </div>
           )}
+        </div>
 
-          {/* Action Buttons: Touch targets >= 44px on mobile */}
-          <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-1">
-              {fileUrl && (
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 h-11 sm:h-9 px-3.5 rounded-lg border border-border bg-background text-xs font-medium text-foreground hover:bg-muted transition-colors active:scale-98"
-                >
-                  <ExternalLink className="size-4" aria-hidden="true" />
-                  <span>Buka Berkas Penuh</span>
-                </a>
-              )}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  onClose();
-                  onEdit(doc);
-                }}
-                className="flex-1 sm:flex-initial h-11 sm:h-9 text-xs font-medium gap-1.5 rounded-lg active:scale-98"
+        <DialogFooter className="pt-3 border-t border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:space-x-0">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              onClose();
+              onDelete(doc.id);
+            }}
+            className="w-full sm:w-auto h-10 sm:h-9 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5 rounded-lg order-last sm:order-first cursor-pointer"
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+            <span>Hapus Dokumen</span>
+          </Button>
+
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            {fileUrl && (
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3.5 rounded-lg border border-border bg-background text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
-                <Pencil className="size-4 text-muted-foreground" aria-hidden="true" />
-                <span>Edit</span>
-              </Button>
-            </div>
-
+                <ExternalLink className="size-4" aria-hidden="true" />
+                <span>Buka Berkas Penuh</span>
+              </a>
+            )}
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={() => {
                 onClose();
-                onDelete(doc.id);
+                onEdit(doc);
               }}
-              className="h-11 sm:h-9 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5 rounded-lg active:scale-98"
+              className="w-full sm:w-auto h-10 sm:h-9 text-xs font-medium gap-1.5 rounded-lg cursor-pointer"
             >
-              <Trash2 className="size-4" aria-hidden="true" />
-              <span>Hapus Dokumen</span>
+              <Pencil className="size-4 text-muted-foreground" aria-hidden="true" />
+              <span>Edit</span>
+            </Button>
+            <Button
+              variant="default"
+              onClick={onClose}
+              className="w-full sm:w-auto h-10 sm:h-9 text-xs font-medium rounded-lg cursor-pointer order-first sm:order-last"
+            >
+              Tutup
             </Button>
           </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

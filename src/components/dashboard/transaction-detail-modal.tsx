@@ -549,7 +549,7 @@ export function TransactionDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-border/70 mt-2">
+        <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center justify-between pt-3 border-t border-border/70 mt-2">
           {onDelete ? (
             <Button
               variant="outline"
@@ -558,25 +558,23 @@ export function TransactionDetailModal({
                 onClose();
                 onDelete(transaction.id);
               }}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 text-xs gap-1.5"
+              className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 text-xs gap-1.5 order-2 sm:order-1 cursor-pointer"
             >
               <Trash2 className="size-3.5" />
               Hapus Transaksi Ini
             </Button>
           ) : (
-            <div />
+            <div className="hidden sm:block" />
           )}
 
-          <div className="flex items-center gap-2 justify-end">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onClose}
-              className="text-xs px-4"
-            >
-              Tutup
-            </Button>
-          </div>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onClose}
+            className="w-full sm:w-auto text-xs px-4 order-1 sm:order-2 cursor-pointer"
+          >
+            Tutup
+          </Button>
         </DialogFooter>
       </DialogContent>
 

@@ -377,12 +377,12 @@ export function ManageCategoriesModal({
                 </div>
               </div>
 
-              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
+              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 gap-2 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={onClose}
-                  className="w-full h-9 text-xs cursor-pointer"
+                  className="w-full sm:w-auto h-9 text-xs cursor-pointer"
                 >
                   Tutup
                 </Button>
@@ -470,15 +470,7 @@ export function ManageCategoriesModal({
                 )}
               </div>
 
-              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !addName.trim()}
-                  className="w-full h-9 text-xs font-semibold cursor-pointer gap-1.5"
-                >
-                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  <span>{isSubmitting ? "Menyimpan..." : "Tambah Kategori"}</span>
-                </Button>
+              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 gap-2 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -487,9 +479,17 @@ export function ManageCategoriesModal({
                     setView("list");
                   }}
                   disabled={isSubmitting}
-                  className="w-full h-9 text-xs cursor-pointer"
+                  className="w-full sm:w-auto h-9 text-xs cursor-pointer"
                 >
                   Kembali ke Daftar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !addName.trim()}
+                  className="w-full sm:w-auto h-9 text-xs font-semibold cursor-pointer gap-1.5"
+                >
+                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Menyimpan..." : "Tambah Kategori"}</span>
                 </Button>
               </DialogFooter>
             </form>
@@ -575,15 +575,7 @@ export function ManageCategoriesModal({
                 )}
               </div>
 
-              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !editName.trim()}
-                  className="w-full h-9 text-xs font-semibold cursor-pointer gap-1.5"
-                >
-                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  <span>{isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}</span>
-                </Button>
+              <DialogFooter className="mt-2 pt-3.5 border-t border-border/40 gap-2 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -592,9 +584,17 @@ export function ManageCategoriesModal({
                     setView("list");
                   }}
                   disabled={isSubmitting}
-                  className="w-full h-9 text-xs cursor-pointer"
+                  className="w-full sm:w-auto h-9 text-xs cursor-pointer"
                 >
                   Kembali ke Daftar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !editName.trim()}
+                  className="w-full sm:w-auto h-9 text-xs font-semibold cursor-pointer gap-1.5"
+                >
+                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+                  <span>{isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}</span>
                 </Button>
               </DialogFooter>
             </form>
@@ -622,14 +622,14 @@ export function ManageCategoriesModal({
           <AlertDialogFooter className="gap-2 sm:gap-0">
             <AlertDialogCancel
               disabled={isDeleting}
-              className="h-8.5 text-xs cursor-pointer"
+              className="w-full sm:w-auto h-8.5 text-xs cursor-pointer"
             >
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               disabled={isDeleting}
-              className="h-8.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+              className="w-full sm:w-auto h-8.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
             >
               {isDeleting ? (
                 <>

@@ -186,11 +186,11 @@ export function ManageWalletModal({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          <DialogFooter className="gap-2 sm:gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto cursor-pointer">
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto cursor-pointer">
               {isSubmitting ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Tambah Rekening"}
             </Button>
           </DialogFooter>

@@ -232,24 +232,24 @@ export function ManageBudgetModal({
             </span>
           </div>
 
-          {/* Action Footer (Full Width Stacked) */}
-          <DialogFooter className="mt-0 pt-3.5 border-t border-border/40 flex flex-col gap-2 sm:flex-col sm:space-x-0 w-full">
-            <Button
-              type="submit"
-              disabled={isSubmitting || isLoading}
-              className="w-full h-9 text-xs font-semibold cursor-pointer gap-1.5"
-            >
-              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-              <span>{isSubmitting ? "Menyimpan..." : "Simpan Pagu Anggaran"}</span>
-            </Button>
+          {/* Action Footer (Full Width Stacked on mobile) */}
+          <DialogFooter className="mt-0 pt-3.5 border-t border-border/40 gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="w-full h-9 text-xs cursor-pointer"
+              className="w-full sm:w-auto h-9 text-xs cursor-pointer"
             >
               Batal
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting || isLoading}
+              className="w-full sm:w-auto h-9 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              <span>{isSubmitting ? "Menyimpan..." : "Simpan Pagu Anggaran"}</span>
             </Button>
           </DialogFooter>
         </form>
