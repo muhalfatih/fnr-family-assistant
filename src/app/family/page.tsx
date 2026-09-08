@@ -125,7 +125,7 @@ export default function FamilyPage() {
         {/* 2-Column Balanced Section: Contribution Breakdown (6 Cols) & Member Roster (6 Cols) */}
         <div className="grid gap-6 lg:grid-cols-12 items-start">
           {/* Left: Spending Contribution Charts (6 Cols) */}
-          <div className="lg:col-span-6 space-y-4">
+          <div className="lg:col-span-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold tracking-tight text-foreground">
@@ -138,7 +138,10 @@ export default function FamilyPage() {
             </div>
 
             {isInitialLoading ? (
-              <Skeleton className="h-[360px] rounded-xl" />
+              <div className="flex flex-col gap-6">
+                <Skeleton className="h-[230px] rounded-xl" />
+                <Skeleton className="h-[210px] rounded-xl" />
+              </div>
             ) : (
               <ContributionCharts
                 contributions={contributions}
@@ -149,7 +152,7 @@ export default function FamilyPage() {
           </div>
 
           {/* Right: Member Profiles 2-Column Grid (6 Cols) */}
-          <div className="lg:col-span-6 space-y-4">
+          <div className="lg:col-span-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold tracking-tight text-foreground">
