@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import {
   Dialog,
@@ -46,24 +46,52 @@ export function AddTransactionModal({
   const [rawAmount, setRawAmount] = useState<number>(0);
   const [description, setDescription] = useState<string>("");
   const [walletId, setWalletId] = useState<string>(wallets[0]?.id || "");
-  const [categoryId, setCategoryId] = useState<string>(categories[0]?.id || "");
+  const [categoryId, setCategoryId] = useState<string>("");
   const [dateString, setDateString] = useState<string>(
     new Date().toISOString().substring(0, 10)
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (wallets.length > 0 && !walletId) {
-      setWalletId(wallets[0].id);
-    }
-  }, [wallets, walletId]);
+  // Filter kategori berdasarkan tipe aktif (pengeluaran vs pemasukan)
+  const filteredCategories = useMemo(() => {
+    return categories.filter((c) => c.type === type);
+  }, [categories, type]);
 
+  // Handler pergantian tipe transaksi dengan auto-select kategori pertama
+  const handleTypeChange = (newType: "expense" | "income") => {
+    setType(newType);
+    const matching = categories.filter((c) => c.type === newType);
+    setCategoryId(matching.length > 0 ? matching[0].id : "");
+  };
+
+  // Sinkronisasi saat modal dibuka
   useEffect(() => {
-    if (categories.length > 0 && !categoryId) {
-      setCategoryId(categories[0].id);
+    if (isOpen) {
+      setType("expense");
+      const expenseList = categories.filter((c) => c.type === "expense");
+      setCategoryId(expenseList.length > 0 ? expenseList[0].id : "");
+      if (wallets.length > 0) {
+        setWalletId(wallets[0].id);
+      }
+      setDisplayAmount("");
+      setRawAmount(0);
+      setDescription("");
+      setErrorMsg(null);
     }
-  }, [categories, categoryId]);
+  }, [isOpen, categories, wallets]);
+
+  // Pastikan categoryId selalu valid terhadap kategori yang terfilter
+  useEffect(() => {
+    if (filteredCategories.length > 0) {
+      const exists = filteredCategories.some((c) => c.id === categoryId);
+      if (!exists) {
+        setCategoryId(filteredCategories[0].id);
+      }
+    } else {
+      setCategoryId("");
+    }
+  }, [filteredCategories, categoryId]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value.replace(/[^0-9]/g, "");
@@ -146,8 +174,8 @@ export function AddTransactionModal({
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-center font-medium text-xs mt-3">
             <button
               type="button"
-              onClick={() => setType("expense")}
-              className={`rounded-md py-1.5 transition-all ${
+              onClick={() => handleTypeChange("expense")}
+              className={`rounded-md py-1.5 transition-all cursor-pointer ${
                 type === "expense"
                   ? "bg-background text-destructive shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -157,8 +185,8 @@ export function AddTransactionModal({
             </button>
             <button
               type="button"
-              onClick={() => setType("income")}
-              className={`rounded-md py-1.5 transition-all ${
+              onClick={() => handleTypeChange("income")}
+              className={`rounded-md py-1.5 transition-all cursor-pointer ${
                 type === "income"
                   ? "bg-background text-emerald-600 shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -239,16 +267,26 @@ export function AddTransactionModal({
               {/* Category Select */}
               <div className="grid gap-1.5">
                 <Label htmlFor="category" className="text-xs font-medium text-foreground">
-                  Kategori
+                  Kategori {type === "expense" ? "Pengeluaran" : "Pemasukan"}
                 </Label>
-                <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger id="category" className="h-9 text-xs w-full">
-                    <SelectValue placeholder="Pilih Kategori" />
+                <Select
+                  value={categoryId}
+                  onValueChange={setCategoryId}
+                  disabled={filteredCategories.length === 0}
+                >
+                  <SelectTrigger id="category" className="h-9 text-xs w-full cursor-pointer">
+                    <SelectValue
+                      placeholder={
+                        filteredCategories.length === 0
+                          ? `Belum ada kategori ${type === "expense" ? "pengeluaran" : "pemasukan"}`
+                          : "Pilih Kategori"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {categories.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
+                      {filteredCategories.map((c) => (
+                        <SelectItem key={c.id} value={c.id} className="text-xs cursor-pointer">
                           {c.name}
                         </SelectItem>
                       ))}

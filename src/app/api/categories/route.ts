@@ -34,6 +34,48 @@ export async function GET() {
       }
     }
 
+    // Pastikan kategori default pemasukan tersedia jika belum ada
+    if (categories && !categories.some((c) => c.type === "income")) {
+      const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
+      const famId = families && families.length > 0 ? families[0].id : null;
+      if (famId) {
+        await supabaseAdmin.from("categories").insert([
+          {
+            family_id: famId,
+            name: "Gaji & Pendapatan Tetap",
+            type: "income",
+            color: "#10b981",
+            icon: "Briefcase",
+            is_default: true,
+          },
+          {
+            family_id: famId,
+            name: "Dividen & Investasi",
+            type: "income",
+            color: "#3b82f6",
+            icon: "TrendingUp",
+            is_default: true,
+          },
+          {
+            family_id: famId,
+            name: "Bisnis & Jasa",
+            type: "income",
+            color: "#8b5cf6",
+            icon: "Store",
+            is_default: true,
+          },
+          {
+            family_id: famId,
+            name: "Pemasukan Lainnya",
+            type: "income",
+            color: "#64748b",
+            icon: "Tag",
+            is_default: true,
+          },
+        ]);
+      }
+    }
+
     const { data: latestCategories } = await supabaseAdmin
       .from("categories")
       .select("*")
