@@ -111,24 +111,22 @@ export default function DashboardPage() {
           onAddTransaction={() => setIsAddModalOpen(true)}
         />
 
-        {/* Canonical Tabs Navigation */}
+        {/* Unified Tabs Navigation */}
         <Tabs defaultValue="overview" className="space-y-5 sm:space-y-6">
-          <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-            <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex sm:inline-flex bg-muted/60 p-1 border border-border/60 h-auto gap-1">
-              <TabsTrigger value="overview" className="text-xs px-2 sm:px-3 py-1.5 truncate">
-                Ringkasan
-              </TabsTrigger>
-              <TabsTrigger value="transactions" className="text-xs px-2 sm:px-3 py-1.5 truncate">
-                Transaksi ({transactions.length})
-              </TabsTrigger>
-              <TabsTrigger value="budgets" className="text-xs px-2 sm:px-3 py-1.5 truncate">
-                Anggaran ({budgets.length})
-              </TabsTrigger>
-              <TabsTrigger value="wallets" className="text-xs px-2 sm:px-3 py-1.5 truncate">
-                Rekening ({wallets.length})
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:inline-flex">
+            <TabsTrigger value="overview">
+              Ringkasan
+            </TabsTrigger>
+            <TabsTrigger value="transactions">
+              Transaksi ({transactions.length})
+            </TabsTrigger>
+            <TabsTrigger value="budgets">
+              Anggaran ({budgets.length})
+            </TabsTrigger>
+            <TabsTrigger value="wallets">
+              Rekening ({wallets.length})
+            </TabsTrigger>
+          </TabsList>
 
           {/* TAB 1: OVERVIEW */}
           <TabsContent value="overview" className="space-y-6">

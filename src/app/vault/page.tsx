@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { VaultDocument } from "@/app/api/documents/route";
 import { DocumentCard } from "@/components/vault/document-card";
 import { DocumentDetailModal } from "@/components/vault/document-detail-modal";
@@ -9,8 +10,11 @@ import { AddDocumentModal } from "@/components/vault/add-document-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -132,73 +136,56 @@ export default function VaultPage() {
   return (
     <AppShell>
       <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <FolderLock className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
-                Brankas Dokumen & Legalitas
-              </h1>
-              {isValidating && !isLoading && (
-                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
-                  <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sync</span>
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Arsip digital keluarga, pelacakan masa berlaku berkas, dan notifikasi pengingat otomatis ke Telegram.
-            </p>
-          </div>
+        {/* Modular Page Header */}
+        <PageHeader
+          title="Brankas Dokumen & Legalitas"
+          description="Arsip digital keluarga, pelacakan masa berlaku berkas, dan notifikasi pengingat otomatis ke Telegram."
+          icon={FolderLock}
+          isSyncing={isValidating && !isLoading}
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => mutate()}
+            disabled={isValidating}
+            title="Segarkan data dokumen"
+          >
+            <RefreshCw className={cn("size-3.5", isValidating && "animate-spin")} aria-hidden="true" />
+            <span className="hidden sm:inline">Segarkan</span>
+          </Button>
 
-          {/* Structured Responsive Action Toolbar */}
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => mutate()}
-              disabled={isValidating}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
-              title="Segarkan data dokumen"
-            >
-              <RefreshCw className={`size-3.5 ${isValidating ? "animate-spin" : ""}`} aria-hidden="true" />
-              <span className="hidden sm:inline">Segarkan</span>
-            </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTriggerReminder}
+            disabled={isSendingReminder}
+            title="Picu scanner pengingat dokumen jatuh tempo ke WhatsApp & Telegram"
+            className="flex-1 sm:flex-initial"
+          >
+            {isSendingReminder ? (
+              <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden="true" />
+            ) : (
+              <Bell className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            )}
+            <span>Pengingat Bot</span>
+          </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTriggerReminder}
-              disabled={isSendingReminder}
-              className="h-8 text-xs px-3 rounded-md shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial active:scale-98"
-              title="Picu scanner pengingat dokumen jatuh tempo ke WhatsApp & Telegram"
-            >
-              {isSendingReminder ? (
-                <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden="true" />
-              ) : (
-                <Bell className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-              )}
-              <span>Pengingat Bot</span>
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => {
-                setDocumentToEdit(null);
-                setIsAddModalOpen(true);
-              }}
-              className="h-8 text-xs px-3.5 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial active:scale-98"
-            >
-              <Plus className="size-4 sm:size-3.5" aria-hidden="true" />
-              <span>Tambah Dokumen</span>
-            </Button>
-          </div>
-        </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setDocumentToEdit(null);
+              setIsAddModalOpen(true);
+            }}
+            className="flex-1 sm:flex-initial"
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+            <span>Tambah Dokumen</span>
+          </Button>
+        </PageHeader>
 
         {/* Integrated Status Alert Bars if Expiring or Expired */}
         {(counts.expiringSoon > 0 || counts.expired > 0) && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/70 bg-card/60 text-xs">
+          <Card padding="compact" className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
               <AlertTriangle className="size-4 text-amber-500 shrink-0" aria-hidden="true" />
               <span>Perhatian Dokumen:</span>
@@ -215,7 +202,7 @@ export default function VaultPage() {
                 <span>{counts.expiringSoon} Segera Habis</span>
               </Badge>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Filters and Search Toolbar */}
@@ -247,37 +234,34 @@ export default function VaultPage() {
             </Select>
           </div>
 
-          {/* Status Filter Tabs with Integrated Badge Counters and Mobile Horizontal Scroll */}
-          <div className="flex items-center rounded-lg border border-border/70 p-1 bg-muted/40 text-xs gap-1 overflow-x-auto no-scrollbar w-full lg:w-auto touch-pan-x min-w-0 max-w-full shrink-0">
-            {[
-              { id: "all", label: "Semua", count: counts.total },
-              { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
-              { id: "expired", label: "Kedaluwarsa", count: counts.expired, danger: counts.expired > 0 },
-              { id: "active", label: "Aktif", count: counts.active },
-              { id: "permanent", label: "Permanen", count: counts.permanent },
-            ].map((st) => (
-              <button
-                key={st.id}
-                onClick={() => setSelectedStatus(st.id)}
-                className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap flex items-center gap-1.5 text-xs font-medium shrink-0 active:scale-95 ${
-                  selectedStatus === st.id
-                    ? "bg-background text-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span>{st.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full tabular-nums ${
-                  st.danger
-                    ? "bg-destructive text-destructive-foreground"
-                    : st.alert
-                    ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold"
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  {st.count}
-                </span>
-              </button>
-            ))}
-          </div>
+          {/* Unified Status Filter Tabs with Integrated Badge Counters */}
+          <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="w-full lg:w-auto">
+            <TabsList className="w-full lg:w-auto">
+              {[
+                { id: "all", label: "Semua", count: counts.total },
+                { id: "expiring_soon", label: "Segera Habis", count: counts.expiringSoon, alert: counts.expiringSoon > 0 },
+                { id: "expired", label: "Kedaluwarsa", count: counts.expired, danger: counts.expired > 0 },
+                { id: "active", label: "Aktif", count: counts.active },
+                { id: "permanent", label: "Permanen", count: counts.permanent },
+              ].map((st) => (
+                <TabsTrigger key={st.id} value={st.id} className="gap-1.5">
+                  <span>{st.label}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full tabular-nums",
+                      st.danger
+                        ? "bg-destructive text-destructive-foreground"
+                        : st.alert
+                        ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {st.count}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Documents Grid Feed */}

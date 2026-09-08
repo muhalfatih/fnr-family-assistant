@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { NetWorthSummary } from "@/components/assets/net-worth-summary";
 import { AssetList } from "@/components/assets/asset-list";
 import { LiabilityList } from "@/components/assets/liability-list";
@@ -13,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Gem, Landmark, RefreshCw, Plus } from "lucide-react";
 import { useAssets, useLiabilities, useWallets } from "@/lib/hooks/use-family-data";
+import { cn } from "@/lib/utils";
 
 export default function AssetsPage() {
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
@@ -98,60 +100,43 @@ export default function AssetsPage() {
   return (
     <AppShell>
       <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <Landmark className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
-                Aset & Liabilitas
-              </h1>
-              {isValidatingAssets && !isLoadingAssets && (
-                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
-                  <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sync</span>
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Pemantauan kekayaan bersih keluarga (Net Worth), kepemilikan aset, dan progres cicilan hutang.
-            </p>
-          </div>
+        {/* Modular Page Header */}
+        <PageHeader
+          title="Aset & Liabilitas"
+          description="Pemantauan kekayaan bersih keluarga (Net Worth), kepemilikan aset, dan progres cicilan hutang."
+          icon={Landmark}
+          isSyncing={isValidatingAssets && !isLoadingAssets}
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshAll}
+            disabled={isValidatingAssets}
+            title="Segarkan data sekarang"
+          >
+            <RefreshCw className={cn("size-3.5", isValidatingAssets && "animate-spin")} aria-hidden="true" />
+            <span className="hidden sm:inline">Segarkan</span>
+          </Button>
 
-          {/* Structured Responsive Action Toolbar */}
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshAll}
-              disabled={isValidatingAssets}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
-              title="Segarkan data sekarang"
-            >
-              <RefreshCw className={`size-3.5 ${isValidatingAssets ? "animate-spin" : ""}`} aria-hidden="true" />
-              <span className="hidden sm:inline">Segarkan</span>
-            </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAssetModalOpen(true)}
+            className="flex-1 sm:flex-initial"
+          >
+            <Gem className="size-3.5 text-foreground" aria-hidden="true" />
+            <span>Tambah Aset</span>
+          </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAssetModalOpen(true)}
-              className="h-8 text-xs px-3 rounded-md shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
-            >
-              <Gem className="size-3.5 text-foreground" aria-hidden="true" />
-              <span>Tambah Aset</span>
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => setIsLiabilityModalOpen(true)}
-              className="h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
-            >
-              <Plus className="size-3.5" aria-hidden="true" />
-              <span>Tambah Hutang</span>
-            </Button>
-          </div>
-        </div>
+          <Button
+            size="sm"
+            onClick={() => setIsLiabilityModalOpen(true)}
+            className="flex-1 sm:flex-initial"
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+            <span>Tambah Hutang</span>
+          </Button>
+        </PageHeader>
 
         {/* Executive Balance Sheet Summary */}
         {isInitialLoading ? (
@@ -164,21 +149,19 @@ export default function AssetsPage() {
           />
         )}
 
-        {/* Canonical Shadcn Tabs Navigation with Responsive Segmented Grid / Scroll */}
+        {/* Unified Tabs Navigation */}
         <Tabs defaultValue="all" className="space-y-5 sm:space-y-6">
-          <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex sm:inline-flex bg-muted/60 p-1 border border-border/60 h-auto gap-1">
-              <TabsTrigger value="all" className="text-xs px-2 sm:px-3 py-1.5 truncate">
-                Semua ({assets.length + liabilities.length})
-              </TabsTrigger>
-              <TabsTrigger value="assets" className="text-xs px-2 sm:px-3 py-1.5 truncate">
-                Aset Fisik ({assets.length})
-              </TabsTrigger>
-              <TabsTrigger value="liabilities" className="text-xs px-2 sm:px-3 py-1.5 truncate">
-                Kewajiban ({liabilities.length})
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+            <TabsTrigger value="all">
+              Semua ({assets.length + liabilities.length})
+            </TabsTrigger>
+            <TabsTrigger value="assets">
+              Aset Fisik ({assets.length})
+            </TabsTrigger>
+            <TabsTrigger value="liabilities">
+              Kewajiban ({liabilities.length})
+            </TabsTrigger>
+          </TabsList>
 
           {/* TAB 1: ALL (SPLIT GRID) */}
           <TabsContent value="all" className="space-y-6">

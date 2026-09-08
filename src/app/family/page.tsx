@@ -2,13 +2,15 @@
 
 import React, { useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { MemberCard } from "@/components/family/member-card";
 import { ContributionCharts } from "@/components/family/contribution-charts";
 import { AddMemberModal } from "@/components/family/add-member-modal";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Plus, RefreshCw, Send, ShieldCheck, CreditCard } from "lucide-react";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, cn } from "@/lib/utils";
 import {
   useFamilyMembers,
   useWallets,
@@ -59,56 +61,39 @@ export default function FamilyPage() {
   return (
     <AppShell>
       <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <Users className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
-                Anggota Keluarga & Kontribusi
-              </h1>
-              {isValidatingMembers && !isLoadingMembers && (
-                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
-                  <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sync</span>
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Kelola profil anggota keluarga, tautan akun bot Telegram, dan pantau kontribusi belanja bulanan.
-            </p>
-          </div>
+        {/* Modular Page Header */}
+        <PageHeader
+          title="Anggota Keluarga & Kontribusi"
+          description="Kelola profil anggota keluarga, tautan akun bot Telegram, dan pantau kontribusi belanja bulanan."
+          icon={Users}
+          isSyncing={isValidatingMembers && !isLoadingMembers}
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshAll}
+            disabled={isValidatingMembers}
+            title="Segarkan data sekarang"
+          >
+            <RefreshCw className={cn("size-3.5", isValidatingMembers && "animate-spin")} aria-hidden="true" />
+            <span className="hidden sm:inline">Segarkan</span>
+          </Button>
 
-          {/* Structured Responsive Action Toolbar */}
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshAll}
-              disabled={isValidatingMembers}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
-              title="Segarkan data sekarang"
-            >
-              <RefreshCw className={`size-3.5 ${isValidatingMembers ? "animate-spin" : ""}`} aria-hidden="true" />
-              <span className="hidden sm:inline">Segarkan</span>
-            </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              setMemberToEdit(null);
+              setIsAddModalOpen(true);
+            }}
+            className="flex-1 sm:flex-initial"
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+            <span>Tambah Anggota</span>
+          </Button>
+        </PageHeader>
 
-            <Button
-              size="sm"
-              onClick={() => {
-                setMemberToEdit(null);
-                setIsAddModalOpen(true);
-              }}
-              className="h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5 flex-1 sm:flex-initial"
-            >
-              <Plus className="size-3.5" aria-hidden="true" />
-              <span>Tambah Anggota</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Integrated Quick Info Strip (Clean, Calm & Non-Redundant) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border border-border/70 bg-card/60 text-card-foreground">
+        {/* Integrated Quick Info Strip using Standard Card */}
+        <Card padding="default" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
             <div>
               <p className="text-xs text-muted-foreground">Total Pengeluaran Keluarga</p>
@@ -135,7 +120,7 @@ export default function FamilyPage() {
           <div className="text-xs text-muted-foreground tabular-nums self-start sm:self-auto">
             Bulan: <span className="font-semibold text-foreground">September 2026</span>
           </div>
-        </div>
+        </Card>
 
         {/* 2-Column Balanced Section: Contribution Breakdown (6 Cols) & Member Roster (6 Cols) */}
         <div className="grid gap-6 lg:grid-cols-12 items-start">
