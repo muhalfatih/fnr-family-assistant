@@ -57,6 +57,11 @@ function LoginForm() {
   const [isVerifyingMagic, setIsVerifyingMagic] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [telegramActivationPrompt, setTelegramActivationPrompt] = useState<{
+    memberName?: string;
+    botUsername?: string;
+    hasWhatsapp?: boolean;
+  } | null>(null);
   const [simulationHint, setSimulationHint] = useState<{
     code?: string;
     magicLink?: string;
@@ -134,6 +139,13 @@ function LoginForm() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data.needsTelegramActivation) {
+          setTelegramActivationPrompt({
+            memberName: data.memberName,
+            botUsername: data.botUsername,
+            hasWhatsapp: data.hasWhatsapp,
+          });
+        }
         throw new Error(data.error || "Gagal mengirim kode verifikasi.");
       }
 
@@ -345,6 +357,7 @@ function LoginForm() {
             onValueChange={(val) => {
               setMethod(val as LoginMethod);
               setError(null);
+              setTelegramActivationPrompt(null);
             }}
             className="w-full"
           >
@@ -406,7 +419,7 @@ function LoginForm() {
             ) : (
               <div className="space-y-1.5">
                 <Label htmlFor="telegramInput" className="text-xs font-medium text-foreground">
-                  ID Chat, Nama, atau No. HP Telegram
+                  Username (@username), No. HP, atau ID Chat
                 </Label>
                 <div className="relative flex items-center">
                   <Send className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
@@ -417,8 +430,9 @@ function LoginForm() {
                     onChange={(e) => {
                       setTelegramId(e.target.value);
                       if (error) setError(null);
+                      if (telegramActivationPrompt) setTelegramActivationPrompt(null);
                     }}
-                    placeholder="Contoh: 123456789, Fatih, atau 0857..."
+                    placeholder="Contoh: @muhalfatih, 0812..., atau 123456789"
                     className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
                     autoFocus
@@ -426,18 +440,59 @@ function LoginForm() {
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Ketik ID Chat atau kirim <code>/myid</code> ke bot Telegram.
+                  Bisa menggunakan <b>@username Telegram</b>, nomor HP terdaftar, atau ID Chat.
                 </p>
               </div>
             )}
 
-            {/* Error Message */}
-            {error && (
+            {/* Telegram Activation Guide Card */}
+            {telegramActivationPrompt ? (
+              <div className="flex flex-col gap-2.5 p-3 rounded-xl bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs border border-amber-500/20 animate-in fade-in">
+                <div className="flex items-start gap-2">
+                  <Sparkles className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-foreground">
+                      Akun {telegramActivationPrompt.memberName || "Anggota"} Ditemukan!
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Karena ini pertama kali Anda login via Telegram, silakan aktifkan dengan mengirim <code>/start</code> atau berbagi kontak ke bot Telegram agar kode masuk dapat dikirimkan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-500/20">
+                  <a
+                    href={`https://t.me/${telegramActivationPrompt.botUsername || "fnr_assistant_bot"}?start=login`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-[11px] font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <Send className="size-3" />
+                    <span>Buka Bot Telegram (@{telegramActivationPrompt.botUsername || "fnr_assistant_bot"})</span>
+                  </a>
+
+                  {telegramActivationPrompt.hasWhatsapp && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMethod("whatsapp");
+                        setTelegramActivationPrompt(null);
+                        setError(null);
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                    >
+                      <Smartphone className="size-3" />
+                      <span>Masuk via WhatsApp</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : error ? (
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
                 <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
-            )}
+            ) : null}
 
             {/* Remember Me Checkbox */}
             <div className="flex items-center justify-between pt-0.5">

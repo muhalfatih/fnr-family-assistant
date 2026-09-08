@@ -8,6 +8,7 @@ export interface AuthenticatedUser {
   email: string;
   role: string;
   telegramChatId?: number | null;
+  telegramUsername?: string | null;
   whatsappNumber?: string | null;
 }
 
@@ -154,7 +155,7 @@ export async function findMemberByIdentifier(
     try {
       const { data: members, error } = await supabaseAdmin
         .from("family_members")
-        .select("id, full_name, role, whatsapp_number, telegram_chat_id");
+        .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
 
       if (error) {
         console.error("[Auth] Error fetching family_members from Supabase:", error);
@@ -170,6 +171,7 @@ export async function findMemberByIdentifier(
                   email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
                   role: m.role || "member",
                   telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+                  telegramUsername: (m as any).telegram_username || null,
                   whatsappNumber: m.whatsapp_number,
                 };
               }
@@ -180,23 +182,30 @@ export async function findMemberByIdentifier(
             const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id).trim() : "";
             const memberNameLower = m.full_name.toLowerCase();
             const memberPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
+            const memberUsername = (m as any).telegram_username
+              ? String((m as any).telegram_username).replace(/^@/, "").trim().toLowerCase()
+              : "";
 
             // A. Numeric Chat ID match
-            const isChatIdMatch = chatIdStr && (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly));
+            const isChatIdMatch = Boolean(chatIdStr && (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly)));
 
-            // B. Registered Phone number match (if user entered phone on Telegram tab)
+            // B. Telegram Username match (e.g. @username or username)
+            const isUsernameMatch = Boolean(memberUsername && memberUsername === cleanInput);
+
+            // C. Registered Phone number match (if user entered phone on Telegram tab)
             const isPhoneMatch = Boolean(normalizedPhone && memberPhone && normalizedPhone === memberPhone);
 
-            // C. Name or Substring match
+            // D. Name or Substring match
             const isNameMatch = memberNameLower === cleanInput || memberNameLower.includes(cleanInput);
 
-            if (isChatIdMatch || isPhoneMatch || isNameMatch) {
+            if (isChatIdMatch || isUsernameMatch || isPhoneMatch || isNameMatch) {
               return {
                 id: m.id,
                 name: m.full_name,
                 email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
                 role: m.role || "member",
                 telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+                telegramUsername: (m as any).telegram_username || null,
                 whatsappNumber: m.whatsapp_number,
               };
             }
@@ -222,6 +231,7 @@ export async function findMemberByIdentifier(
             email: m.id === "mem-001" ? "ayah@keluarga.hub" : m.id === "mem-002" ? "ibu@keluarga.hub" : `${m.id}@keluarga.hub`,
             role: m.role || "member",
             telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+            telegramUsername: m.telegram_username || null,
             whatsappNumber: m.whatsapp_number,
           };
         }
@@ -232,8 +242,12 @@ export async function findMemberByIdentifier(
       const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id) : "";
       const memberNameLower = m.full_name.toLowerCase();
       const memberPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
+      const memberUsername = m.telegram_username
+        ? m.telegram_username.replace(/^@/, "").trim().toLowerCase()
+        : "";
 
-      const isChatIdMatch = chatIdStr && (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly));
+      const isChatIdMatch = Boolean(chatIdStr && (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly)));
+      const isUsernameMatch = Boolean(memberUsername && memberUsername === cleanInput);
       const isPhoneMatch = Boolean(normalizedPhone && memberPhone && normalizedPhone === memberPhone);
       const isNameMatch =
         ((cleanInput === "ayah" || cleanInput === "fatih") && m.id === "mem-001") ||
@@ -242,13 +256,14 @@ export async function findMemberByIdentifier(
         ((cleanInput === "adik" || cleanInput === "maryam") && m.id === "mem-004") ||
         memberNameLower.includes(cleanInput);
 
-      if (isChatIdMatch || isPhoneMatch || isNameMatch) {
+      if (isChatIdMatch || isUsernameMatch || isPhoneMatch || isNameMatch) {
         return {
           id: m.id,
           name: m.full_name,
           email: m.id === "mem-001" ? "ayah@keluarga.hub" : m.id === "mem-002" ? "ibu@keluarga.hub" : `${m.id}@keluarga.hub`,
           role: m.role || "member",
           telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
+          telegramUsername: m.telegram_username || null,
           whatsappNumber: m.whatsapp_number,
         };
       }

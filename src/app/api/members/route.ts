@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
       role = "member",
       default_wallet_id,
       telegram_chat_id,
+      telegram_username,
       whatsapp_number,
       avatar_url,
     } = body;
@@ -126,6 +127,7 @@ export async function POST(req: NextRequest) {
         role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
+        telegram_username: telegram_username?.trim() || null,
         whatsapp_number: whatsapp_number?.trim() || null,
       });
       return NextResponse.json({ success: true, member: newMem });
@@ -140,6 +142,7 @@ export async function POST(req: NextRequest) {
         role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
+        telegram_username: telegram_username?.trim() || null,
         whatsapp_number: whatsapp_number?.trim() || null,
       });
       return NextResponse.json({ success: true, member: newMem });
@@ -151,6 +154,7 @@ export async function POST(req: NextRequest) {
       role: validatedRole,
       default_wallet_id: default_wallet_id || null,
       telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
+      telegram_username: telegram_username?.trim() || null,
       whatsapp_number: whatsapp_number?.trim() || null,
       avatar_url: avatar_url?.trim() || null,
     };
@@ -165,9 +169,10 @@ export async function POST(req: NextRequest) {
       console.warn("Supabase insert member failed, fallback to mock:", error.message);
       const newMem = mockStore.addMember({
         full_name: full_name.trim(),
-        role: role === "admin" ? "admin" : "member",
+        role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
+        telegram_username: telegram_username?.trim() || null,
         whatsapp_number: whatsapp_number?.trim() || null,
       });
       return NextResponse.json({ success: true, member: newMem });
@@ -188,6 +193,7 @@ export async function PUT(req: NextRequest) {
       role,
       default_wallet_id,
       telegram_chat_id,
+      telegram_username,
       whatsapp_number,
       avatar_url,
     } = body;
@@ -204,6 +210,7 @@ export async function PUT(req: NextRequest) {
         role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
+        telegram_username: telegram_username !== undefined ? (telegram_username ? telegram_username.trim() : null) : undefined,
         whatsapp_number: whatsapp_number?.trim() || null,
       });
       return NextResponse.json({ success: true, member: updated });
@@ -214,6 +221,7 @@ export async function PUT(req: NextRequest) {
       role: validatedRole,
       default_wallet_id: default_wallet_id || null,
       telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
+      telegram_username: telegram_username !== undefined ? (telegram_username ? telegram_username.trim() : null) : undefined,
       whatsapp_number: whatsapp_number?.trim() || null,
       avatar_url: avatar_url?.trim() || null,
     };
@@ -228,9 +236,10 @@ export async function PUT(req: NextRequest) {
     if (error) {
       const updated = mockStore.updateMember(id, {
         full_name: full_name?.trim(),
-        role: role === "admin" ? "admin" : "member",
+        role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
+        telegram_username: telegram_username !== undefined ? (telegram_username ? telegram_username.trim() : null) : undefined,
         whatsapp_number: whatsapp_number?.trim() || null,
       });
       return NextResponse.json({ success: true, member: updated });

@@ -121,8 +121,18 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
             <span>Telegram:</span>
           </span>
           {isConnectedTelegram ? (
-            <span className="tabular-nums font-medium text-emerald-600 dark:text-emerald-400 truncate">
-              ● ID: {member.telegram_chat_id}
+            <span
+              className="tabular-nums font-medium text-emerald-600 dark:text-emerald-400 truncate"
+              title={member.telegram_username ? `@${member.telegram_username} (ID: ${member.telegram_chat_id})` : `ID: ${member.telegram_chat_id}`}
+            >
+              ● {member.telegram_username ? `@${member.telegram_username}` : `ID: ${member.telegram_chat_id}`}
+            </span>
+          ) : member.telegram_username ? (
+            <span
+              className="text-amber-600 dark:text-amber-400 font-medium truncate"
+              title={`Menunggu /start di bot dari @${member.telegram_username}`}
+            >
+              ⏳ @{member.telegram_username}
             </span>
           ) : (
             <span className="text-muted-foreground/60 italic">Belum ditautkan</span>

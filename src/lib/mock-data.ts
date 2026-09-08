@@ -43,6 +43,7 @@ const mockMembers: FamilyMember[] = [
     role: "admin",
     default_wallet_id: "wal-001",
     telegram_chat_id: 123456789,
+    telegram_username: "muhalfatih",
     whatsapp_number: "+6281234567890",
     avatar_url: null,
     created_at: "2026-01-01T00:00:00Z",
@@ -54,6 +55,7 @@ const mockMembers: FamilyMember[] = [
     role: "spouse",
     default_wallet_id: "wal-002",
     telegram_chat_id: 987654321,
+    telegram_username: "rania_hub",
     whatsapp_number: "+6281298765432",
     avatar_url: null,
     created_at: "2026-01-01T00:00:00Z",
@@ -1251,6 +1253,7 @@ class MockDataStore {
       role: m.role || "member",
       default_wallet_id: m.default_wallet_id || "wal-001",
       telegram_chat_id: m.telegram_chat_id || null,
+      telegram_username: m.telegram_username ? m.telegram_username.replace(/^@/, "").trim() : null,
       whatsapp_number: m.whatsapp_number || null,
       avatar_url: null,
       created_at: new Date().toISOString(),
@@ -1264,7 +1267,22 @@ class MockDataStore {
       this.data.members[idx] = {
         ...this.data.members[idx],
         ...m,
+        telegram_username:
+          m.telegram_username !== undefined
+            ? m.telegram_username ? m.telegram_username.replace(/^@/, "").trim() : null
+            : this.data.members[idx].telegram_username,
       };
+      return this.data.members[idx];
+    }
+    return null;
+  }
+  public updateMemberTelegramInfo(id: string, chatId?: number | null, username?: string | null) {
+    const idx = this.data.members.findIndex((mem) => mem.id === id);
+    if (idx !== -1) {
+      if (chatId !== undefined) this.data.members[idx].telegram_chat_id = chatId;
+      if (username !== undefined) {
+        this.data.members[idx].telegram_username = username ? username.replace(/^@/, "").trim() : null;
+      }
       return this.data.members[idx];
     }
     return null;

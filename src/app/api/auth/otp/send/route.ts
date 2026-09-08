@@ -38,9 +38,14 @@ export async function POST(req: NextRequest) {
     const resolvedChatId = user.telegramChatId || (/^\d+$/.test(numericInput) ? numericInput : null);
 
     if (channel === "telegram" && !resolvedChatId) {
+      const botUsername = process.env.TELEGRAM_BOT_USERNAME || "fnr_assistant_bot";
       return NextResponse.json(
         {
-          error: `Akun anggota "${user.name}" ditemukan, namun Chat ID Telegram belum dihubungkan pada profil Anda. Silakan hubungkan ID Telegram di menu Keluarga pada Web Dashboard atau login menggunakan opsi WhatsApp.`,
+          error: `Akun anggota "${user.name}" ditemukan, namun bot Telegram belum diaktifkan oleh akun Anda. Silakan buka bot @${botUsername} lalu ketik /start atau bagikan kontak untuk mengaktifkannya secara otomatis.`,
+          needsTelegramActivation: true,
+          memberName: user.name,
+          botUsername,
+          hasWhatsapp: Boolean(user.whatsappNumber),
         },
         { status: 400 }
       );

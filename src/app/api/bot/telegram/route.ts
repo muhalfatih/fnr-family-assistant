@@ -28,6 +28,7 @@ import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from
 import { isWebhookDuplicate, checkRecentDuplicateTransaction } from "@/lib/bot/idempotency";
 import { fastParseIndonesianFinancialText } from "@/lib/bot/fast-parser";
 import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
+import { normalizePhoneNumber } from "@/lib/auth-otp";
 
 // Persistent Quick Action Reply Keyboard
 const MAIN_KEYBOARD = {
@@ -249,6 +250,98 @@ export async function POST(req: NextRequest) {
     }
   };
 
+  // Helper to find member by telegram username (e.g. @username or username)
+  const findMemberByTelegramUsername = async (rawUsername: string) => {
+    const cleanUsername = rawUsername.replace(/^@/, "").trim().toLowerCase();
+    if (!cleanUsername) return null;
+
+    if (!isSupabaseConfigured()) {
+      const members = mockStore.getMembers();
+      return members.find((m: any) => {
+        const u = m.telegram_username ? String(m.telegram_username).replace(/^@/, "").trim().toLowerCase() : "";
+        return u === cleanUsername;
+      }) || null;
+    }
+
+    try {
+      const { data: members, error } = await supabaseAdmin
+        .from("family_members")
+        .select("*, family:families(*)");
+
+      if (!error && members) {
+        return members.find((m: any) => {
+          const u = m.telegram_username ? String(m.telegram_username).replace(/^@/, "").trim().toLowerCase() : "";
+          return u === cleanUsername;
+        }) || null;
+      }
+      return null;
+    } catch (err) {
+      console.error("[Telegram Auth] Username lookup exception:", err);
+      return null;
+    }
+  };
+
+  // Helper to find member by contact phone number
+  const findMemberByPhoneNumber = async (phone: string) => {
+    const normalized = normalizePhoneNumber(phone);
+    if (!normalized) return null;
+
+    if (!isSupabaseConfigured()) {
+      const members = mockStore.getMembers();
+      return members.find((m: any) => {
+        const mPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
+        return mPhone === normalized;
+      }) || null;
+    }
+
+    try {
+      const { data: members, error } = await supabaseAdmin
+        .from("family_members")
+        .select("*, family:families(*)");
+
+      if (!error && members) {
+        return members.find((m: any) => {
+          const mPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
+          return mPhone === normalized;
+        }) || null;
+      }
+      return null;
+    } catch (err) {
+      console.error("[Telegram Auth] Phone lookup exception:", err);
+      return null;
+    }
+  };
+
+  // Helper to link member's telegram chat ID and username
+  const linkMemberTelegram = async (memberId: string, targetChatId: number | string, username?: string | null) => {
+    const cleanUsername = username ? username.replace(/^@/, "").trim() : null;
+    if (isSupabaseConfigured()) {
+      try {
+        const updatePayload: any = { telegram_chat_id: Number(targetChatId) };
+        if (cleanUsername) updatePayload.telegram_username = cleanUsername;
+        await supabaseAdmin.from("family_members").update(updatePayload).eq("id", memberId);
+      } catch (err) {
+        console.warn("[Telegram Auth] Supabase link update error:", err);
+      }
+    }
+    mockStore.updateMemberTelegramInfo(memberId, Number(targetChatId), cleanUsername);
+  };
+
+  // Helper to auto-sync latest username if changed
+  const autoSyncUsername = (memberId: string, currentUsername?: string | null, newUsername?: string | null) => {
+    if (!newUsername) return;
+    const cleanCurrent = currentUsername ? currentUsername.replace(/^@/, "").trim().toLowerCase() : "";
+    const cleanNew = newUsername.replace(/^@/, "").trim().toLowerCase();
+    if (cleanNew && cleanCurrent !== cleanNew) {
+      if (isSupabaseConfigured()) {
+        Promise.resolve(
+          supabaseAdmin.from("family_members").update({ telegram_username: cleanNew }).eq("id", memberId)
+        ).catch((err) => console.warn("[Telegram Auth] Auto-sync username error:", err));
+      }
+      mockStore.updateMemberTelegramInfo(memberId, undefined, cleanNew);
+    }
+  };
+
   // 1. Handle Callback Query (Inline Keyboard Actions)
   if (body.callback_query) {
     const cq = body.callback_query;
@@ -439,11 +532,91 @@ export async function POST(req: NextRequest) {
     sendTelegramChatAction(chatId, "typing").catch(() => {});
 
     // 2a. Resolve & Authorize Registered Family Member
-    const registeredMember = await resolveRegisteredTelegramMember(chatId);
+    let registeredMember = await resolveRegisteredTelegramMember(chatId);
     if (!registeredMember) {
-      console.warn(`[Telegram Auth] Unauthorized access attempt from unregistered chat_id: ${chatId} (${senderName})`);
+      // 1. Check if user sent native Telegram contact card
+      if (message.contact && message.contact.phone_number) {
+        const contact = message.contact;
+        const matchedMember = await findMemberByPhoneNumber(contact.phone_number);
+        if (matchedMember) {
+          await linkMemberTelegram(matchedMember.id, chatId, message.from?.username);
+          await sendTelegramMessage(
+            chatId,
+            `🎉 *Akun Keluarga Berhasil Terhubung!*\n\n` +
+              `Halo *${matchedMember.full_name}*, nomor HP Anda (${contact.phone_number}) cocok dengan profil keluarga.\n\n` +
+              `Akun Telegram Anda (${message.from?.username ? `@${message.from.username}` : `ID: ${chatId}`}) kini resmi aktif sebagai *${matchedMember.role === "admin" ? "Kepala Keluarga" : matchedMember.role === "spouse" ? "Pengelola" : "Anggota"}*.\n\n` +
+              `Sekarang Anda dapat mencatat transaksi keuangan, mengirim foto struk kasir, dan login ke Web Dashboard.`,
+            MAIN_KEYBOARD
+          );
+          return NextResponse.json({ ok: true });
+        } else {
+          await sendTelegramMessage(
+            chatId,
+            `⛔ *Akses Ditolak: Nomor Tidak Terdaftar*\n\n` +
+              `Nomor telepon (${contact.phone_number}) belum terdaftar dalam sistem keluarga F&R Family Hub.\n\n` +
+              `Silakan minta Kepala Keluarga/Admin untuk menambahkan nomor Anda terlebih dahulu di menu *Keluarga* pada Web Dashboard.`
+          );
+          recordChatLog({
+            id: `log_tg_reject_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            channel: "telegram",
+            chat_id: String(chatId),
+            sender_name: senderName,
+            input_type: "text",
+            raw_prompt: `[Kirim Kontak: ${contact.phone_number}]`,
+            status: "rejected",
+            error_message: `Akses ditolak: Nomor kontak ${contact.phone_number} tidak terdaftar di database keluarga.`,
+            created_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+          });
+          return NextResponse.json({ ok: true, dropped: true });
+        }
+      }
 
-      // Security Audit Log to /logs
+      // 2. Check if user sent /start command
+      const rawText = message.text?.trim() || "";
+      const isStartCmd = rawText.startsWith("/start") || rawText.toLowerCase() === "start";
+
+      if (isStartCmd) {
+        const tgUsername = message.from?.username;
+        if (tgUsername) {
+          const matchedMember = await findMemberByTelegramUsername(tgUsername);
+          if (matchedMember) {
+            await linkMemberTelegram(matchedMember.id, chatId, tgUsername);
+            await sendTelegramMessage(
+              chatId,
+              `🎉 *Selamat Datang, ${matchedMember.full_name}!*\n\n` +
+                `Akun Telegram Anda (@${tgUsername}) berhasil ditautkan secara otomatis ke profil keluarga.\n\n` +
+                `Sekarang Anda dapat mencatat pengeluaran/pemasukan, mengirim struk kasir, tanya AI, dan login ke Web Dashboard.`,
+              MAIN_KEYBOARD
+            );
+            return NextResponse.json({ ok: true });
+          }
+        }
+
+        // Tampilkan sambutan ramah & tombol Hubungkan Kontak resmi
+        await sendTelegramMessage(
+          chatId,
+          `👋 *Halo ${senderName}!*\n\n` +
+            `Selamat datang di *F&R Family Assistant* 🏡.\n` +
+            `Bot ini bersifat privat dan hanya dapat diakses oleh anggota keluarga terdaftar.\n\n` +
+            `🆔 *ID Chat:* \`${chatId}\`\n` +
+            `👤 *Username:* ${tgUsername ? `@${tgUsername}` : "_Belum disetel_"}\n\n` +
+            `👉 *Cara Menghubungkan Akun:*\n` +
+            `Tekan tombol *📱 Hubungkan Akun (Kirim Kontak)* di bawah ini agar bot dapat memverifikasi nomor HP Anda dengan database keluarga secara otomatis:`,
+          {
+            keyboard: [
+              [{ text: "📱 Hubungkan Akun (Kirim Kontak)", request_contact: true }],
+              [{ text: "❓ Bantuan" }],
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // 3. Pesan selain /start dan kontak dari orang tak dikenal -> Silent Drop & Audit Log
+      console.warn(`[Telegram Auth] Unauthorized access attempt from unregistered chat_id: ${chatId} (${senderName})`);
       recordChatLog({
         id: `log_tg_reject_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         channel: "telegram",
@@ -452,13 +625,16 @@ export async function POST(req: NextRequest) {
         input_type: message.photo ? "image" : message.voice || message.audio ? "audio" : "text",
         raw_prompt: message.text || message.caption || (message.photo ? "[Foto / Struk]" : "[Pesan Masuk]"),
         status: "rejected",
-        error_message: `Akses ditolak: ID Telegram ${chatId} belum terdaftar sebagai anggota keluarga.`,
+        error_message: `Akses ditolak: Akun Telegram (${senderName}, ID: ${chatId}) belum terdaftar sebagai anggota keluarga.`,
         created_at: new Date().toISOString(),
         completed_at: new Date().toISOString(),
       });
-
-      // Silent drop / ignore (no reply sent)
       return NextResponse.json({ ok: true, dropped: true });
+    }
+
+    // Auto-sync username jika anggota sudah terdaftar dan username-nya baru atau berubah
+    if (message.from?.username) {
+      autoSyncUsername(registeredMember.id, registeredMember.telegram_username, message.from.username);
     }
 
     const member = registeredMember;

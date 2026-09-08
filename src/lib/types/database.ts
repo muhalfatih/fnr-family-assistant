@@ -35,6 +35,7 @@ export interface FamilyMember {
   role: FamilyRole;
   default_wallet_id?: string | null;
   telegram_chat_id?: number | null;
+  telegram_username?: string | null;
   whatsapp_number?: string | null;
   avatar_url?: string | null;
   created_at: string;

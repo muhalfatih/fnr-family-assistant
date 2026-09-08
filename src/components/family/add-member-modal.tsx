@@ -41,6 +41,7 @@ export function AddMemberModal({
   const [role, setRole] = useState("member");
   const [defaultWalletId, setDefaultWalletId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramUsername, setTelegramUsername] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -51,12 +52,14 @@ export function AddMemberModal({
       setRole(memberToEdit.role || "member");
       setDefaultWalletId(memberToEdit.default_wallet_id || "");
       setTelegramChatId(memberToEdit.telegram_chat_id ? String(memberToEdit.telegram_chat_id) : "");
+      setTelegramUsername(memberToEdit.telegram_username ? memberToEdit.telegram_username.replace(/^@/, "") : "");
       setWhatsappNumber(memberToEdit.whatsapp_number || "");
     } else {
       setFullName("");
       setRole("member");
       setDefaultWalletId(wallets && wallets.length > 0 ? wallets[0].id : "");
       setTelegramChatId("");
+      setTelegramUsername("");
       setWhatsappNumber("");
     }
     setErrorMsg("");
@@ -79,6 +82,7 @@ export function AddMemberModal({
         role,
         default_wallet_id: defaultWalletId || null,
         telegram_chat_id: telegramChatId.trim() ? Number(telegramChatId.trim()) : null,
+        telegram_username: telegramUsername.trim() ? telegramUsername.trim().replace(/^@/, "") : null,
         whatsapp_number: whatsappNumber.trim() || null,
       };
 
@@ -180,7 +184,30 @@ export function AddMemberModal({
             </div>
           </div>
 
-          {/* 3. Tautan Telegram Chat ID */}
+          {/* 3. Username Telegram */}
+          <div className="space-y-1.5">
+            <Label htmlFor="tgUsername" className="text-xs font-medium text-foreground">
+              Username Telegram (Opsional)
+            </Label>
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-xs font-semibold text-muted-foreground pointer-events-none">
+                @
+              </span>
+              <Input
+                id="tgUsername"
+                type="text"
+                placeholder="muhalfatih"
+                value={telegramUsername}
+                onChange={(e) => setTelegramUsername(e.target.value.replace(/^@/, ""))}
+                className="text-xs h-9 pl-7"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Jika diisi, anggota bisa login cukup dengan @username atau No. HP, dan saat kirim /start ke bot akan otomatis terhubung tanpa perlu repot salin ID.
+            </p>
+          </div>
+
+          {/* 4. Tautan Telegram Chat ID */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="tgId" className="text-xs font-medium text-foreground">
@@ -188,7 +215,7 @@ export function AddMemberModal({
               </Label>
               <span className="text-[11px] text-muted-foreground flex items-center gap-1" title="Untuk mendapatkan Chat ID, kirim /start ke bot @fnr_assistant_bot">
                 <HelpCircle className="size-3" aria-hidden="true" />
-                <span>Ketik /start di bot</span>
+                <span>Otomatis terisi jika kirim /start</span>
               </span>
             </div>
             <Input
@@ -200,7 +227,7 @@ export function AddMemberModal({
               className="text-xs tabular-nums h-9"
             />
             <p className="text-[11px] text-muted-foreground">
-              Jika diisi, semua transaksi foto struk atau chat yang dikirim nomor Telegram ini akan otomatis diatribusikan ke anggota ini.
+              ID numerik Telegram. Terisi otomatis saat anggota menghubungkan akun lewat bot.
             </p>
           </div>
 
