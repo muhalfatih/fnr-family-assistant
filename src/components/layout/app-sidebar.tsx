@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   Sparkles,
   Bot,
+  Smartphone,
 } from "lucide-react";
+import { triggerPwaInstall } from "@/components/pwa/install-pwa-prompt";
 
 import {
   Sidebar,
@@ -175,6 +177,16 @@ export function AppSidebar({
                   </SidebarMenuItem>
                 );
               })}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={triggerPwaInstall}
+                  tooltip="Pasang di HP (PWA)"
+                  className="text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                >
+                  <Smartphone className="size-4 text-muted-foreground" />
+                  <span className="text-xs">Pasang di HP (PWA)</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

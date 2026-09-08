@@ -1,13 +1,36 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { PwaRegister } from "@/components/pwa/pwa-register";
+import { InstallPwaPrompt } from "@/components/pwa/install-pwa-prompt";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "F&R Family Hub — Executive Ledger",
   description: "Aplikasi manajemen finansial, aset, dan brankas keluarga terpadu bertenaga AI Gemini.",
+  applicationName: "F&R Family Hub",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "F&R Family",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   robots: {
     index: false,
     follow: false,
@@ -20,7 +43,6 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
-  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({
@@ -42,6 +64,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <PwaRegister />
+          <InstallPwaPrompt />
           <Toaster richColors position="bottom-right" />
         </ThemeProvider>
       </body>

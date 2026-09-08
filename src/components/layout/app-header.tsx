@@ -26,10 +26,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Activity, Bot, LogOut, ShieldCheck } from "lucide-react";
+import { Activity, Bot, LogOut, ShieldCheck, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
+import { triggerPwaInstall } from "@/components/pwa/install-pwa-prompt";
 
 const pageTitleMap: Record<string, { title: string; category: string }> = {
   "/": { title: "Keuangan & Arus Kas", category: "Ringkasan" },
@@ -187,6 +188,10 @@ export function AppHeader() {
                 <DropdownMenuItem className="cursor-pointer text-xs">Profil & Roster Keluarga</DropdownMenuItem>
               </Link>
               <DropdownMenuItem className="text-xs">Pengaturan Webhook Telegram</DropdownMenuItem>
+              <DropdownMenuItem onClick={triggerPwaInstall} className="gap-2 cursor-pointer text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                <Smartphone className="size-3.5" />
+                <span>Pasang Aplikasi (PWA)</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}
