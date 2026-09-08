@@ -35,6 +35,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useCurrentUser } from "@/lib/hooks/use-family-data";
 
 const navigationItems = [
   {
@@ -78,6 +79,19 @@ export function AppSidebar({
   onAddTransaction?: () => void;
 }) {
   const pathname = usePathname();
+  const { canAccessAssets, canAccessVault, canAccessFamily, canAccessLogs, roleLabel, user } = useCurrentUser();
+
+  const filteredNavigationItems = navigationItems.filter((item) => {
+    if (item.url === "/assets") return canAccessAssets;
+    if (item.url === "/vault") return canAccessVault;
+    if (item.url === "/family") return canAccessFamily;
+    return true;
+  });
+
+  const filteredSystemItems = systemItems.filter((item) => {
+    if (item.url === "/logs") return canAccessLogs;
+    return true;
+  });
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/70">
@@ -131,7 +145,7 @@ export function AppSidebar({
           <SidebarGroupLabel>Menu Utama</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => {
+              {filteredNavigationItems.map((item) => {
                 const isActive = pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.url}>
@@ -159,7 +173,7 @@ export function AppSidebar({
           <SidebarGroupLabel>Sistem & AI</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {systemItems.map((item) => {
+              {filteredSystemItems.map((item) => {
                 const isActive = pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.url}>
@@ -194,17 +208,17 @@ export function AppSidebar({
 
       <SidebarFooter className="border-t border-border/50 p-2.5">
         <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-            <Avatar className="size-7 rounded-md border border-border">
-              <AvatarFallback className="text-[11px] font-bold bg-muted text-muted-foreground rounded-md">
-                FN
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden min-w-0">
+            <Avatar className="size-7 rounded-md border border-border shrink-0">
+              <AvatarFallback className="text-[10px] font-bold bg-muted text-muted-foreground rounded-md">
+                {user?.name ? user.name.substring(0, 2).toUpperCase() : "FN"}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col text-left leading-none">
-              <span className="text-xs font-semibold text-foreground truncate">Keluarga Inti</span>
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <span className="size-1.5 rounded-full bg-emerald-500 inline-block" />
-                Online
+            <div className="flex flex-col text-left leading-none min-w-0">
+              <span className="text-xs font-semibold text-foreground truncate">{user?.name || "Keluarga Inti"}</span>
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                <span className="size-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
+                <span className="truncate">{roleLabel}</span>
               </span>
             </div>
           </div>

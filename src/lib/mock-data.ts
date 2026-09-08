@@ -51,7 +51,7 @@ const mockMembers: FamilyMember[] = [
     id: "mem-002",
     family_id: "fam-001",
     full_name: "Ibu (Rania)",
-    role: "admin",
+    role: "spouse",
     default_wallet_id: "wal-002",
     telegram_chat_id: 987654321,
     whatsapp_number: "+6281298765432",

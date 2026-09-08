@@ -151,8 +151,9 @@ export function AddMemberModal({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="admin">Admin (Pengelola Penuh)</SelectItem>
-                    <SelectItem value="member">Anggota (Pencatat)</SelectItem>
+                    <SelectItem value="admin">Kepala Keluarga (Akses Penuh)</SelectItem>
+                    <SelectItem value="spouse">Pengelola (Keuangan, Aset, Brankas)</SelectItem>
+                    <SelectItem value="member">Anggota (Keuangan & Catat)</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>

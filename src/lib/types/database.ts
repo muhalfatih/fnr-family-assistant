@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type FamilyRole = 'admin' | 'member';
+export type FamilyRole = 'admin' | 'spouse' | 'member';
 export type WalletType = 'bank' | 'ewallet' | 'cash' | 'investment' | 'credit_card';
 export type CategoryType = 'income' | 'expense';
 export type TransactionType = 'income' | 'expense' | 'transfer';
@@ -179,7 +179,7 @@ export interface LegalDocument {
   created_at: string;
 }
 
-export type LogStatus = 'processing' | 'success' | 'failed' | 'timeout' | 'cancelled';
+export type LogStatus = 'processing' | 'success' | 'failed' | 'timeout' | 'cancelled' | 'rejected';
 export type LogChannel = 'telegram' | 'whatsapp' | 'web';
 
 export interface ChatActivityLog {

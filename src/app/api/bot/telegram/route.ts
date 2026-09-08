@@ -225,12 +225,43 @@ export async function POST(req: NextRequest) {
     }
   };
 
+  // Helper to strictly authorize registered family members
+  const resolveRegisteredTelegramMember = async (targetChatId: number | string) => {
+    if (!isSupabaseConfigured()) {
+      const members = mockStore.getMembers();
+      return members.find((m: any) => String(m.telegram_chat_id) === String(targetChatId)) || null;
+    }
+
+    try {
+      const { data: memberData, error } = await supabaseAdmin
+        .from("family_members")
+        .select("*, family:families(*)")
+        .eq("telegram_chat_id", targetChatId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn("[Telegram Auth] Member lookup warning:", error.message);
+      }
+      return memberData || null;
+    } catch (err) {
+      console.error("[Telegram Auth] Member lookup exception:", err);
+      return null;
+    }
+  };
+
   // 1. Handle Callback Query (Inline Keyboard Actions)
   if (body.callback_query) {
     const cq = body.callback_query;
     const chatId = cq.message?.chat?.id;
+    const fromId = cq.from?.id || chatId;
     const messageId = cq.message?.message_id;
     const data = cq.data as string;
+
+    const authorizedCqMember = await resolveRegisteredTelegramMember(fromId);
+    if (!authorizedCqMember) {
+      await answerTelegramCallbackQuery(cq.id, "⛔ Akses ditolak: Akun Telegram belum terdaftar.");
+      return NextResponse.json({ ok: true, dropped: true });
+    }
 
     if (chatId) {
       sendTelegramChatAction(chatId, "typing").catch(() => {});
@@ -407,54 +438,32 @@ export async function POST(req: NextRequest) {
     // Show instant typing status header
     sendTelegramChatAction(chatId, "typing").catch(() => {});
 
-    // 2a. Resolve Family ID
-    let member: any = null;
-    let familyId: string | null = null;
-    let defaultWalletId: string | null = null;
+    // 2a. Resolve & Authorize Registered Family Member
+    const registeredMember = await resolveRegisteredTelegramMember(chatId);
+    if (!registeredMember) {
+      console.warn(`[Telegram Auth] Unauthorized access attempt from unregistered chat_id: ${chatId} (${senderName})`);
 
-    if (!isSupabaseConfigured()) {
-      const members = mockStore.getMembers();
-      member = members.find((m: any) => String(m.telegram_chat_id) === String(chatId)) || members[0] || null;
-      familyId = member?.family_id || "mock-family-id";
-      defaultWalletId = member?.default_wallet_id || mockStore.getWallets()[0]?.id || null;
-    } else {
-      try {
-        const { data: memberData } = await supabaseAdmin
-          .from("family_members")
-          .select("*, family:families(*)")
-          .eq("telegram_chat_id", chatId)
-          .maybeSingle();
+      // Security Audit Log to /logs
+      recordChatLog({
+        id: `log_tg_reject_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        channel: "telegram",
+        chat_id: String(chatId),
+        sender_name: senderName,
+        input_type: message.photo ? "image" : message.voice || message.audio ? "audio" : "text",
+        raw_prompt: message.text || message.caption || (message.photo ? "[Foto / Struk]" : "[Pesan Masuk]"),
+        status: "rejected",
+        error_message: `Akses ditolak: ID Telegram ${chatId} belum terdaftar sebagai anggota keluarga.`,
+        created_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+      });
 
-        member = memberData;
-        familyId = member?.family_id || null;
-        defaultWalletId = member?.default_wallet_id || null;
-
-        if (!familyId) {
-          const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
-          if (families && families.length > 0) {
-            familyId = families[0].id;
-          } else {
-            const { data: newFamily } = await supabaseAdmin
-              .from("families")
-              .insert({ name: "Keluarga F&R", currency: "IDR" })
-              .select()
-              .single();
-            familyId = newFamily?.id || null;
-          }
-        }
-      } catch (err) {
-        console.warn("[Telegram] Error resolving family from Supabase, falling back to mock:", err);
-        const members = mockStore.getMembers();
-        member = members[0];
-        familyId = member?.family_id || "mock-family-id";
-        defaultWalletId = member?.default_wallet_id || mockStore.getWallets()[0]?.id || null;
-      }
+      // Silent drop / ignore (no reply sent)
+      return NextResponse.json({ ok: true, dropped: true });
     }
 
-    if (!familyId) {
-      await sendTelegramMessage(chatId, "⚠️ Keluarga belum terdaftar.", MAIN_KEYBOARD);
-      return NextResponse.json({ ok: true });
-    }
+    const member = registeredMember;
+    const familyId = registeredMember.family_id || "fam-001";
+    const defaultWalletId = registeredMember.default_wallet_id || null;
 
     // 2b. Handle Quick Button / Text Commands
     const text = message.text?.trim() || "";

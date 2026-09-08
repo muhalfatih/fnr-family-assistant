@@ -204,3 +204,62 @@ export function useChatLogs() {
     mutate,
   };
 }
+
+export interface CurrentUserSession {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: "admin" | "spouse" | "member";
+  loginAt?: string;
+}
+
+// 11. Current User / RBAC Hook
+export function useCurrentUser() {
+  const { data, error, isLoading, mutate } = useSWR<{
+    authenticated: boolean;
+    user: CurrentUserSession | null;
+  }>("/api/auth/me", fetcher, {
+    revalidateOnFocus: true,
+    dedupingInterval: 10000,
+  });
+
+  const user = data?.user || null;
+  const role = user?.role || "member";
+
+  const isAdmin = role === "admin";
+  const isSpouse = role === "spouse";
+  const isMember = role === "member";
+
+  // Permissions matrix
+  const canAccessAssets = isAdmin || isSpouse;
+  const canAccessVault = isAdmin || isSpouse;
+  const canAccessFamily = isAdmin;
+  const canAccessLogs = isAdmin;
+  const canManageFinances = isAdmin || isSpouse;
+
+  // Indonesian display label
+  const roleLabel =
+    role === "admin"
+      ? "Kepala Keluarga"
+      : role === "spouse"
+      ? "Pengelola"
+      : "Anggota";
+
+  return {
+    user,
+    role,
+    roleLabel,
+    isAdmin,
+    isSpouse,
+    isMember,
+    canAccessAssets,
+    canAccessVault,
+    canAccessFamily,
+    canAccessLogs,
+    canManageFinances,
+    isLoading,
+    isError: error,
+    mutate,
+  };
+}
+

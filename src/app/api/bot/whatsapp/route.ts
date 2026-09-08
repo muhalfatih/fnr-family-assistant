@@ -257,6 +257,47 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * Helper to strictly authorize registered WhatsApp family members
+ */
+async function resolveRegisteredWhatsAppMember(normalizedPhone: string) {
+  if (!normalizedPhone) return null;
+  const cleanWithoutCountry = normalizedPhone.replace(/^62/, "");
+
+  if (!isSupabaseConfigured()) {
+    const members = mockStore.getMembers();
+    return (
+      members.find((m: any) => {
+        if (!m.whatsapp_number) return false;
+        const cleanM = m.whatsapp_number.replace(/\D/g, "");
+        return (
+          cleanM === normalizedPhone ||
+          cleanM === `62${cleanWithoutCountry}` ||
+          cleanM.endsWith(cleanWithoutCountry)
+        );
+      }) || null
+    );
+  }
+
+  try {
+    const { data: memberData, error: memberErr } = await supabaseAdmin
+      .from("family_members")
+      .select("*, family:families(*)")
+      .or(
+        `whatsapp_number.eq.${normalizedPhone},whatsapp_number.eq.0${cleanWithoutCountry},whatsapp_number.eq.+${normalizedPhone},whatsapp_number.eq.${cleanWithoutCountry}`
+      )
+      .maybeSingle();
+
+    if (memberErr) {
+      console.warn("[WhatsApp Auth] Member lookup warning:", memberErr.message);
+    }
+    return memberData || null;
+  } catch (err) {
+    console.error("[WhatsApp Auth] Member lookup exception:", err);
+    return null;
+  }
+}
+
+/**
  * Core processing logic for an inbound WhatsApp message
  */
 async function processWhatsAppMessage(
@@ -278,101 +319,46 @@ async function processWhatsAppMessage(
     return;
   }
 
-  // 2. Resolve Family and Member with instant fallback
-  let familyId: string | null = null;
-  let defaultWalletId: string | null = null;
-  let member: any = null;
+  // 2. Authorize Sender: Only registered WhatsApp numbers are allowed
+  const registeredMember = await resolveRegisteredWhatsAppMember(normalizedPhone);
+  if (!registeredMember) {
+    console.warn(`[WhatsApp Auth] Unauthorized access attempt from unregistered phone: ${senderPhone} (${senderName})`);
 
-  if (isSupabaseConfigured()) {
-    try {
-      const cleanWithoutCountry = normalizedPhone.replace(/^62/, "");
-      const { data: memberData, error: memberErr } = await supabaseAdmin
-        .from("family_members")
-        .select("*, family:families(*)")
-        .or(`whatsapp_number.eq.${normalizedPhone},whatsapp_number.eq.0${cleanWithoutCountry},whatsapp_number.eq.+${normalizedPhone},whatsapp_number.eq.${cleanWithoutCountry}`)
-        .maybeSingle();
+    const rawContentPreview =
+      message.type === "text"
+        ? message.text?.body || "[Pesan Teks]"
+        : message.type === "image"
+        ? "[Foto / Struk WhatsApp]"
+        : message.type === "audio" || message.type === "voice"
+        ? "[Pesan Suara / Voice Note]"
+        : "[Pesan WhatsApp]";
 
-      if (memberErr) {
-        console.warn("[WhatsApp] Member lookup notice:", memberErr.message);
-      }
+    // Security Audit Log to /logs
+    recordChatLog({
+      id: `log_wa_reject_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      channel: "whatsapp",
+      chat_id: normalizedPhone,
+      sender_name: senderName || "Pengguna WhatsApp",
+      input_type:
+        message.type === "image"
+          ? "image"
+          : message.type === "audio" || message.type === "voice"
+          ? "audio"
+          : "text",
+      raw_prompt: rawContentPreview,
+      status: "rejected",
+      error_message: `Akses ditolak: Nomor WhatsApp ${senderPhone} belum terdaftar sebagai anggota keluarga.`,
+      created_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+    });
 
-      if (memberData) {
-        member = memberData;
-        familyId = memberData.family_id || null;
-        defaultWalletId = memberData.default_wallet_id || null;
-      }
-
-      // If family is not linked or member not found, query or create primary family in Supabase
-      if (!familyId) {
-        const { data: families, error: famErr } = await supabaseAdmin
-          .from("families")
-          .select("id")
-          .limit(1);
-
-        if (famErr) {
-          console.error("[WhatsApp] Error fetching families from Supabase:", famErr);
-        }
-
-        if (families && families.length > 0) {
-          familyId = families[0].id;
-        } else {
-          const { data: newFamily, error: createFamErr } = await supabaseAdmin
-            .from("families")
-            .insert({ name: "Keluarga F&R", currency: "IDR" })
-            .select()
-            .single();
-
-          if (createFamErr) {
-            console.error("[WhatsApp] Failed to auto-create family in Supabase:", createFamErr);
-          }
-          familyId = newFamily?.id || null;
-        }
-      }
-
-      // Auto-link sender to an existing or new family member profile
-      if (familyId && !member) {
-        const { data: existingMembers } = await supabaseAdmin
-          .from("family_members")
-          .select("*")
-          .eq("family_id", familyId)
-          .order("created_at", { ascending: true });
-
-        if (existingMembers && existingMembers.length > 0) {
-          const targetMember = existingMembers.find((m: any) => !m.whatsapp_number) || existingMembers[0];
-          await supabaseAdmin
-            .from("family_members")
-            .update({ whatsapp_number: normalizedPhone })
-            .eq("id", targetMember.id);
-          member = { ...targetMember, whatsapp_number: normalizedPhone };
-          defaultWalletId = member.default_wallet_id || null;
-        } else {
-          const { data: createdMember } = await supabaseAdmin
-            .from("family_members")
-            .insert({
-              family_id: familyId,
-              full_name: senderName || "Ayah (Fatih)",
-              role: "admin",
-              whatsapp_number: normalizedPhone,
-            })
-            .select()
-            .single();
-          if (createdMember) {
-            member = createdMember;
-          }
-        }
-      }
-    } catch (e) {
-      console.error("[WhatsApp] Supabase family resolution exception:", e);
-    }
+    // Silent drop / ignore (no reply sent)
+    return;
   }
 
-  // Pure mock mode fallback ONLY if Supabase is genuinely not configured or unavailable
-  if (!isSupabaseConfigured() || !familyId) {
-    const members = mockStore.getMembers();
-    member = members.find((m: any) => m.whatsapp_number?.includes(normalizedPhone)) || members[0];
-    familyId = mockStore.getFamily().id;
-    defaultWalletId = member?.default_wallet_id || null;
-  }
+  const member = registeredMember;
+  const familyId = registeredMember.family_id || "fam-001";
+  const defaultWalletId = registeredMember.default_wallet_id || null;
 
   // 3. Extract Message Text / Action
   const msgType = message.type;

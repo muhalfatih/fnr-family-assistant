@@ -30,18 +30,29 @@ interface TransactionFeedProps {
   transactions: Transaction[];
   onDeleteTransaction?: (id: string) => void;
   enableTooltip?: boolean;
+  currentUser?: { id?: string; role?: string } | null;
+  canDeleteAll?: boolean;
 }
 
 export function TransactionFeed({
   transactions,
   onDeleteTransaction,
   enableTooltip = false,
+  currentUser,
+  canDeleteAll = false,
 }: TransactionFeedProps) {
   const [filterType, setFilterType] = useState<"all" | "expense" | "income">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
   const [selectedTxForDetail, setSelectedTxForDetail] = useState<Transaction | null>(null);
+
+  const checkCanDelete = (tx: Transaction | null) => {
+    if (!tx || !onDeleteTransaction) return false;
+    if (canDeleteAll) return true;
+    if (currentUser?.id && tx.member_id && tx.member_id === currentUser.id) return true;
+    return false;
+  };
 
   const toggleExpand = (id: string) => {
     setExpandedTxId(expandedTxId === id ? null : id);
@@ -298,7 +309,7 @@ export function TransactionFeed({
                             )}
                           </div>
 
-                          {onDeleteTransaction && (
+                          {checkCanDelete(tx) && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -416,7 +427,7 @@ export function TransactionFeed({
         isOpen={!!selectedTxForDetail}
         onClose={() => setSelectedTxForDetail(null)}
         onDelete={
-          onDeleteTransaction
+          checkCanDelete(selectedTxForDetail)
             ? (id) => {
                 const tx = transactions.find((t) => t.id === id) || selectedTxForDetail;
                 setSelectedTxForDetail(null);

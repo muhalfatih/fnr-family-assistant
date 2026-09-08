@@ -118,10 +118,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nama lengkap anggota wajib diisi" }, { status: 400 });
     }
 
+    const validatedRole = role === "admin" ? "admin" : role === "spouse" ? "spouse" : "member";
+
     if (!isSupabaseConfigured()) {
       const newMem = mockStore.addMember({
         full_name: full_name.trim(),
-        role: role === "admin" ? "admin" : "member",
+        role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
         whatsapp_number: whatsapp_number?.trim() || null,
@@ -135,7 +137,7 @@ export async function POST(req: NextRequest) {
     if (!familyId) {
       const newMem = mockStore.addMember({
         full_name: full_name.trim(),
-        role: role === "admin" ? "admin" : "member",
+        role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
         whatsapp_number: whatsapp_number?.trim() || null,
@@ -146,7 +148,7 @@ export async function POST(req: NextRequest) {
     const payload: any = {
       family_id: familyId,
       full_name: full_name.trim(),
-      role: role === "admin" ? "admin" : "member",
+      role: validatedRole,
       default_wallet_id: default_wallet_id || null,
       telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
       whatsapp_number: whatsapp_number?.trim() || null,
@@ -194,10 +196,12 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing member id" }, { status: 400 });
     }
 
+    const validatedRole = role === "admin" ? "admin" : role === "spouse" ? "spouse" : "member";
+
     if (!isSupabaseConfigured()) {
       const updated = mockStore.updateMember(id, {
         full_name: full_name?.trim(),
-        role: role === "admin" ? "admin" : "member",
+        role: validatedRole,
         default_wallet_id: default_wallet_id || null,
         telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
         whatsapp_number: whatsapp_number?.trim() || null,
@@ -207,7 +211,7 @@ export async function PUT(req: NextRequest) {
 
     const payload: any = {
       full_name: full_name?.trim(),
-      role: role === "admin" ? "admin" : "member",
+      role: validatedRole,
       default_wallet_id: default_wallet_id || null,
       telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
       whatsapp_number: whatsapp_number?.trim() || null,

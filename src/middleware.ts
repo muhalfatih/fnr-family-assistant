@@ -28,6 +28,30 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
+  // Proteksi Akses Berbasis Peran (3-Tier RBAC)
+  if (sessionCookie && !isLoginPage) {
+    try {
+      const user = JSON.parse(decodeURIComponent(sessionCookie));
+      const role = user?.role || "member";
+
+      // 1. Halaman khusus Kepala Keluarga (admin): /family & /logs
+      if ((pathname.startsWith("/family") || pathname.startsWith("/logs")) && role !== "admin") {
+        const redirectUrl = new URL("/", req.url);
+        redirectUrl.searchParams.set("access_denied", "admin_only");
+        return NextResponse.redirect(redirectUrl);
+      }
+
+      // 2. Halaman khusus Kepala Keluarga & Pengelola: /assets & /vault (blokir role 'member')
+      if ((pathname.startsWith("/assets") || pathname.startsWith("/vault")) && role === "member") {
+        const redirectUrl = new URL("/", req.url);
+        redirectUrl.searchParams.set("access_denied", "restricted");
+        return NextResponse.redirect(redirectUrl);
+      }
+    } catch {
+      // In case session cookie is corrupted, allow request to proceed to client handler
+    }
+  }
+
   return NextResponse.next();
 }
 

@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
 import { triggerPwaInstall } from "@/components/pwa/install-pwa-prompt";
+import { useCurrentUser } from "@/lib/hooks/use-family-data";
 
 const pageTitleMap: Record<string, { title: string; category: string }> = {
   "/": { title: "Keuangan & Arus Kas", category: "Ringkasan" },
@@ -44,39 +45,10 @@ export function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [isApiModalOpen, setIsApiModalOpen] = React.useState(false);
-
-  const [activeUser, setActiveUser] = React.useState<{
-    id?: string;
-    name?: string;
-    email?: string;
-    role?: string;
-  }>({
-    name: "Ayah (Fatih)",
-    email: "ayah@keluarga.hub",
-    role: "admin",
-  });
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem("fnr_user");
-      if (stored) {
-        setActiveUser(JSON.parse(stored));
-      } else {
-        fetch("/api/auth/me")
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (data?.authenticated && data?.user) {
-              setActiveUser(data.user);
-              localStorage.setItem("fnr_user", JSON.stringify(data.user));
-            }
-          })
-          .catch(() => {});
-      }
-    } catch {}
-  }, []);
+  const { user, roleLabel, isAdmin } = useCurrentUser();
 
   const avatarInitials = React.useMemo(() => {
-    const name = activeUser.name || "Ayah";
+    const name = user?.name || "Ayah";
     if (
       name.toLowerCase().includes("ibu") ||
       name.toLowerCase().includes("bunda") ||
@@ -99,7 +71,7 @@ export function AppHeader() {
     )
       return "MY";
     return name.substring(0, 2).toUpperCase();
-  }, [activeUser.name]);
+  }, [user?.name]);
 
   const handleLogout = async () => {
     try {
@@ -140,16 +112,18 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <Badge
-            variant="outline"
-            onClick={() => setIsApiModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer hover:bg-muted/80 hover:text-foreground transition-colors select-none h-7 px-2.5"
-            title="Klik untuk melihat status koneksi API"
-          >
-            <span className="size-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-            <Bot className="size-3.5 text-muted-foreground" />
-            <span>API Status</span>
-          </Badge>
+          {isAdmin && (
+            <Badge
+              variant="outline"
+              onClick={() => setIsApiModalOpen(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer hover:bg-muted/80 hover:text-foreground transition-colors select-none h-7 px-2.5"
+              title="Klik untuk melihat status koneksi API"
+            >
+              <span className="size-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+              <Bot className="size-3.5 text-muted-foreground" />
+              <span>API Status</span>
+            </Badge>
+          )}
 
           <ThemeToggle compact />
 
@@ -170,24 +144,32 @@ export function AppHeader() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 text-xs">
               <DropdownMenuLabel>
-                <div className="flex flex-col space-y-0.5">
-                  <p className="font-semibold text-xs text-foreground truncate">
-                    {activeUser.name || "Ayah (Admin)"}
-                  </p>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <p className="font-semibold text-xs text-foreground truncate">
+                      {user?.name || "Anggota Keluarga"}
+                    </p>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal shrink-0">
+                      {roleLabel}
+                    </Badge>
+                  </div>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {activeUser.email || "ayah@keluarga.hub"}
+                    {user?.email || "keluarga@keluarga.hub"}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setIsApiModalOpen(true)} className="gap-2 cursor-pointer text-xs">
-                <Activity className="size-3.5 text-primary" />
-                <span>Status Koneksi & AI</span>
-              </DropdownMenuItem>
-              <Link href="/family">
-                <DropdownMenuItem className="cursor-pointer text-xs">Profil & Roster Keluarga</DropdownMenuItem>
-              </Link>
-              <DropdownMenuItem className="text-xs">Pengaturan Webhook Telegram</DropdownMenuItem>
+              {isAdmin && (
+                <>
+                  <DropdownMenuItem onClick={() => setIsApiModalOpen(true)} className="gap-2 cursor-pointer text-xs">
+                    <Activity className="size-3.5 text-primary" />
+                    <span>Status Koneksi & AI</span>
+                  </DropdownMenuItem>
+                  <Link href="/family">
+                    <DropdownMenuItem className="cursor-pointer text-xs">Profil & Roster Keluarga</DropdownMenuItem>
+                  </Link>
+                </>
+              )}
               <DropdownMenuItem onClick={triggerPwaInstall} className="gap-2 cursor-pointer text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                 <Smartphone className="size-3.5" />
                 <span>Pasang Aplikasi (PWA)</span>

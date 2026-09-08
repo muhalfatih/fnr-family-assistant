@@ -31,9 +31,10 @@ import {
 interface WalletsTabProps {
   wallets: Wallet[];
   onMutate: () => void;
+  canManage?: boolean;
 }
 
-export function WalletsTab({ wallets, onMutate }: WalletsTabProps) {
+export function WalletsTab({ wallets, onMutate, canManage = true }: WalletsTabProps) {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [walletToEdit, setWalletToEdit] = useState<Wallet | null>(null);
   const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
@@ -94,24 +95,25 @@ export function WalletsTab({ wallets, onMutate }: WalletsTabProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold tracking-tight">Rekening & Dompet Kas</h2>
           <p className="text-xs text-muted-foreground">
-            Daftar seluruh rekening bank, e-wallet, dan dompet fisik keluarga. Anda dapat menambah,
-            mengubah, atau menghapus akun.
+            Daftar seluruh rekening bank, e-wallet, dan dompet fisik keluarga.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleOpenAddWallet}
-          className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto"
-        >
-          <Plus className="size-3.5" aria-hidden="true" />
-          <span>Tambah Rekening</span>
-        </Button>
+        {canManage && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenAddWallet}
+            className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+            <span>Tambah Rekening</span>
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -130,7 +132,7 @@ export function WalletsTab({ wallets, onMutate }: WalletsTabProps) {
               className="rounded-xl border border-border/80 bg-card hover:border-border transition-all flex flex-col justify-between"
             >
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 p-4">
-                <div className="space-y-1 min-w-0 flex-1 pr-2">
+                <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm truncate text-foreground">{w.name}</span>
                     <Badge
@@ -156,28 +158,30 @@ export function WalletsTab({ wallets, onMutate }: WalletsTabProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleOpenEditWallet(w)}
-                    className="size-7 text-muted-foreground hover:text-foreground rounded-md"
-                    title="Edit Rekening"
-                    aria-label={`Edit rekening ${w.name}`}
-                  >
-                    <Pencil className="size-3.5" aria-hidden="true" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setWalletToDelete(w)}
-                    className="size-7 text-muted-foreground hover:text-destructive rounded-md"
-                    title="Hapus Rekening"
-                    aria-label={`Hapus rekening ${w.name}`}
-                  >
-                    <Trash2 className="size-3.5" aria-hidden="true" />
-                  </Button>
-                </div>
+                {canManage && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleOpenEditWallet(w)}
+                      className="size-7 text-muted-foreground hover:text-foreground rounded-md"
+                      title="Edit Rekening"
+                      aria-label={`Edit rekening ${w.name}`}
+                    >
+                      <Pencil className="size-3.5" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setWalletToDelete(w)}
+                      className="size-7 text-muted-foreground hover:text-destructive rounded-md"
+                      title="Hapus Rekening"
+                      aria-label={`Hapus rekening ${w.name}`}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))

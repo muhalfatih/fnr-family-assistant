@@ -21,15 +21,30 @@ import {
   useCategories,
   useTransactions,
   useBudgets,
+  useCurrentUser,
 } from "@/lib/hooks/use-family-data";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const { user, isAdmin, isSpouse, canManageFinances } = useCurrentUser();
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [editingBudgetItem, setEditingBudgetItem] = useState<CategoryBudgetItem | null>(null);
+
+  // Show friendly notification if redirected due to role restriction
+  React.useEffect(() => {
+    const accessDenied = searchParams.get("access_denied");
+    if (accessDenied) {
+      toast.error("Akses Dibatasi: Halaman ini hanya untuk Kepala Keluarga / Pengelola.");
+      const nextUrl = window.location.pathname;
+      window.history.replaceState({}, "", nextUrl);
+    }
+  }, [searchParams]);
 
   const activeMonthYear = useMemo(() => {
     return selectedPeriod === "all" ? new Date().toISOString().substring(0, 7) : selectedPeriod;
@@ -163,8 +178,8 @@ export default function DashboardPage() {
               <div className="w-full">
                 <BudgetProgress
                   budgets={budgets}
-                  onOpenManageBudget={() => setIsBudgetModalOpen(true)}
-                  onEditItem={(item) => setEditingBudgetItem(item)}
+                  onOpenManageBudget={canManageFinances ? () => setIsBudgetModalOpen(true) : undefined}
+                  onEditItem={canManageFinances ? (item) => setEditingBudgetItem(item) : undefined}
                 />
               </div>
               <div className="w-full">
@@ -172,6 +187,8 @@ export default function DashboardPage() {
                   transactions={transactions.slice(0, 5)}
                   onDeleteTransaction={handleDeleteTransaction}
                   enableTooltip={true}
+                  currentUser={user}
+                  canDeleteAll={isAdmin || isSpouse}
                 />
               </div>
             </div>
@@ -190,6 +207,8 @@ export default function DashboardPage() {
                 transactions={transactions}
                 onDeleteTransaction={handleDeleteTransaction}
                 enableTooltip={false}
+                currentUser={user}
+                canDeleteAll={isAdmin || isSpouse}
               />
             )}
           </TabsContent>
@@ -203,26 +222,28 @@ export default function DashboardPage() {
                   Pantau dan kelola batas pengeluaran keluarga per kategori setiap bulan.
                 </p>
               </div>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setIsManageCategoriesOpen(true)}
-                className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto cursor-pointer"
-              >
-                <SlidersHorizontal className="size-3.5" aria-hidden="true" />
-                <span>Kelola Anggaran</span>
-              </Button>
+              {canManageFinances && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsManageCategoriesOpen(true)}
+                  className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto cursor-pointer"
+                >
+                  <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+                  <span>Kelola Anggaran</span>
+                </Button>
+              )}
             </div>
             <BudgetProgress
               budgets={budgets}
-              onOpenManageBudget={() => setIsBudgetModalOpen(true)}
-              onEditItem={(item) => setEditingBudgetItem(item)}
+              onOpenManageBudget={canManageFinances ? () => setIsBudgetModalOpen(true) : undefined}
+              onEditItem={canManageFinances ? (item) => setEditingBudgetItem(item) : undefined}
             />
           </TabsContent>
 
           {/* TAB 4: REKENING & MANAJEMEN DOMPET (ENCAPSULATED) */}
           <TabsContent value="wallets" className="space-y-6">
-            <WalletsTab wallets={wallets} onMutate={mutateWallets} />
+            <WalletsTab wallets={wallets} onMutate={mutateWallets} canManage={canManageFinances} />
           </TabsContent>
         </Tabs>
       </div>
@@ -234,7 +255,7 @@ export default function DashboardPage() {
         wallets={wallets}
         categories={categories}
         onSuccess={refreshAll}
-        onOpenManageCategories={() => setIsManageCategoriesOpen(true)}
+        onOpenManageCategories={canManageFinances ? () => setIsManageCategoriesOpen(true) : undefined}
       />
 
       {/* Modal Kelola Kategori Anggaran */}

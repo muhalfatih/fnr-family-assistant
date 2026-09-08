@@ -48,10 +48,15 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
               {member.full_name}
             </h3>
             <div className="flex items-center gap-1 text-[11px] mt-0.5">
-              {isAdmin ? (
+              {member.role === "admin" ? (
                 <span className="inline-flex items-center gap-1 text-primary font-medium">
                   <ShieldCheck className="size-3" aria-hidden="true" />
-                  <span>Admin</span>
+                  <span>Kepala Keluarga</span>
+                </span>
+              ) : member.role === "spouse" ? (
+                <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
+                  <ShieldCheck className="size-3" aria-hidden="true" />
+                  <span>Pengelola</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -89,7 +94,7 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
       </div>
 
       {/* Body: Flat Minimalist Ledger & Channel Info */}
-      <div className="space-y-1.5 pt-2 border-t border-border/50 text-[11px]">
+      <div className="flex flex-col gap-1.5 pt-2 border-t border-border/50 text-[11px]">
         {/* Wallet */}
         <div className="flex items-center justify-between text-muted-foreground gap-2">
           <span className="flex items-center gap-1.5 shrink-0">
