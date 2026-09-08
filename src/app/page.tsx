@@ -2,66 +2,31 @@
 
 import React, { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/app-shell";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { BudgetProgress, CategoryBudgetItem } from "@/components/dashboard/budget-progress";
 import { TransactionFeed } from "@/components/dashboard/transaction-feed";
-import { FinancialCharts, MonthlyFlowData } from "@/components/dashboard/financial-charts";
+import { FinancialCharts } from "@/components/dashboard/financial-charts";
+import { WalletsTab } from "@/components/dashboard/wallets-tab";
 import { AddTransactionModal } from "@/components/dashboard/add-transaction-modal";
-import { ManageWalletModal } from "@/components/dashboard/manage-wallet-modal";
 import { ManageBudgetModal } from "@/components/dashboard/manage-budget-modal";
 import { ManageCategoriesModal } from "@/components/dashboard/manage-categories-modal";
 import { EditBudgetItemModal } from "@/components/dashboard/edit-budget-item-modal";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { formatRupiah } from "@/lib/utils";
-import {
-  Plus,
-  CreditCard,
-  Building2,
-  Smartphone,
-  Banknote,
-  TrendingUp,
-  Pencil,
-  Trash2,
-  WalletCards,
-  RefreshCw,
-  SlidersHorizontal,
-} from "lucide-react";
-import { Wallet } from "@/lib/types/database";
+import { SlidersHorizontal } from "lucide-react";
 import {
   useWallets,
   useCategories,
   useTransactions,
   useBudgets,
 } from "@/lib/hooks/use-family-data";
+import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
-  const [walletToEdit, setWalletToEdit] = useState<Wallet | null>(null);
-  const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [editingBudgetItem, setEditingBudgetItem] = useState<CategoryBudgetItem | null>(null);
@@ -81,127 +46,21 @@ export default function DashboardPage() {
   } = useTransactions(selectedPeriod);
   const { budgets, mutate: mutateBudgets } = useBudgets(selectedPeriod);
 
+  // Business Logic & Aggregated Financial Metrics (Extracted Hook)
+  const {
+    totalBalance,
+    monthlyIncome,
+    monthlyExpense,
+    totalBudget,
+    categoryChartData,
+    cashFlowHistory,
+  } = useDashboardMetrics(wallets, transactions, budgets);
+
   const refreshAll = () => {
     mutateTransactions();
     mutateWallets();
     mutateCategories();
     mutateBudgets();
-  };
-
-  // 1. Calculate Real Cash Summary
-  const totalBalance = useMemo(() => {
-    return wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
-  }, [wallets]);
-
-  // 2. Calculate Monthly Flow (Income vs Expense)
-  const { monthlyIncome, monthlyExpense } = useMemo(() => {
-    let inc = 0;
-    let exp = 0;
-    transactions.forEach((t) => {
-      const amt = Number(t.amount || 0);
-      if (t.type === "income") inc += amt;
-      if (t.type === "expense") exp += amt;
-    });
-    return { monthlyIncome: inc, monthlyExpense: exp };
-  }, [transactions]);
-
-  // 3. Calculate Category Breakdown for Charts
-  const categoryChartData = useMemo(() => {
-    const map: Record<string, number> = {};
-    transactions
-      .filter((t) => t.type === "expense")
-      .forEach((t) => {
-        const catName = t.category?.name || "Lain-lain";
-        map[catName] = (map[catName] || 0) + Number(t.amount || 0);
-      });
-
-    const palette = [
-      "#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
-      "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16",
-    ];
-
-    return Object.entries(map).map(([name, value], i) => ({
-      name,
-      value,
-      color: palette[i % palette.length],
-    }));
-  }, [transactions]);
-
-  // 4. Calculate Dynamic 6-Month Cashflow History
-  const cashFlowHistory = useMemo((): MonthlyFlowData[] => {
-    const monthsMap: Record<string, { income: number; expense: number }> = {};
-    const now = new Date();
-
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString("id-ID", { month: "short" });
-      monthsMap[key] = { income: 0, expense: 0 };
-      (monthsMap[key] as any).label = label;
-    }
-
-    transactions.forEach((t) => {
-      const dateStr = t.transaction_date || t.created_at;
-      if (!dateStr) return;
-      const key = dateStr.substring(0, 7);
-      if (monthsMap[key]) {
-        const amt = Number(t.amount || 0);
-        if (t.type === "income") monthsMap[key].income += amt;
-        if (t.type === "expense") monthsMap[key].expense += amt;
-      }
-    });
-
-    return Object.entries(monthsMap).map(([_, val]: any) => ({
-      month: val.label,
-      income: val.income,
-      expense: val.expense,
-    }));
-  }, [transactions]);
-
-  // 5. Total Planned Budget
-  const totalBudget = useMemo(() => {
-    return budgets.reduce((acc, b) => acc + (b.target || 0), 0);
-  }, [budgets]);
-
-  // Wallet Actions
-  const handleOpenAddWallet = () => {
-    setWalletToEdit(null);
-    setIsWalletModalOpen(true);
-  };
-
-  const handleOpenEditWallet = (wallet: Wallet) => {
-    setWalletToEdit(wallet);
-    setIsWalletModalOpen(true);
-  };
-
-  const handleSaveWallet = async (walletData: Partial<Wallet>, isEdit: boolean) => {
-    try {
-      const method = isEdit ? "PUT" : "POST";
-      const res = await fetch("/api/wallets", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(walletData),
-      });
-      if (res.ok) {
-        mutateWallets();
-      }
-    } catch (err) {
-      console.error("Failed to save wallet:", err);
-    }
-  };
-
-  const handleDeleteWallet = async (id: string) => {
-    try {
-      const res = await fetch(`/api/wallets?id=${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        mutateWallets();
-        setWalletToDelete(null);
-      }
-    } catch (err) {
-      console.error("Failed to delete wallet:", err);
-    }
   };
 
   const handleSaveBudgets = async (targetMonthYear: string, updatedBudgets: any[]) => {
@@ -240,95 +99,34 @@ export default function DashboardPage() {
     }
   };
 
-  const getWalletIcon = (type: string) => {
-    switch (type) {
-      case "bank":
-        return <Building2 className="size-4 text-muted-foreground" aria-hidden="true" />;
-      case "ewallet":
-        return <Smartphone className="size-4 text-muted-foreground" aria-hidden="true" />;
-      case "cash":
-        return <Banknote className="size-4 text-muted-foreground" aria-hidden="true" />;
-      case "investment":
-        return <TrendingUp className="size-4 text-muted-foreground" aria-hidden="true" />;
-      default:
-        return <CreditCard className="size-4 text-muted-foreground" aria-hidden="true" />;
-    }
-  };
-
   return (
     <AppShell onAddTransaction={() => setIsAddModalOpen(true)}>
       <div className="space-y-5 sm:space-y-6 p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <WalletCards className="size-5 sm:size-6 text-foreground shrink-0" aria-hidden="true" />
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
-                Keuangan & Arus Kas
-              </h1>
-              {isValidatingTx && !isLoadingTx && (
-                <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground bg-muted px-2 py-0.5 rounded-full animate-pulse shrink-0">
-                  <RefreshCw className="size-2.5 animate-spin" aria-hidden="true" />
-                  <span>Sync</span>
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Pusat kendali keuangan, analitik arus kas, dan saldo rekening keluarga.
-            </p>
-          </div>
+        {/* Modular Page Header & Action Toolbar */}
+        <DashboardHeader
+          selectedPeriod={selectedPeriod}
+          onPeriodChange={setSelectedPeriod}
+          onRefresh={refreshAll}
+          isSyncing={isValidatingTx && !isLoadingTx}
+          onAddTransaction={() => setIsAddModalOpen(true)}
+        />
 
-          {/* Structured Responsive Action Toolbar */}
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="flex-1 sm:flex-initial sm:w-[170px] h-8 text-xs px-2.5 rounded-md bg-background" aria-label="Filter Periode Bulan">
-                <SelectValue placeholder="Pilih Periode" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="all" className="text-xs">Semua Periode</SelectItem>
-                  <SelectItem value="2026-12" className="text-xs">Desember 2026</SelectItem>
-                  <SelectItem value="2026-11" className="text-xs">November 2026</SelectItem>
-                  <SelectItem value="2026-10" className="text-xs">Oktober 2026</SelectItem>
-                  <SelectItem value="2026-09" className="text-xs font-semibold">September 2026 (Bulan Ini)</SelectItem>
-                  <SelectItem value="2026-08" className="text-xs">Agustus 2026</SelectItem>
-                  <SelectItem value="2026-07" className="text-xs">Juli 2026</SelectItem>
-                  <SelectItem value="2026-06" className="text-xs">Juni 2026</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshAll}
-              disabled={isValidatingTx}
-              className="gap-1.5 h-8 text-xs px-2.5 rounded-md shrink-0 active:scale-98"
-              title="Segarkan data sekarang"
-            >
-              <RefreshCw className={`size-3.5 ${isValidatingTx ? "animate-spin" : ""}`} aria-hidden="true" />
-              <span className="hidden sm:inline">Segarkan</span>
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => setIsAddModalOpen(true)}
-              className="h-8 text-xs px-3 rounded-md shadow-sm shrink-0 whitespace-nowrap gap-1.5"
-            >
-              <Plus className="size-3.5" aria-hidden="true" />
-              <span>Catat Transaksi</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Canonical Shadcn Tabs Navigation with Responsive Segmented Grid / Scroll */}
+        {/* Canonical Tabs Navigation */}
         <Tabs defaultValue="overview" className="space-y-5 sm:space-y-6">
           <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
             <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex sm:inline-flex bg-muted/60 p-1 border border-border/60 h-auto gap-1">
-              <TabsTrigger value="overview" className="text-xs px-2 sm:px-3 py-1.5 truncate">Ringkasan</TabsTrigger>
-              <TabsTrigger value="transactions" className="text-xs px-2 sm:px-3 py-1.5 truncate">Transaksi ({transactions.length})</TabsTrigger>
-              <TabsTrigger value="budgets" className="text-xs px-2 sm:px-3 py-1.5 truncate">Anggaran ({budgets.length})</TabsTrigger>
-              <TabsTrigger value="wallets" className="text-xs px-2 sm:px-3 py-1.5 truncate">Rekening ({wallets.length})</TabsTrigger>
+              <TabsTrigger value="overview" className="text-xs px-2 sm:px-3 py-1.5 truncate">
+                Ringkasan
+              </TabsTrigger>
+              <TabsTrigger value="transactions" className="text-xs px-2 sm:px-3 py-1.5 truncate">
+                Transaksi ({transactions.length})
+              </TabsTrigger>
+              <TabsTrigger value="budgets" className="text-xs px-2 sm:px-3 py-1.5 truncate">
+                Anggaran ({budgets.length})
+              </TabsTrigger>
+              <TabsTrigger value="wallets" className="text-xs px-2 sm:px-3 py-1.5 truncate">
+                Rekening ({wallets.length})
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -362,7 +160,7 @@ export default function DashboardPage() {
               />
             )}
 
-            {/* Balanced 50%-50% 2-Column Section: Budget Progress (50%) & Recent Feed (50%) */}
+            {/* Balanced 50%-50% 2-Column Section: Budget Progress & Recent Feed */}
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
               <div className="w-full">
                 <BudgetProgress
@@ -424,91 +222,9 @@ export default function DashboardPage() {
             />
           </TabsContent>
 
-          {/* TAB 4: REKENING & MANAJEMEN DOMPET */}
+          {/* TAB 4: REKENING & MANAJEMEN DOMPET (ENCAPSULATED) */}
           <TabsContent value="wallets" className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold tracking-tight">Rekening & Dompet Kas</h2>
-                <p className="text-xs text-muted-foreground">
-                  Daftar seluruh rekening bank, e-wallet, dan dompet fisik keluarga. Anda dapat menambah, mengubah, atau menghapus akun.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenAddWallet}
-                className="gap-1.5 h-8 text-xs shrink-0 self-start sm:self-auto"
-              >
-                <Plus className="size-3.5" aria-hidden="true" />
-                <span>Tambah Rekening</span>
-              </Button>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {wallets.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-muted-foreground border rounded-xl border-dashed">
-                  <CreditCard className="size-8 mx-auto mb-2 text-muted-foreground/60" aria-hidden="true" />
-                  <p className="text-xs font-medium">Belum ada rekening terdaftar</p>
-                  <p className="text-[11px] mt-1 text-muted-foreground">Tambahkan rekening bank, e-wallet, atau dompet tunai pertama Anda.</p>
-                </div>
-              ) : (
-                wallets.map((w) => (
-                  <Card key={w.id} className="rounded-xl border border-border/80 bg-card hover:border-border transition-all flex flex-col justify-between">
-                    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 p-4">
-                      <div className="space-y-1 min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm truncate text-foreground">
-                            {w.name}
-                          </span>
-                          <Badge variant="outline" className="text-[10px] uppercase px-1.5 py-0 shrink-0">
-                            {w.type}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground tabular-nums truncate">
-                          {w.account_number && w.account_number !== "-" ? w.account_number : "Kas Pribadi"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {getWalletIcon(w.type)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-2 border-t border-border/50 flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium block">
-                          Saldo Saat Ini
-                        </span>
-                        <div className="text-lg font-bold tracking-tight text-foreground truncate">
-                          {formatRupiah(w.current_balance)}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEditWallet(w)}
-                          className="size-7 text-muted-foreground hover:text-foreground rounded-md"
-                          title="Edit Rekening"
-                          aria-label={`Edit rekening ${w.name}`}
-                        >
-                          <Pencil className="size-3.5" aria-hidden="true" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setWalletToDelete(w)}
-                          className="size-7 text-muted-foreground hover:text-destructive rounded-md"
-                          title="Hapus Rekening"
-                          aria-label={`Hapus rekening ${w.name}`}
-                        >
-                          <Trash2 className="size-3.5" aria-hidden="true" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+            <WalletsTab wallets={wallets} onMutate={mutateWallets} />
           </TabsContent>
         </Tabs>
       </div>
@@ -520,17 +236,6 @@ export default function DashboardPage() {
         wallets={wallets}
         categories={categories}
         onSuccess={refreshAll}
-      />
-
-      {/* Modal Tambah / Edit Rekening */}
-      <ManageWalletModal
-        isOpen={isWalletModalOpen}
-        onClose={() => {
-          setIsWalletModalOpen(false);
-          setWalletToEdit(null);
-        }}
-        walletToEdit={walletToEdit}
-        onSaveWallet={handleSaveWallet}
       />
 
       {/* Modal Kelola Kategori Anggaran */}
@@ -568,31 +273,6 @@ export default function DashboardPage() {
           mutateCategories();
         }}
       />
-
-      {/* Delete Wallet Alert Dialog */}
-      <AlertDialog open={!!walletToDelete} onOpenChange={(open) => !open && setWalletToDelete(null)}>
-        <AlertDialogContent className="sm:max-w-[420px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Rekening Ini?</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground">
-              Rekening <strong className="text-foreground font-semibold">{walletToDelete?.name}</strong> dengan saldo saat ini{" "}
-              <strong className="text-foreground font-semibold">
-                {walletToDelete ? formatRupiah(walletToDelete.current_balance) : ""}
-              </strong>{" "}
-              akan dihapus dari daftar rekening kas keluarga.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-2">
-            <AlertDialogCancel className="w-full sm:w-auto h-9 text-xs px-3 cursor-pointer">Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => walletToDelete && handleDeleteWallet(walletToDelete.id)}
-              className="w-full sm:w-auto h-9 text-xs px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
-            >
-              Hapus Rekening
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AppShell>
   );
 }
