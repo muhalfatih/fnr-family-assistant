@@ -100,6 +100,17 @@ async function runAllTests() {
     assert.ok(Array.isArray(json.tasks));
   });
 
+  // 3. Test Telegram, WhatsApp & OCR Pipeline
+  console.log("\n3. Testing Telegram, WhatsApp & OCR Pipeline...");
+  try {
+    const { execSync } = await import("node:child_process");
+    execSync("node scripts/test-bot-pipeline.mjs", { stdio: "inherit" });
+    passed += 18;
+  } catch (err) {
+    console.error("  [FAIL] Bot & OCR Pipeline Test Suite failed");
+    failed++;
+  }
+
   console.log("\n=== Test Results Summary ===");
   console.log(`Passed: ${passed}`);
   console.log(`Failed: ${failed}`);

@@ -1118,6 +1118,17 @@ class MockDataStore {
     }
     return false;
   }
+  public updateTransaction(id: string, updates: Partial<Transaction>) {
+    const idx = this.data.transactions.findIndex((t) => t.id === id);
+    if (idx !== -1) {
+      this.data.transactions[idx] = {
+        ...this.data.transactions[idx],
+        ...updates,
+      };
+      return this.data.transactions[idx];
+    }
+    return null;
+  }
 
   // Assets
   public getAssets() {
