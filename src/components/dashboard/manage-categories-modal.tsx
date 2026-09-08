@@ -51,6 +51,7 @@ export function ManageCategoriesModal({
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [view, setView] = useState<"list" | "add" | "edit">("list");
+  const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
 
   // State form Tambah
   const [addName, setAddName] = useState("");
@@ -89,6 +90,7 @@ export function ManageCategoriesModal({
     if (isOpen) {
       fetchCategories();
       setView("list");
+      setActiveTab("expense");
       setAddName("");
       setAddColor(COLOR_PRESETS[0]);
       setEditingCategory(null);
@@ -111,6 +113,22 @@ export function ManageCategoriesModal({
     return Array.from(seen.values());
   }, [categories]);
 
+  // Deduplikasi defensif kategori pemasukan (income)
+  const incomeCategories = useMemo(() => {
+    const seen = new Map<string, Category>();
+    for (const c of categories.filter((cat) => cat.type === "income")) {
+      const key = c.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, c);
+      } else if (c.is_default && !seen.get(key)!.is_default) {
+        seen.set(key, c);
+      }
+    }
+    return Array.from(seen.values());
+  }, [categories]);
+
+  const currentList = activeTab === "expense" ? expenseCategories : incomeCategories;
+
   // Handler: Tambah Kategori Baru
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,12 +138,15 @@ export function ManageCategoriesModal({
       return;
     }
 
-    if (trimmed.toLowerCase() === "lainnya") {
-      setFormError("Kategori 'Lainnya' sudah ada sebagai kategori default.");
+    if (
+      trimmed.toLowerCase() === "lainnya" ||
+      trimmed.toLowerCase() === "pemasukan lainnya"
+    ) {
+      setFormError("Nama kategori tersebut dicadangkan sebagai default sistem.");
       return;
     }
 
-    const duplicate = expenseCategories.some(
+    const duplicate = currentList.some(
       (c) => c.name.trim().toLowerCase() === trimmed.toLowerCase()
     );
     if (duplicate) {
@@ -143,7 +164,7 @@ export function ManageCategoriesModal({
         body: JSON.stringify({
           name: trimmed,
           color: addColor,
-          type: "expense",
+          type: activeTab,
           initialTarget: 0,
         }),
       });
@@ -175,12 +196,16 @@ export function ManageCategoriesModal({
       return;
     }
 
-    if (trimmed.toLowerCase() === "lainnya" && editingCategory.name.toLowerCase() !== "lainnya") {
-      setFormError("Nama 'Lainnya' dicadangkan untuk kategori default sistem.");
+    if (
+      (trimmed.toLowerCase() === "lainnya" || trimmed.toLowerCase() === "pemasukan lainnya") &&
+      editingCategory.name.toLowerCase() !== trimmed.toLowerCase()
+    ) {
+      setFormError("Nama tersebut dicadangkan untuk kategori default sistem.");
       return;
     }
 
-    const duplicate = expenseCategories.some(
+    const targetList = editingCategory.type === "income" ? incomeCategories : expenseCategories;
+    const duplicate = targetList.some(
       (c) => c.id !== editingCategory.id && c.name.trim().toLowerCase() === trimmed.toLowerCase()
     );
     if (duplicate) {
@@ -233,8 +258,9 @@ export function ManageCategoriesModal({
         throw new Error(errData.error || "Gagal menghapus kategori");
       }
 
+      const fallbackName = categoryToDelete.type === "income" ? "Pemasukan Lainnya" : "Lainnya";
       toast.success(
-        `Kategori "${categoryToDelete.name}" dihapus. Transaksi dialihkan ke "Lainnya"`
+        `Kategori "${categoryToDelete.name}" dihapus. Transaksi dialihkan ke "${fallbackName}"`
       );
       setCategoryToDelete(null);
       await fetchCategories();
@@ -267,17 +293,49 @@ export function ManageCategoriesModal({
                       <SlidersHorizontal className="size-3.5" />
                     </div>
                     <DialogTitle className="text-base font-semibold tracking-tight">
-                      Kelola Kategori Anggaran
+                      Kelola Kategori Transaksi
                     </DialogTitle>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
-                    <span>{expenseCategories.length} Kategori</span>
+                    <span>{currentList.length} Kategori</span>
                   </span>
                 </div>
                 <DialogDescription className="text-xs text-muted-foreground pt-0.5">
-                  Atur nama, warna label, atau tambah kategori belanja baru.
+                  Atur nama, warna label, atau tambah kategori baru untuk pengeluaran dan pemasukan.
                 </DialogDescription>
               </DialogHeader>
+
+              {/* Segmented Tabs: Pengeluaran vs Pemasukan */}
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted/60 p-1 border border-border/60 text-center font-medium text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("expense")}
+                  className={`rounded-md py-1.5 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
+                    activeTab === "expense"
+                      ? "bg-background text-foreground shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>Pengeluaran</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
+                    {expenseCategories.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("income")}
+                  className={`rounded-md py-1.5 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
+                    activeTab === "income"
+                      ? "bg-background text-foreground shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>Pemasukan</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
+                    {incomeCategories.length}
+                  </span>
+                </button>
+              </div>
 
               <div className="space-y-3 pt-1">
                 {/* Tombol Tambah Kategori Baru */}
@@ -293,7 +351,7 @@ export function ManageCategoriesModal({
                   className="w-full h-9 text-xs font-semibold gap-1.5 border-dashed border-border/80 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all cursor-pointer"
                 >
                   <Plus className="size-3.5" />
-                  <span>Tambah Kategori Baru</span>
+                  <span>Tambah Kategori {activeTab === "expense" ? "Pengeluaran" : "Pemasukan"}</span>
                 </Button>
 
                 {/* List Container */}
@@ -303,13 +361,18 @@ export function ManageCategoriesModal({
                       <Loader2 className="size-3.5 animate-spin text-primary" />
                       <span className="text-xs">Memuat daftar kategori...</span>
                     </div>
-                  ) : expenseCategories.length === 0 ? (
+                  ) : currentList.length === 0 ? (
                     <div className="text-center py-6">
-                      <p className="text-xs text-muted-foreground">Belum ada kategori belanja.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Belum ada kategori {activeTab === "expense" ? "pengeluaran" : "pemasukan"}.
+                      </p>
                     </div>
                   ) : (
-                    expenseCategories.map((cat) => {
-                      const isLainnya = cat.name.trim().toLowerCase() === "lainnya";
+                    currentList.map((cat) => {
+                      const isDefault =
+                        cat.is_default ||
+                        cat.name.trim().toLowerCase() === "lainnya" ||
+                        cat.name.trim().toLowerCase() === "pemasukan lainnya";
                       return (
                         <div
                           key={cat.id}
@@ -323,7 +386,7 @@ export function ManageCategoriesModal({
                             <span className="text-xs font-medium text-foreground truncate">
                               {cat.name}
                             </span>
-                            {isLainnya && (
+                            {isDefault && (
                               <Badge
                                 variant="secondary"
                                 className="gap-1 text-[10px] font-normal py-0 h-4.5 px-1.5 bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20"
@@ -335,7 +398,7 @@ export function ManageCategoriesModal({
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0">
-                            {isLainnya ? (
+                            {isDefault ? (
                               <span className="text-[11px] text-muted-foreground/60 italic px-2 py-0.5 select-none">
                                 Terkunci
                               </span>
@@ -400,15 +463,17 @@ export function ManageCategoriesModal({
                       <Plus className="size-3.5" />
                     </div>
                     <DialogTitle className="text-base font-semibold tracking-tight">
-                      Tambah Kategori Baru
+                      Tambah Kategori {activeTab === "expense" ? "Pengeluaran" : "Pemasukan"}
                     </DialogTitle>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
-                    <span>Tanpa Target</span>
+                    <span>{activeTab === "expense" ? "Kategori Belanja" : "Kategori Pemasukan"}</span>
                   </span>
                 </div>
                 <DialogDescription className="text-xs text-muted-foreground pt-0.5">
-                  Buat kategori anggaran baru. Nominal pagu bulanan dapat diatur di tab Atur Pagu.
+                  {activeTab === "expense"
+                    ? "Buat kategori belanja baru untuk pembukuan dan pagu anggaran keluarga."
+                    : "Buat kategori sumber pemasukan dan pendapatan baru keluarga."}
                 </DialogDescription>
               </DialogHeader>
 
@@ -425,7 +490,11 @@ export function ManageCategoriesModal({
                       setAddName(e.target.value);
                       if (formError) setFormError(null);
                     }}
-                    placeholder="Misal: Hobi & Buku, Donasi, Perawatan"
+                    placeholder={
+                      activeTab === "expense"
+                        ? "Misal: Hobi & Buku, Donasi, Perawatan"
+                        : "Misal: Freelance, Bonus Tahunan, Royalti"
+                    }
                     className="h-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isSubmitting}
                     autoFocus
@@ -489,7 +558,11 @@ export function ManageCategoriesModal({
                   className="w-full sm:w-auto h-9 text-xs font-semibold cursor-pointer gap-1.5"
                 >
                   {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  <span>{isSubmitting ? "Menyimpan..." : "Tambah Kategori"}</span>
+                  <span>
+                    {isSubmitting
+                      ? "Menyimpan..."
+                      : `Tambah Kategori ${activeTab === "expense" ? "Pengeluaran" : "Pemasukan"}`}
+                  </span>
                 </Button>
               </DialogFooter>
             </form>
@@ -505,15 +578,15 @@ export function ManageCategoriesModal({
                       <Pencil className="size-3.5" />
                     </div>
                     <DialogTitle className="text-base font-semibold tracking-tight">
-                      Ubah Kategori
+                      Ubah Kategori {editingCategory.type === "expense" ? "Pengeluaran" : "Pemasukan"}
                     </DialogTitle>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
-                    <span>Kategori Belanja</span>
+                    <span>{editingCategory.type === "expense" ? "Kategori Belanja" : "Kategori Pemasukan"}</span>
                   </span>
                 </div>
                 <DialogDescription className="text-xs text-muted-foreground pt-0.5">
-                  Ubah nama dan warna label kategori belanja yang dipilih.
+                  Ubah nama dan warna label kategori {editingCategory.type === "expense" ? "belanja" : "pemasukan"} yang dipilih.
                 </DialogDescription>
               </DialogHeader>
 
@@ -616,7 +689,10 @@ export function ManageCategoriesModal({
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
               Seluruh riwayat transaksi yang tercatat pada kategori ini akan otomatis dialihkan ke kategori default{" "}
-              <strong className="text-foreground">&ldquo;Lainnya&rdquo;</strong>. Anggaran pagu untuk kategori ini juga akan dihapus.
+              <strong className="text-foreground">
+                &ldquo;{categoryToDelete?.type === "income" ? "Pemasukan Lainnya" : "Lainnya"}&rdquo;
+              </strong>
+              {categoryToDelete?.type === "expense" ? ". Anggaran pagu untuk kategori ini juga akan dihapus." : "."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">

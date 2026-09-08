@@ -234,6 +234,7 @@ export default function DashboardPage() {
         wallets={wallets}
         categories={categories}
         onSuccess={refreshAll}
+        onOpenManageCategories={() => setIsManageCategoriesOpen(true)}
       />
 
       {/* Modal Kelola Kategori Anggaran */}
