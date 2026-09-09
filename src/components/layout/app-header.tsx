@@ -21,17 +21,20 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, ShieldCheck, Smartphone, KeyRound } from "lucide-react";
+import { LogOut, ShieldCheck, Smartphone, KeyRound, UserCog, Users, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ApiKeysModal } from "@/components/settings/api-keys-modal";
+import { AddMemberModal } from "@/components/family/add-member-modal";
 import { triggerPwaInstall } from "@/components/pwa/install-pwa-prompt";
-import { useCurrentUser } from "@/lib/hooks/use-family-data";
+import { useCurrentUser, useFamilyMembers, useWallets } from "@/lib/hooks/use-family-data";
+import { cn } from "@/lib/utils";
 
 const pageTitleMap: Record<string, { title: string; category: string }> = {
   "/": { title: "Keuangan & Arus Kas", category: "Ringkasan" },
@@ -45,14 +48,71 @@ export function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [isApiKeysModalOpen, setIsApiKeysModalOpen] = React.useState(false);
-  const { user, roleLabel, isAdmin } = useCurrentUser();
+  const [isEditProfileOpen, setIsEditProfileOpen] = React.useState(false);
+
+  const { user, roleLabel, isAdmin, isSpouse, canAccessFamily, mutate: mutateCurrentUser } = useCurrentUser();
+  const { members, mutate: mutateMembers } = useFamilyMembers();
+  const { wallets } = useWallets();
 
   const handleCloseApiKeysModal = React.useCallback(() => {
     setIsApiKeysModalOpen(false);
   }, []);
 
+  const handleCloseEditProfile = React.useCallback(() => {
+    setIsEditProfileOpen(false);
+  }, []);
+
+  const handleProfileSuccess = React.useCallback(() => {
+    mutateMembers();
+    mutateCurrentUser();
+  }, [mutateMembers, mutateCurrentUser]);
+
+  const currentMember = React.useMemo(() => {
+    if (!members || members.length === 0) return null;
+    if (user?.id) {
+      const found = members.find((m) => m.id === user.id);
+      if (found) return found;
+    }
+    if (user?.name) {
+      const found = members.find(
+        (m) => m.full_name?.toLowerCase() === user.name?.toLowerCase()
+      );
+      if (found) return found;
+    }
+    return null;
+  }, [members, user]);
+
+  const memberToEdit = React.useMemo(() => {
+    if (currentMember) return currentMember;
+    if (!user) return null;
+    return {
+      id: user.id || "",
+      full_name: user.name || "",
+      role: user.role || "member",
+      whatsapp_number: "",
+      telegram_username: "",
+      telegram_chat_id: "",
+    };
+  }, [currentMember, user]);
+
+  const userIdentifier = React.useMemo(() => {
+    if (currentMember?.telegram_username) {
+      return `@${currentMember.telegram_username.replace(/^@/, "")}`;
+    }
+    if (currentMember?.whatsapp_number) {
+      return currentMember.whatsapp_number;
+    }
+    if (currentMember?.telegram_chat_id) {
+      return `ID Telegram: ${currentMember.telegram_chat_id}`;
+    }
+    if (user?.email && !user.email.endsWith("@keluarga.hub")) {
+      return user.email;
+    }
+    return "Akun Terdaftar";
+  }, [currentMember, user]);
+
   const avatarInitials = React.useMemo(() => {
-    const name = user?.name || "Ayah";
+    const name = user?.name || currentMember?.full_name || "Ayah";
     if (
       name.toLowerCase().includes("ibu") ||
       name.toLowerCase().includes("bunda") ||
@@ -75,7 +135,7 @@ export function AppHeader() {
     )
       return "MY";
     return name.substring(0, 2).toUpperCase();
-  }, [user?.name]);
+  }, [user?.name, currentMember?.full_name]);
 
   const handleLogout = async () => {
     try {
@@ -123,55 +183,148 @@ export function AppHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 rounded-full p-0 shrink-0 aspect-square select-none focus-visible:ring-1"
+                className="relative size-8 rounded-full p-0 shrink-0 aspect-square select-none ring-1 ring-border/60 hover:ring-primary/40 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
                 aria-label="Menu Akun & Profil"
               >
-                <Avatar className="size-8 rounded-full border border-border shrink-0 aspect-square">
+                <Avatar className="size-8 rounded-full shrink-0 aspect-square">
                   <AvatarFallback className="text-xs font-semibold bg-primary text-primary-foreground select-none">
                     {avatarInitials}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 text-xs">
-              <DropdownMenuLabel>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <p className="font-semibold text-xs text-foreground truncate">
-                      {user?.name || "Anggota Keluarga"}
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] p-2 shadow-xl border-border/80 rounded-2xl animate-in fade-in-50 zoom-in-95 data-[side=bottom]:slide-in-from-top-2"
+            >
+              {/* Header Profil Mewah */}
+              <div className="p-3 bg-muted/50 rounded-xl border border-border/50 mb-1 space-y-2">
+                <div className="flex items-start gap-3">
+                  <Avatar className="size-10 rounded-full border-2 border-background shadow-xs shrink-0 mt-0.5">
+                    <AvatarFallback className="text-sm font-bold bg-primary text-primary-foreground select-none">
+                      {avatarInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <p className="font-semibold text-xs sm:text-sm text-foreground truncate leading-tight">
+                        {user?.name || currentMember?.full_name || "Anggota Keluarga"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0 font-medium h-4.5 border",
+                          isAdmin
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                            : isSpouse
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                            : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                        )}
+                      >
+                        {roleLabel}
+                      </Badge>
+
+                      {currentMember?.has_password ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 dark:bg-emerald-500/20 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                          <ShieldCheck className="size-2.5" />
+                          <span>Sandi Aktif</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.5 rounded-md border border-amber-500/20">
+                          <Lock className="size-2.5" />
+                          <span>Tanpa Sandi</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate font-mono">
+                      {userIdentifier}
                     </p>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal shrink-0">
-                      {roleLabel}
-                    </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {user?.email || "keluarga@keluarga.hub"}
-                  </p>
                 </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setIsApiKeysModalOpen(true)}
-                className="gap-2 cursor-pointer text-xs font-semibold text-foreground hover:bg-amber-500/10 focus:bg-amber-500/10"
-              >
-                <KeyRound className="size-3.5 text-amber-500" />
-                <span>Kunci API & Kredensial</span>
-              </DropdownMenuItem>
-              <Link href="/family">
-                <DropdownMenuItem className="cursor-pointer text-xs">Profil & Roster Keluarga</DropdownMenuItem>
-              </Link>
-              <DropdownMenuItem onClick={triggerPwaInstall} className="gap-2 cursor-pointer text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                <Smartphone className="size-3.5" />
-                <span>Pasang Aplikasi (PWA)</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 font-medium text-xs"
-              >
-                <LogOut className="size-3.5 text-destructive" aria-hidden="true" />
-                <span>Keluar (Logout)</span>
-              </DropdownMenuItem>
+              </div>
+
+              {/* Kelompok Profil & Akun */}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">
+                  Akun & Profil
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setIsEditProfileOpen(true)}
+                  className="gap-2.5 py-2 px-2.5 rounded-lg text-xs font-medium cursor-pointer focus:bg-accent focus:text-accent-foreground"
+                >
+                  <UserCog className="size-4 text-primary shrink-0" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="font-medium text-foreground">Profil & Sandi Saya</span>
+                    <span className="text-[10px] text-muted-foreground">Ubah Telegram, WA, atau kata sandi</span>
+                  </div>
+                </DropdownMenuItem>
+
+                {canAccessFamily && (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/family"
+                      className="gap-2.5 py-2 px-2.5 rounded-lg text-xs font-medium cursor-pointer focus:bg-accent focus:text-accent-foreground flex items-center"
+                    >
+                      <Users className="size-4 text-muted-foreground shrink-0" />
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-medium text-foreground">Roster Anggota Keluarga</span>
+                        <span className="text-[10px] text-muted-foreground">Kelola anggota & peran keluarga</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+
+              <DropdownMenuSeparator className="my-1 border-border/50" />
+
+              {/* Kelompok Fitur & Sistem */}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">
+                  Sistem & Akses
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setIsApiKeysModalOpen(true)}
+                  className="gap-2.5 py-2 px-2.5 rounded-lg text-xs font-medium cursor-pointer focus:bg-amber-500/10 hover:bg-amber-500/5 group"
+                >
+                  <KeyRound className="size-4 text-amber-500 shrink-0" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-foreground">Kunci API & Kredensial</span>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                        Aman
+                      </Badge>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Gemini, Telegram & Supabase</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={triggerPwaInstall}
+                  className="gap-2.5 py-2 px-2.5 rounded-lg text-xs font-medium cursor-pointer focus:bg-emerald-500/10 hover:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400"
+                >
+                  <Smartphone className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="font-medium">Pasang Aplikasi (PWA)</span>
+                    <span className="text-[10px] text-muted-foreground">Akses cepat di layar ponsel</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+
+              <DropdownMenuSeparator className="my-1 border-border/50" />
+
+              {/* Keluar */}
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="gap-2.5 py-2 px-2.5 rounded-lg text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
+                >
+                  <LogOut className="size-4 text-destructive shrink-0" />
+                  <span className="font-medium">Keluar dari Sesi</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -181,6 +334,16 @@ export function AppHeader() {
         isOpen={isApiKeysModalOpen}
         onClose={handleCloseApiKeysModal}
       />
+
+      {memberToEdit && (
+        <AddMemberModal
+          isOpen={isEditProfileOpen}
+          onClose={handleCloseEditProfile}
+          onSuccess={handleProfileSuccess}
+          memberToEdit={memberToEdit}
+          wallets={wallets}
+        />
+      )}
     </>
   );
 }
