@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!identifier || typeof identifier !== "string" || !identifier.trim()) {
-      const fieldName = channel === "whatsapp" ? "Nomor WhatsApp" : "ID Chat Telegram";
+      const fieldName = channel === "whatsapp" ? "Nomor WhatsApp" : "Username atau ID Chat Telegram";
       return NextResponse.json(
         { error: `${fieldName} wajib diisi.` },
         { status: 400 }
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       const msg =
         channel === "whatsapp"
           ? "Nomor WhatsApp belum terdaftar dalam daftar anggota keluarga."
-          : "ID Telegram, nomor HP, atau nama anggota belum terdaftar dalam keluarga.";
+          : "Username atau ID Chat Telegram belum terdaftar dalam anggota keluarga.";
       return NextResponse.json({ error: msg }, { status: 404 });
     }
 

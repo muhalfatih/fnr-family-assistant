@@ -419,7 +419,7 @@ function LoginForm() {
             ) : (
               <div className="space-y-1.5">
                 <Label htmlFor="telegramInput" className="text-xs font-medium text-foreground">
-                  Username (@username), No. HP, atau ID Chat
+                  Username atau ID Chat Telegram
                 </Label>
                 <div className="relative flex items-center">
                   <Send className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
@@ -432,7 +432,7 @@ function LoginForm() {
                       if (error) setError(null);
                       if (telegramActivationPrompt) setTelegramActivationPrompt(null);
                     }}
-                    placeholder="Contoh: @muhalfatih, 0812..., atau 123456789"
+                    placeholder="Contoh: @muhalfatih atau 123456789"
                     className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
                     autoFocus
@@ -440,7 +440,7 @@ function LoginForm() {
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Bisa menggunakan <b>@username Telegram</b>, nomor HP terdaftar, atau ID Chat.
+                  Gunakan <b>@username Telegram</b> atau ID Chat numerik akun Anda.
                 </p>
               </div>
             )}
@@ -455,7 +455,7 @@ function LoginForm() {
                       Akun {telegramActivationPrompt.memberName || "Anggota"} Ditemukan!
                     </p>
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      Karena ini pertama kali Anda login via Telegram, silakan aktifkan dengan mengirim <code>/start</code> atau berbagi kontak ke bot Telegram agar kode masuk dapat dikirimkan.
+                      Karena ini pertama kali Anda login via Telegram, silakan aktifkan dengan membuka bot dan mengirim <code>/start</code> agar akun Anda otomatis terhubung.
                     </p>
                   </div>
                 </div>
