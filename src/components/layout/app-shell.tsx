@@ -4,6 +4,7 @@ import * as React from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
+import { useFamilyRealtime } from "@/lib/hooks/use-family-realtime";
 
 export function AppShell({
   children,
@@ -12,6 +13,9 @@ export function AppShell({
   children: React.ReactNode;
   onAddTransaction?: () => void;
 }) {
+  // Activate event-driven Supabase Realtime synchronization
+  useFamilyRealtime();
+
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar onAddTransaction={onAddTransaction} />

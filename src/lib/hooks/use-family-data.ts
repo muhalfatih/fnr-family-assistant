@@ -19,7 +19,7 @@ export const fetcher = async (url: string) => {
 const defaultConfig: SWRConfiguration = {
   revalidateOnFocus: true, // Revalidate when user returns to browser tab
   dedupingInterval: 8000,   // Deduplicate requests within 8 seconds
-  refreshInterval: 30000,   // Auto-sync every 30s (background sync for bot transactions)
+  refreshInterval: 0,       // Event-driven realtime updates via Supabase WebSocket (no periodic polling)
   revalidateOnReconnect: true,
   keepPreviousData: true,   // ZERO-FLICKER: keep previous data in view while revalidating
 };
@@ -46,7 +46,7 @@ export function useCategories() {
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ categories: Category[] }>(
     "/api/categories",
     fetcher,
-    { ...defaultConfig, refreshInterval: 60000 } // categories rarely change
+    defaultConfig
   );
 
   return {
@@ -192,7 +192,7 @@ export function useChatLogs() {
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ logs: any[]; isMockMode?: boolean }>(
     "/api/logs",
     fetcher,
-    { ...defaultConfig, refreshInterval: 5000 } // Logs auto-sync every 5s
+    defaultConfig
   );
 
   return {
@@ -262,4 +262,7 @@ export function useCurrentUser() {
     mutate,
   };
 }
+
+// 12. Realtime listener hook re-export
+export { useFamilyRealtime } from "./use-family-realtime";
 
