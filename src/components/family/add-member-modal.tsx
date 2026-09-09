@@ -20,7 +20,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, HelpCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Loader2, HelpCircle, CheckCircle2, AlertCircle, Search, Send } from "lucide-react";
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -42,6 +44,12 @@ export function AddMemberModal({
   const [defaultWalletId, setDefaultWalletId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [telegramUsername, setTelegramUsername] = useState("");
+  const [telegramDisplayName, setTelegramDisplayName] = useState("");
+  const [isCheckingTelegram, setIsCheckingTelegram] = useState(false);
+  const [telegramCheckFeedback, setTelegramCheckFeedback] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -53,6 +61,7 @@ export function AddMemberModal({
       setDefaultWalletId(memberToEdit.default_wallet_id || "");
       setTelegramChatId(memberToEdit.telegram_chat_id ? String(memberToEdit.telegram_chat_id) : "");
       setTelegramUsername(memberToEdit.telegram_username ? memberToEdit.telegram_username.replace(/^@/, "") : "");
+      setTelegramDisplayName(memberToEdit.full_name || "");
       setWhatsappNumber(memberToEdit.whatsapp_number || "");
     } else {
       setFullName("");
@@ -60,10 +69,66 @@ export function AddMemberModal({
       setDefaultWalletId(wallets && wallets.length > 0 ? wallets[0].id : "");
       setTelegramChatId("");
       setTelegramUsername("");
+      setTelegramDisplayName("");
       setWhatsappNumber("");
     }
+    setTelegramCheckFeedback(null);
     setErrorMsg("");
   }, [memberToEdit, isOpen, wallets]);
+
+  const handleCheckTelegram = async () => {
+    const cleanId = telegramChatId.trim();
+    if (!cleanId) {
+      setTelegramCheckFeedback({
+        type: "error",
+        message: "Ketik Telegram Chat ID terlebih dahulu untuk memeriksa akun.",
+      });
+      return;
+    }
+
+    setIsCheckingTelegram(true);
+    setTelegramCheckFeedback(null);
+
+    try {
+      const res = await fetch(`/api/telegram/lookup?chat_id=${encodeURIComponent(cleanId)}`);
+      const data = await res.json();
+
+      if (data.ok) {
+        if (data.username) {
+          setTelegramUsername(data.username);
+        } else {
+          setTelegramUsername("");
+        }
+        if (data.displayName) {
+          setTelegramDisplayName(data.displayName);
+        }
+
+        if (data.hasUsername) {
+          setTelegramCheckFeedback({
+            type: "success",
+            message: `Akun terverifikasi: @${data.username} (${data.displayName})`,
+          });
+        } else {
+          setTelegramCheckFeedback({
+            type: "info",
+            message: `Akun valid (${data.displayName}), namun belum menyetel @username publik di Telegram.`,
+          });
+        }
+      } else {
+        setTelegramCheckFeedback({
+          type: "error",
+          message: data.error || "Akun tidak ditemukan atau bot belum pernah dihubungi.",
+        });
+      }
+    } catch {
+      setTelegramCheckFeedback({
+        type: "error",
+        message: "Gagal terhubung ke layanan verifikasi Telegram.",
+      });
+    } finally {
+      setIsCheckingTelegram(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,51 +249,116 @@ export function AddMemberModal({
             </div>
           </div>
 
-          {/* 3. Username Telegram */}
-          <div className="space-y-1.5">
-            <Label htmlFor="tgUsername" className="text-xs font-medium text-foreground">
-              Username Telegram (Opsional)
-            </Label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3 text-xs font-semibold text-muted-foreground pointer-events-none">
-                @
-              </span>
-              <Input
-                id="tgUsername"
-                type="text"
-                placeholder="muhalfatih"
-                value={telegramUsername}
-                onChange={(e) => setTelegramUsername(e.target.value.replace(/^@/, ""))}
-                className="text-xs h-9 pl-7"
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Jika diisi, anggota bisa login cukup dengan @username atau No. HP, dan saat kirim /start ke bot akan otomatis terhubung tanpa perlu repot salin ID.
-            </p>
-          </div>
-
-          {/* 4. Tautan Telegram Chat ID */}
+          {/* 3. Tautan Telegram Chat ID & Cek Akun */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="tgId" className="text-xs font-medium text-foreground">
                 Telegram Chat ID (Opsional)
               </Label>
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1" title="Untuk mendapatkan Chat ID, kirim /start ke bot @fnr_assistant_bot">
+              <span
+                className="text-[11px] text-muted-foreground flex items-center gap-1"
+                title="Untuk mendapatkan Chat ID, kirim /start ke bot @fnr_assistant_bot"
+              >
                 <HelpCircle className="size-3" aria-hidden="true" />
                 <span>Otomatis terisi jika kirim /start</span>
               </span>
             </div>
-            <Input
-              id="tgId"
-              type="number"
-              placeholder="Contoh: 123456789"
-              value={telegramChatId}
-              onChange={(e) => setTelegramChatId(e.target.value)}
-              className="text-xs tabular-nums h-9"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="tgId"
+                type="number"
+                placeholder="Contoh: 123456789"
+                value={telegramChatId}
+                onChange={(e) => {
+                  setTelegramChatId(e.target.value);
+                  if (telegramCheckFeedback) setTelegramCheckFeedback(null);
+                }}
+                className="text-xs tabular-nums h-9 flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCheckTelegram}
+                disabled={isCheckingTelegram || !telegramChatId.trim()}
+                className="h-9 text-xs px-3 shrink-0 gap-1.5 cursor-pointer"
+                title="Verifikasi Chat ID dan ambil data akun Telegram"
+              >
+                {isCheckingTelegram ? (
+                  <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" aria-hidden="true" />
+                ) : (
+                  <Search className="size-3.5 text-muted-foreground" data-icon="inline-start" aria-hidden="true" />
+                )}
+                <span>Cek Akun</span>
+              </Button>
+            </div>
             <p className="text-[11px] text-muted-foreground">
-              ID numerik Telegram. Terisi otomatis saat anggota menghubungkan akun lewat bot.
+              ID numerik Telegram. Klik <b>Cek Akun</b> untuk memverifikasi dan mengambil username secara otomatis.
             </p>
+          </div>
+
+          {/* 4. Username Telegram (View Only) */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-foreground">
+              Username Telegram (Otomatis dari Akun)
+            </Label>
+            <div className="flex items-center justify-between min-h-9 px-3 py-1.5 rounded-md border border-input bg-muted/40 text-xs transition-colors">
+              <div className="flex items-center gap-2 truncate">
+                <Send className="size-3.5 text-sky-600 shrink-0" aria-hidden="true" />
+                {telegramUsername ? (
+                  <span className="font-semibold text-foreground tracking-tight">
+                    @{telegramUsername}
+                  </span>
+                ) : telegramDisplayName && telegramChatId ? (
+                  <span className="text-muted-foreground text-xs font-medium truncate">
+                    Terhubung (Tanpa @username) • Nama: {telegramDisplayName}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/75 italic text-xs">
+                    Otomatis terdeteksi saat ID terdaftar / akun terhubung
+                  </span>
+                )}
+              </div>
+
+              {telegramUsername ? (
+                <Badge variant="success" className="text-[10px] px-2 py-0 h-5 shrink-0 gap-1">
+                  <CheckCircle2 className="size-2.5" aria-hidden="true" />
+                  <span>Terverifikasi</span>
+                </Badge>
+              ) : telegramChatId ? (
+                <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 shrink-0">
+                  ID Terdaftar
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] px-2 py-0 h-5 text-muted-foreground shrink-0">
+                  Belum Terhubung
+                </Badge>
+              )}
+            </div>
+
+            {telegramCheckFeedback ? (
+              <p
+                className={cn(
+                  "text-[11px] flex items-center gap-1.5 mt-1",
+                  telegramCheckFeedback.type === "success"
+                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                    : telegramCheckFeedback.type === "info"
+                    ? "text-amber-600 dark:text-amber-400 font-medium"
+                    : "text-destructive"
+                )}
+              >
+                {telegramCheckFeedback.type === "success" ? (
+                  <CheckCircle2 className="size-3 shrink-0" aria-hidden="true" />
+                ) : (
+                  <AlertCircle className="size-3 shrink-0" aria-hidden="true" />
+                )}
+                <span>{telegramCheckFeedback.message}</span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Username disinkronkan otomatis dari Telegram ketika akun terhubung. Tidak perlu diinput manual.
+              </p>
+            )}
           </div>
 
           {/* 4. Nomor WhatsApp */}

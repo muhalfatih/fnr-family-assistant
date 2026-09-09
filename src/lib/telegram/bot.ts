@@ -237,3 +237,60 @@ export async function withContinuousChatAction<T>(
     clearInterval(interval);
   }
 }
+
+/**
+ * Get Telegram Chat profile details (username, first_name, last_name, etc.)
+ */
+export async function getTelegramChat(chatId: number | string): Promise<{
+  ok: boolean;
+  result?: {
+    id: number;
+    username?: string;
+    first_name?: string;
+    last_name?: string;
+    title?: string;
+    type?: string;
+  };
+  description?: string;
+  simulated?: boolean;
+}> {
+  if (!isTelegramConfigured()) {
+    const mockChatId = String(chatId).trim();
+    if (mockChatId === "123456789") {
+      return {
+        ok: true,
+        simulated: true,
+        result: {
+          id: 123456789,
+          username: "muhalfatih",
+          first_name: "Fatih",
+          type: "private",
+        },
+      };
+    }
+    if (mockChatId === "987654321") {
+      return {
+        ok: true,
+        simulated: true,
+        result: {
+          id: 987654321,
+          username: "ratnasari",
+          first_name: "Ratna",
+          type: "private",
+        },
+      };
+    }
+    return {
+      ok: true,
+      simulated: true,
+      result: {
+        id: Number(chatId) || 0,
+        username: `user_${chatId}`,
+        first_name: "Pengguna Telegram",
+        type: "private",
+      },
+    };
+  }
+
+  return await safeTelegramPost("getChat", { chat_id: chatId });
+}
