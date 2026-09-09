@@ -40,41 +40,60 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Fetch full member profile to obtain real phone/chat ID
+    // 2. Fetch full member profile to obtain real phone/chat ID (Prioritize Supabase)
     let memberProfile: any = null;
+    let isFromDatabase = false;
 
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabaseAdmin
+        const { data: dbMembers, error } = await supabaseAdmin
           .from("family_members")
-          .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username")
-          .eq("id", sessionUser.id)
-          .maybeSingle();
+          .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
 
-        if (!error && data) {
-          memberProfile = data;
+        if (!error && dbMembers && dbMembers.length > 0) {
+          const matched =
+            dbMembers.find((m) => m.id === sessionUser.id) ||
+            dbMembers.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
+            dbMembers.find((m) => m.role === sessionUser.role);
+
+          if (matched) {
+            memberProfile = matched;
+            isFromDatabase = true;
+          }
         }
       } catch (err) {
         console.warn("[UnlockRequest] Supabase fetch error:", err);
       }
     }
 
-    if (!memberProfile) {
+    // Hanya gunakan mockStore jika Supabase tidak terhubung
+    if (!isFromDatabase && !isSupabaseConfigured()) {
       const allMock = mockStore.getMembers();
       memberProfile =
         allMock.find((m) => m.id === sessionUser.id) ||
-        allMock.find((m) => m.full_name.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
-        allMock[0];
+        allMock.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
+        allMock.find((m) => m.role === sessionUser.role) ||
+        null;
     }
+
+    if (!memberProfile) {
+      return NextResponse.json(
+        { ok: false, error: "Profil anggota keluarga Anda tidak ditemukan di sistem." },
+        { status: 404 }
+      );
+    }
+
+    const rawWa = memberProfile.whatsapp_number ? String(memberProfile.whatsapp_number).trim() : "";
+    const rawTg = memberProfile.telegram_chat_id ? String(memberProfile.telegram_chat_id).trim() : "";
 
     const authUser = {
       id: memberProfile.id,
       name: memberProfile.full_name,
       email: sessionUser.email || "ayah@keluarga.hub",
       role: memberProfile.role || sessionUser.role,
-      telegramChatId: memberProfile.telegram_chat_id ? Number(memberProfile.telegram_chat_id) : null,
-      telegramUsername: memberProfile.telegram_username || null,
-      whatsappNumber: memberProfile.whatsapp_number || null,
+      telegramChatId: rawTg && rawTg !== "0" ? Number(rawTg) : null,
+      telegramUsername: memberProfile.telegram_username ? String(memberProfile.telegram_username).replace(/^@/, "").trim() : null,
+      whatsappNumber: rawWa && rawWa.length >= 6 ? rawWa : null,
     };
 
     let targetIdentifier = "";
@@ -83,7 +102,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             ok: false,
-            error: `Akun Anda (${authUser.name}) belum terhubung dengan Telegram Chat ID. Buka bot Telegram dan ketik /start untuk menghubungkan.`,
+            error: `Akun Anda (${authUser.name}) belum terhubung dengan Telegram Chat ID di database. Buka bot Telegram dan ketik /start untuk menghubungkan.`,
           },
           { status: 400 }
         );
@@ -94,7 +113,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             ok: false,
-            error: `Akun Anda (${authUser.name}) belum memiliki nomor WhatsApp terdaftar.`,
+            error: `Akun Anda (${authUser.name}) belum memiliki nomor WhatsApp terdaftar di database.`,
           },
           { status: 400 }
         );

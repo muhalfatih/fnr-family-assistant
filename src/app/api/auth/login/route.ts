@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mockStore } from "@/lib/mock-data";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 const FAMILY_PRESETS: Record<
   string,
@@ -58,6 +59,40 @@ export async function POST(req: NextRequest) {
 
     const cleanEmail = email.trim().toLowerCase();
     let user = FAMILY_PRESETS[cleanEmail];
+
+    // Jika Supabase terhubung, prioritaskan data anggota dari database
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: dbMembers, error: memErr } = await supabaseAdmin
+          .from("family_members")
+          .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
+
+        if (!memErr && dbMembers && dbMembers.length > 0) {
+          const matchedDb =
+            dbMembers.find((m) =>
+              cleanEmail.includes("ayah") || cleanEmail.includes("fatih")
+                ? m.role === "admin"
+                : cleanEmail.includes("ibu") || cleanEmail.includes("bunda") || cleanEmail.includes("rania")
+                ? m.role === "spouse"
+                : false
+            ) ||
+            dbMembers.find((m) =>
+              m.full_name?.toLowerCase().includes(cleanEmail.replace(/@.*/, "").toLowerCase())
+            );
+
+          if (matchedDb) {
+            user = {
+              id: matchedDb.id,
+              name: matchedDb.full_name,
+              email: cleanEmail,
+              role: matchedDb.role || "member",
+            };
+          }
+        }
+      } catch (err) {
+        console.warn("[Login] Supabase member lookup error:", err);
+      }
+    }
 
     if (!user) {
       const members = mockStore.getMembers();

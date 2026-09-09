@@ -28,42 +28,56 @@ export async function GET(req: NextRequest) {
     }
 
     let memberProfile: any = null;
+    let isFromDatabase = false;
 
+    // 1. Jika Supabase terhubung, prioritaskan data asli dari database
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabaseAdmin
+        const { data: dbMembers, error } = await supabaseAdmin
           .from("family_members")
-          .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username")
-          .eq("id", sessionUser.id)
-          .maybeSingle();
+          .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
 
-        if (!error && data) {
-          memberProfile = data;
+        if (!error && dbMembers && dbMembers.length > 0) {
+          const matched =
+            dbMembers.find((m) => m.id === sessionUser.id) ||
+            dbMembers.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
+            dbMembers.find((m) => m.role === sessionUser.role);
+
+          if (matched) {
+            memberProfile = matched;
+            isFromDatabase = true;
+          }
         }
       } catch (err) {
         console.warn("[UnlockOptions] Supabase error:", err);
       }
     }
 
-    if (!memberProfile) {
+    // 2. Mockup HANYA digunakan jika Supabase tidak terhubung sama sekali / database kosong
+    if (!isFromDatabase && !isSupabaseConfigured()) {
       const allMock = mockStore.getMembers();
       memberProfile =
         allMock.find((m) => m.id === sessionUser.id) ||
-        allMock.find((m) => m.full_name.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
-        allMock[0];
+        allMock.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
+        allMock.find((m) => m.role === sessionUser.role) ||
+        null;
     }
 
-    const hasTelegram = Boolean(memberProfile?.telegram_chat_id);
-    const hasWhatsapp = Boolean(memberProfile?.whatsapp_number);
+    // Evaluasi kanal keamanan murni berdasarkan profil asli (tidak pernah menginjeksikan data tiruan)
+    const rawWa = memberProfile?.whatsapp_number ? String(memberProfile.whatsapp_number).trim() : "";
+    const rawTgChatId = memberProfile?.telegram_chat_id ? String(memberProfile.telegram_chat_id).trim() : "";
+
+    const hasWhatsapp = Boolean(rawWa && rawWa.length >= 6);
+    const hasTelegram = Boolean(rawTgChatId && rawTgChatId !== "0");
 
     const telegramTarget = hasTelegram
       ? memberProfile.telegram_username
         ? `@${memberProfile.telegram_username.replace(/^@/, "")}`
-        : maskTarget(String(memberProfile.telegram_chat_id), "telegram")
+        : maskTarget(rawTgChatId, "telegram")
       : null;
 
     const whatsappTarget = hasWhatsapp
-      ? maskTarget(memberProfile.whatsapp_number, "whatsapp")
+      ? maskTarget(rawWa, "whatsapp")
       : null;
 
     return NextResponse.json({
