@@ -4,7 +4,7 @@ import { encryptSecret, decryptSecret, maskSecret } from "./encryption";
 
 export interface SecretDefinition {
   keyName: string;
-  service: "gemini" | "telegram" | "whatsapp" | "r2" | "sheets";
+  service: "gemini" | "telegram" | "whatsapp" | "r2" | "sheets" | "supabase";
   label: string;
   description: string;
   placeholder?: string;
@@ -133,6 +133,74 @@ export const KNOWN_SECRETS: SecretDefinition[] = [
     placeholder: "1BxiMVs0XRX5nZy1QkPA...",
     isSecret: false,
   },
+
+  // Supabase REST & Auth (View Only)
+  {
+    keyName: "NEXT_PUBLIC_SUPABASE_URL",
+    service: "supabase",
+    label: "Supabase Project URL",
+    description: "Endpoint URL REST API & Auth instance Supabase.",
+    placeholder: "https://your-project.supabase.co",
+    isSecret: false,
+  },
+  {
+    keyName: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    service: "supabase",
+    label: "Supabase Anon Key (Public / Client)",
+    description: "Kunci API publik (anon) untuk browser client dan otentikasi pengguna.",
+    placeholder: "eyJhbGciOiJIUzI1NiIsIn...",
+    isSecret: true,
+  },
+  {
+    keyName: "SUPABASE_SECRET_KEY",
+    service: "supabase",
+    label: "Supabase Service Role / Secret Key",
+    description: "Kunci rahasia server admin dengan hak bypass Row Level Security (RLS).",
+    placeholder: "eyJhbGciOiJIUzI1NiIsIn...",
+    isSecret: true,
+  },
+  {
+    keyName: "SUPABASE_JWT_SECRET",
+    service: "supabase",
+    label: "Supabase JWT Secret",
+    description: "Kunci rahasia tanda tangan token autentikasi JWT dan kunci enkripsi aplikasi.",
+    placeholder: "super-secret-jwt-token...",
+    isSecret: true,
+  },
+
+  // PostgreSQL Connection (View Only)
+  {
+    keyName: "POSTGRES_URL",
+    service: "supabase",
+    label: "PostgreSQL Connection String (Pooled)",
+    description: "URI koneksi langsung PostgreSQL via Supabase Connection Pooler (Port 6543).",
+    placeholder: "postgres://postgres.xxx:password@...",
+    isSecret: true,
+  },
+  {
+    keyName: "POSTGRES_HOST",
+    service: "supabase",
+    label: "PostgreSQL Database Host",
+    description: "Nama host server basis data AWS / Supabase pooler.",
+    placeholder: "aws-0-ap-southeast-1.pooler.supabase.com",
+    isSecret: false,
+  },
+  {
+    keyName: "POSTGRES_USER",
+    service: "supabase",
+    label: "PostgreSQL Database User",
+    description: "Username akun pengguna basis data PostgreSQL.",
+    placeholder: "postgres.xxx",
+    isSecret: false,
+  },
+  {
+    keyName: "POSTGRES_DATABASE",
+    service: "supabase",
+    label: "PostgreSQL Database Name",
+    description: "Nama basis data default PostgreSQL.",
+    placeholder: "postgres",
+    isSecret: false,
+  },
 ];
 
 export interface SecretStatusInfo {
@@ -145,6 +213,44 @@ export interface SecretStatusInfo {
   isConfigured: boolean;
   isSecret: boolean;
   updatedAt?: string | null;
+}
+
+function getEnvWithFallback(keyName: string): string | null {
+  const isMeaningful = (val?: string) =>
+    Boolean(val && !val.includes("...") && !val.startsWith("your-") && val !== "placeholder");
+
+  const direct = process.env[keyName];
+  if (isMeaningful(direct)) {
+    return direct!.trim();
+  }
+
+  // Aliases for Supabase and Postgres
+  const aliases: Record<string, string[]> = {
+    NEXT_PUBLIC_SUPABASE_URL: ["SUPABASE_URL"],
+    SUPABASE_URL: ["NEXT_PUBLIC_SUPABASE_URL"],
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: [
+      "SUPABASE_ANON_KEY",
+      "SUPABASE_PUBLISHABLE_KEY",
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    ],
+    SUPABASE_ANON_KEY: [
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "SUPABASE_PUBLISHABLE_KEY",
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    ],
+    SUPABASE_SECRET_KEY: ["SUPABASE_SERVICE_ROLE_KEY"],
+    SUPABASE_SERVICE_ROLE_KEY: ["SUPABASE_SECRET_KEY"],
+  };
+
+  const fallbacks = aliases[keyName] || [];
+  for (const fb of fallbacks) {
+    const val = process.env[fb];
+    if (isMeaningful(val)) {
+      return val!.trim();
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -180,9 +286,9 @@ export async function getSecret(keyName: string): Promise<string | null> {
   }
 
   // 3. Fallback to process.env
-  const envVal = process.env[keyName];
-  if (envVal && !envVal.includes("...") && envVal !== "your-bot-token") {
-    return envVal.trim();
+  const envVal = getEnvWithFallback(keyName);
+  if (envVal) {
+    return envVal;
   }
 
   return null;
@@ -304,8 +410,8 @@ export async function getAllSecretStatuses(): Promise<Record<string, SecretStatu
     }
 
     // Check env fallback
-    const envVal = process.env[k];
-    if (envVal && !envVal.includes("...") && envVal !== "your-bot-token") {
+    const envVal = getEnvWithFallback(k);
+    if (envVal) {
       result[k] = {
         keyName: k,
         service: def.service,

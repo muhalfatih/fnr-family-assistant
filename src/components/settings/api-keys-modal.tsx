@@ -20,6 +20,9 @@ import {
   MessageSquare,
   Cloud,
   FileSpreadsheet,
+  Database,
+  Server,
+  Info,
   Eye,
   EyeOff,
   CheckCircle2,
@@ -445,6 +448,128 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
     );
   };
 
+  const renderReadOnlyKeyField = (
+    keyName: string,
+    label: string,
+    description: string,
+    isSecret = true
+  ) => {
+    const info = keys[keyName];
+    const hasValue = info?.isConfigured;
+
+    return (
+      <div key={keyName} className="flex flex-col gap-1.5 p-3 rounded-lg border border-border/70 bg-card/60">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <Label className="text-xs font-semibold text-foreground">
+              {label}
+            </Label>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+              {keyName}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {hasValue ? (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                Dari .env
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-destructive border-destructive/30 bg-destructive/5">
+                Belum Disetel
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-muted-foreground border-border">
+              View Only
+            </Badge>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-muted-foreground leading-relaxed">{description}</p>
+
+        {/* Active Key Display with Security Gate */}
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-muted/40 border border-border/50 text-xs">
+          <div className="flex items-center gap-2 min-w-0 flex-1 truncate">
+            <span className="text-[11px] text-muted-foreground shrink-0 font-medium">Nilai konfigurasi:</span>
+            <span className="font-mono text-xs text-foreground tracking-tight truncate select-all">
+              {hasValue ? (
+                !isSecret
+                  ? info.maskedValue
+                  : isUnlocked
+                  ? revealedActiveKeys[keyName]
+                    ? unlockedKeys[keyName] || info.maskedValue
+                    : info.maskedValue || "••••••••••••••••"
+                  : info.maskedValue || "••••••••••••••••"
+              ) : (
+                <span className="text-muted-foreground/60 italic font-sans text-xs">Tidak ditemukan pada berkas environment</span>
+              )}
+            </span>
+          </div>
+
+          {hasValue && (
+            <div className="flex items-center gap-1 shrink-0">
+              {isSecret && !isUnlocked ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsUnlockDialogOpen(true)}
+                  className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 cursor-pointer font-medium"
+                  title="Verifikasi Password atau OTP untuk melihat nilai asli"
+                >
+                  <Lock className="size-3 text-amber-500" />
+                  <span>Buka</span>
+                </Button>
+              ) : (
+                <>
+                  {isSecret && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleRevealActiveKey(keyName)}
+                      className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title={revealedActiveKeys[keyName] ? "Sembunyikan nilai asli" : "Tampilkan nilai asli"}
+                    >
+                      {revealedActiveKeys[keyName] ? (
+                        <EyeOff className="size-3 text-primary" />
+                      ) : (
+                        <Eye className="size-3" />
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleCopy(
+                        keyName,
+                        !isSecret
+                          ? info.maskedValue
+                          : revealedActiveKeys[keyName]
+                          ? unlockedKeys[keyName] || info.maskedValue
+                          : info.maskedValue
+                      )
+                    }
+                    className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title="Salin nilai"
+                  >
+                    {copiedKey === keyName ? (
+                      <Check className="size-3 text-emerald-600" />
+                    ) : (
+                      <Copy className="size-3" />
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Dialog
       open={isOpen}
@@ -533,7 +658,7 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); setTestFeedback(null); }}>
-            <TabsList className="grid grid-cols-5 w-full h-auto p-1 gap-1">
+            <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto p-1 gap-1">
               <TabsTrigger value="gemini" className="text-xs py-1.5 gap-1.5">
                 <Bot className="size-3.5 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">Gemini AI</span>
@@ -558,6 +683,11 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
                 <FileSpreadsheet className="size-3.5 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">G-Sheets</span>
                 <span className="sm:hidden">Sheets</span>
+              </TabsTrigger>
+              <TabsTrigger value="supabase" className="text-xs py-1.5 gap-1.5">
+                <Database className="size-3.5 shrink-0" aria-hidden="true" />
+                <span className="hidden sm:inline">Supabase</span>
+                <span className="sm:hidden">DB</span>
               </TabsTrigger>
             </TabsList>
 
@@ -832,6 +962,92 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
                     {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
                     <span>Simpan Kunci</span>
                   </Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* 6. Supabase (View Only) */}
+            <TabsContent value="supabase">
+              <div className="flex flex-col gap-3">
+                {/* Info Callout Banner */}
+                <div className="p-3 rounded-lg border border-border/70 bg-muted/30 flex items-start gap-2.5">
+                  <div className="p-1 rounded-md bg-primary/10 text-primary mt-0.5 shrink-0">
+                    <Info className="size-3.5" aria-hidden="true" />
+                  </div>
+                  <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                    <p className="font-semibold text-foreground">Kredensial Infrastruktur (View Only)</p>
+                    <p className="leading-relaxed text-[11px]">
+                      Kredensial Supabase & PostgreSQL merupakan konfigurasi fondasi server yang dibaca langsung dari berkas <code className="font-mono px-1 py-0.2 rounded bg-muted text-foreground text-[10px]">.env</code> / environment variables. Kunci ini bersifat view-only dan tidak disimpan ke tabel database demi integritas koneksi.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bagian 1: Supabase REST & Auth */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5 px-0.5">
+                    <Database className="size-3.5 text-emerald-600" aria-hidden="true" />
+                    <span className="text-xs font-semibold text-foreground tracking-tight">
+                      Supabase REST & Auth API
+                    </span>
+                  </div>
+                  {renderReadOnlyKeyField(
+                    "NEXT_PUBLIC_SUPABASE_URL",
+                    "Supabase Project URL",
+                    "Endpoint URL REST API & Auth instance Supabase.",
+                    false
+                  )}
+                  {renderReadOnlyKeyField(
+                    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+                    "Supabase Anon Key (Public / Client)",
+                    "Kunci API publik (anon) untuk browser client dan otentikasi pengguna.",
+                    true
+                  )}
+                  {renderReadOnlyKeyField(
+                    "SUPABASE_SECRET_KEY",
+                    "Supabase Service Role / Secret Key",
+                    "Kunci rahasia server admin dengan hak bypass Row Level Security (RLS).",
+                    true
+                  )}
+                  {renderReadOnlyKeyField(
+                    "SUPABASE_JWT_SECRET",
+                    "Supabase JWT Secret",
+                    "Kunci rahasia tanda tangan token autentikasi JWT dan kunci enkripsi aplikasi.",
+                    true
+                  )}
+                </div>
+
+                {/* Bagian 2: PostgreSQL Connection */}
+                <div className="flex flex-col gap-2 mt-2">
+                  <div className="flex items-center gap-1.5 px-0.5">
+                    <Server className="size-3.5 text-sky-600" aria-hidden="true" />
+                    <span className="text-xs font-semibold text-foreground tracking-tight">
+                      Koneksi Langsung PostgreSQL
+                    </span>
+                  </div>
+                  {renderReadOnlyKeyField(
+                    "POSTGRES_URL",
+                    "PostgreSQL Connection String (Pooled)",
+                    "URI koneksi langsung PostgreSQL via Supabase Connection Pooler (Port 6543).",
+                    true
+                  )}
+                  {renderReadOnlyKeyField(
+                    "POSTGRES_HOST",
+                    "PostgreSQL Database Host",
+                    "Nama host server basis data AWS / Supabase pooler.",
+                    false
+                  )}
+                  {renderReadOnlyKeyField(
+                    "POSTGRES_USER",
+                    "PostgreSQL Database User",
+                    "Username akun pengguna basis data PostgreSQL.",
+                    false
+                  )}
+                  {renderReadOnlyKeyField(
+                    "POSTGRES_DATABASE",
+                    "PostgreSQL Database Name",
+                    "Nama basis data default PostgreSQL.",
+                    false
+                  )}
                 </div>
               </div>
             </TabsContent>
