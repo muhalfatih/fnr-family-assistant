@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
 import { normalizeReceiptItemName } from "./receipt-dictionary.ts";
+import { getSecret } from "@/lib/security/secret-manager";
 
 export interface ParsedReceiptItem {
   name: string;
@@ -178,9 +179,9 @@ export async function parseFinancialInputWithGemini(options: {
   audioBuffer?: Buffer;
   audioMimeType?: string;
 }): Promise<GeminiParsedTransaction | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (await getSecret("GEMINI_API_KEY")) || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.error("❌ GEMINI_API_KEY is not set in environment.");
+    console.error("❌ GEMINI_API_KEY is not set in database or environment.");
     return null;
   }
 
@@ -360,7 +361,7 @@ export async function answerFinancialQuestionWithGemini(
     monthlyTotalIncome: number;
   }
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (await getSecret("GEMINI_API_KEY")) || process.env.GEMINI_API_KEY;
   if (!apiKey) return "Maaf, API Key Gemini belum diatur.";
 
   try {
@@ -434,7 +435,7 @@ export async function translateReceiptItemsWithGemini(
 ): Promise<Array<{ raw_name: string; name: string }>> {
   if (!rawItemCodes || rawItemCodes.length === 0) return [];
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (await getSecret("GEMINI_API_KEY")) || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     // Fallback to local dictionary
     return rawItemCodes.map((code) => {

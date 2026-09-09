@@ -31,10 +31,12 @@ import {
   Users,
   Terminal,
   LogOut,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
+import { ApiKeysModal } from "@/components/settings/api-keys-modal";
 
 interface NavbarProps {
   familyName?: string;
@@ -44,6 +46,7 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [isApiKeysModalOpen, setIsApiKeysModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [activeUser, setActiveUser] = useState<{
@@ -184,6 +187,20 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                     <Activity className="size-3.5 text-primary" aria-hidden="true" />
                     <span>Cek Status API & Bot</span>
                   </Button>
+                  {activeUser.role === "admin" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setIsApiKeysModalOpen(true);
+                      }}
+                      className="w-full justify-start text-xs gap-2 h-9 border-amber-500/30 text-foreground hover:bg-amber-500/10"
+                    >
+                      <KeyRound className="size-3.5 text-amber-500" aria-hidden="true" />
+                      <span>Kunci API & Kredensial</span>
+                    </Button>
+                  )}
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar className="size-8">
@@ -281,11 +298,24 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                   <Activity className="size-4 text-primary" aria-hidden="true" />
                   <span>Cek Koneksi API & Layanan</span>
                 </DropdownMenuItem>
+                {activeUser.role === "admin" && (
+                  <DropdownMenuItem
+                    onClick={() => setIsApiKeysModalOpen(true)}
+                    className="gap-2 cursor-pointer font-medium text-foreground hover:bg-amber-500/10 focus:bg-amber-500/10"
+                  >
+                    <KeyRound className="size-4 text-amber-500" aria-hidden="true" />
+                    <span>Kunci API & Kredensial</span>
+                  </DropdownMenuItem>
+                )}
                 <Link href="/family">
                   <DropdownMenuItem className="cursor-pointer">Profil & Anggota Keluarga</DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem>Pengaturan Bot & Webhook</DropdownMenuItem>
-                <DropdownMenuItem>Integrasi Cloudflare R2 & Google Sheets</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsApiKeysModalOpen(true)} className="cursor-pointer">
+                  Pengaturan Bot & Webhook
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsApiKeysModalOpen(true)} className="cursor-pointer">
+                  Integrasi Cloudflare R2 & Google Sheets
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
@@ -304,6 +334,12 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
       <ApiStatusModal
         isOpen={isApiModalOpen}
         onClose={() => setIsApiModalOpen(false)}
+      />
+
+      {/* API Keys & Encrypted Secrets Management Modal */}
+      <ApiKeysModal
+        isOpen={isApiKeysModalOpen}
+        onClose={() => setIsApiKeysModalOpen(false)}
       />
     </>
   );

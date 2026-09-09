@@ -1323,6 +1323,36 @@ class MockDataStore {
   public clearLogs(): void {
     this.data.logs = [];
   }
+
+  // System API Keys & Encrypted Secrets
+  private apiKeys: Record<string, { encrypted_value: string; service_name: string; updated_at: string }> = {};
+
+  public getApiKeyRecord(keyName: string) {
+    if (!this.apiKeys) this.apiKeys = {};
+    return this.apiKeys[keyName] || null;
+  }
+
+  public setApiKeyRecord(keyName: string, encryptedValue: string, serviceName: string = "system") {
+    if (!this.apiKeys) this.apiKeys = {};
+    this.apiKeys[keyName] = {
+      encrypted_value: encryptedValue,
+      service_name: serviceName,
+      updated_at: new Date().toISOString(),
+    };
+    return this.apiKeys[keyName];
+  }
+
+  public deleteApiKeyRecord(keyName: string) {
+    if (!this.apiKeys) this.apiKeys = {};
+    const exists = Boolean(this.apiKeys[keyName]);
+    delete this.apiKeys[keyName];
+    return exists;
+  }
+
+  public getAllApiKeyRecords() {
+    if (!this.apiKeys) this.apiKeys = {};
+    return { ...this.apiKeys };
+  }
 }
 
 // Global singleton attached to globalThis to persist mock data across Next.js API chunks in local dev

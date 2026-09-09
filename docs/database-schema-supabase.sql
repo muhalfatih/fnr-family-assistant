@@ -184,6 +184,15 @@ CREATE TABLE IF NOT EXISTS public.chat_activity_logs (
     completed_at TIMESTAMP WITH TIME ZONE
 );
 
+-- 12. SYSTEM API KEYS & ENCRYPTED SECRETS
+CREATE TABLE IF NOT EXISTS public.system_api_keys (
+    key_name VARCHAR(100) PRIMARY KEY,
+    encrypted_value TEXT NOT NULL,
+    service_name VARCHAR(50),
+    description TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- ==============================================================================
 -- INDEXES FOR HIGH-PERFORMANCE QUERYING
 -- ==============================================================================

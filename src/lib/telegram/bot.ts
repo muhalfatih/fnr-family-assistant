@@ -1,3 +1,5 @@
+import { getSecret } from "@/lib/security/secret-manager";
+
 const TELEGRAM_API_BASE = "https://api.telegram.org";
 
 export function isTelegramConfigured(): boolean {
@@ -13,6 +15,19 @@ export function isTelegramConfigured(): boolean {
   return true;
 }
 
+export async function getResolvedBotToken(): Promise<string | null> {
+  const token = (await getSecret("TELEGRAM_BOT_TOKEN")) || process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+  if (
+    token.startsWith("123456789:ABCdefGh") ||
+    token === "your-bot-token" ||
+    token.includes("...")
+  ) {
+    return null;
+  }
+  return token;
+}
+
 function getBotToken(): string {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
@@ -25,7 +40,8 @@ function getBotToken(): string {
  * Robust fetch wrapper with timeout and simulation fallback
  */
 async function safeTelegramPost(endpoint: string, payload: any, timeoutMs = 3000): Promise<any> {
-  if (!isTelegramConfigured()) {
+  const token = await getResolvedBotToken();
+  if (!token) {
     return {
       ok: true,
       simulated: true,
@@ -37,7 +53,6 @@ async function safeTelegramPost(endpoint: string, payload: any, timeoutMs = 3000
     };
   }
 
-  const token = getBotToken();
   const url = `${TELEGRAM_API_BASE}/bot${token}/${endpoint}`;
 
   try {
@@ -133,7 +148,8 @@ export async function downloadTelegramFile(fileId: string): Promise<{
   mimeType: string;
   fileName: string;
 } | null> {
-  if (!isTelegramConfigured()) {
+  const token = await getResolvedBotToken();
+  if (!token) {
     // Sediakan mock buffer untuk pengujian offline / demo
     return {
       buffer: Buffer.from("mock_receipt_image_data"),
@@ -141,8 +157,6 @@ export async function downloadTelegramFile(fileId: string): Promise<{
       fileName: `mock_receipt_${fileId}.jpg`,
     };
   }
-
-  const token = getBotToken();
 
   try {
     // 1. Get file path
@@ -254,7 +268,8 @@ export async function getTelegramChat(chatId: number | string): Promise<{
   description?: string;
   simulated?: boolean;
 }> {
-  if (!isTelegramConfigured()) {
+  const token = await getResolvedBotToken();
+  if (!token) {
     const mockChatId = String(chatId).trim();
     if (mockChatId === "123456789") {
       return {
