@@ -24,11 +24,9 @@ import {
   useCurrentUser,
 } from "@/lib/hooks/use-family-data";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
-import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
-  const searchParams = useSearchParams();
   const { user, isAdmin, isSpouse, canManageFinances } = useCurrentUser();
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -38,13 +36,15 @@ export default function DashboardPage() {
 
   // Show friendly notification if redirected due to role restriction
   React.useEffect(() => {
-    const accessDenied = searchParams.get("access_denied");
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const accessDenied = params.get("access_denied");
     if (accessDenied) {
       toast.error("Akses Dibatasi: Halaman ini hanya untuk Kepala Keluarga / Pengelola.");
       const nextUrl = window.location.pathname;
       window.history.replaceState({}, "", nextUrl);
     }
-  }, [searchParams]);
+  }, []);
 
   const activeMonthYear = useMemo(() => {
     return selectedPeriod === "all" ? new Date().toISOString().substring(0, 7) : selectedPeriod;
