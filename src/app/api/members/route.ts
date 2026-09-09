@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getMonthDateRange } from "@/lib/utils";
+import { hashPassword } from "@/lib/security/password";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,10 +52,14 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const membersWithSpent = (members || []).map((m: any) => ({
-      ...m,
-      monthlySpent: spentByMember[m.id] || 0,
-    }));
+    const membersWithSpent = (members || []).map((m: any) => {
+      const { password_hash, ...safeMember } = m;
+      return {
+        ...safeMember,
+        has_password: Boolean(password_hash),
+        monthlySpent: spentByMember[m.id] || 0,
+      };
+    });
 
     return NextResponse.json({
       members: membersWithSpent,
@@ -78,6 +83,7 @@ export async function POST(req: NextRequest) {
       telegram_username,
       whatsapp_number,
       avatar_url,
+      password,
     } = body;
 
     if (!full_name || !full_name.trim()) {
@@ -111,6 +117,10 @@ export async function POST(req: NextRequest) {
       telegram_username: telegram_username ? telegram_username.replace(/^@/, "").trim() : null,
       whatsapp_number: whatsapp_number?.trim() || null,
       avatar_url: avatar_url?.trim() || null,
+      password_hash:
+        password && typeof password === "string" && password.trim()
+          ? hashPassword(password.trim())
+          : null,
     };
 
     const { data, error } = await supabaseAdmin
@@ -124,7 +134,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, member: data });
+    const { password_hash, ...safeMember } = data || {};
+    return NextResponse.json({
+      success: true,
+      member: {
+        ...safeMember,
+        has_password: Boolean(password_hash),
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
@@ -142,6 +159,7 @@ export async function PUT(req: NextRequest) {
       telegram_username,
       whatsapp_number,
       avatar_url,
+      password,
     } = body;
 
     if (!id) {
@@ -160,6 +178,9 @@ export async function PUT(req: NextRequest) {
     }
     if (whatsapp_number !== undefined) updatePayload.whatsapp_number = whatsapp_number?.trim() || null;
     if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url?.trim() || null;
+    if (password !== undefined && typeof password === "string" && password.trim()) {
+      updatePayload.password_hash = hashPassword(password.trim());
+    }
 
     const { data, error } = await supabaseAdmin
       .from("family_members")
@@ -173,7 +194,14 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, member: data });
+    const { password_hash, ...safeMember } = data || {};
+    return NextResponse.json({
+      success: true,
+      member: {
+        ...safeMember,
+        has_password: Boolean(password_hash),
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.family_members (
     telegram_chat_id BIGINT UNIQUE,
     whatsapp_number VARCHAR(50),
     avatar_url TEXT,
+    password_hash TEXT, -- Hashed member personal password (PBKDF2/SHA-256)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

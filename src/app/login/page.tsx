@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Sparkles,
   CheckCircle2,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,11 +47,29 @@ function LoginForm() {
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Email & Password inputs (Fallback tab)
-  const [email, setEmail] = useState("");
+  // Identifier & Password inputs (Fallback tab)
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Helper dynamic icon detection for identifier
+  const getIdentifierIcon = (val: string) => {
+    const clean = val.trim();
+    if (!clean) {
+      return <KeyRound className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" aria-hidden="true" />;
+    }
+    if (/^(\+?62|08)\d*/.test(clean)) {
+      return <Smartphone className="absolute left-3 size-3.5 text-emerald-500 pointer-events-none" aria-hidden="true" />;
+    }
+    if (clean.startsWith("@") || /^\d{6,16}$/.test(clean)) {
+      return <Send className="absolute left-3 size-3.5 text-sky-500 pointer-events-none" aria-hidden="true" />;
+    }
+    if (clean.includes("@")) {
+      return <Mail className="absolute left-3 size-3.5 text-blue-500 pointer-events-none" aria-hidden="true" />;
+    }
+    return <User className="absolute left-3 size-3.5 text-primary pointer-events-none" aria-hidden="true" />;
+  };
 
   // Status & Feedback
   const [isLoading, setIsLoading] = useState(false);
@@ -261,11 +280,11 @@ function LoginForm() {
     }
   };
 
-  // Login Fallback via Email & Sandi
+  // Login via Akun & Kata Sandi
   const handleEmailPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setError("Alamat email wajib diisi.");
+    if (!identifier.trim()) {
+      setError("Masukkan nomor WhatsApp, username Telegram, ID Telegram, nama, atau email Anda.");
       return;
     }
     if (!password.trim()) {
@@ -281,7 +300,7 @@ function LoginForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: email.trim(),
+          identifier: identifier.trim(),
           password: password.trim(),
           rememberMe,
         }),
@@ -289,7 +308,7 @@ function LoginForm() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Gagal masuk. Periksa kembali email dan sandi Anda.");
+        throw new Error(data.error || "Gagal masuk. Periksa kembali akun dan sandi Anda.");
       }
 
       if (typeof window !== "undefined") {
@@ -659,32 +678,40 @@ function LoginForm() {
           </form>
         )}
 
-        {/* STEP 1: FALLBACK EMAIL & SANDI TAB */}
+        {/* STEP 1: AKUN & KATA SANDI TAB */}
         {step === "input" && method === "password" && (
           <form onSubmit={handleEmailPasswordLogin} className="space-y-3.5 pt-1">
-            {/* Email Input */}
+            {/* Universal Identifier Input */}
             <div className="space-y-1.5">
-              <Label htmlFor="loginEmailInput" className="text-xs font-medium text-foreground">
-                Email
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="loginIdentifierInput" className="text-xs font-medium text-foreground">
+                  Akun / Pengenal
+                </Label>
+                <span className="text-[10px] text-muted-foreground">
+                  WA, Telegram, atau Nama
+                </span>
+              </div>
               <div className="relative flex items-center">
-                <Mail className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
+                {getIdentifierIcon(identifier)}
                 <Input
-                  id="loginEmailInput"
-                  type="email"
-                  value={email}
+                  id="loginIdentifierInput"
+                  type="text"
+                  value={identifier}
                   onChange={(e) => {
-                    setEmail(e.target.value);
+                    setIdentifier(e.target.value);
                     if (error) setError(null);
                   }}
-                  placeholder="nama@keluarga.hub"
-                  className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                  placeholder="No. WA / @username / ID Telegram / Nama"
+                  className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80 font-medium"
                   disabled={isLoading}
-                  autoComplete="email"
+                  autoComplete="username"
                   autoFocus
                   required
                 />
               </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Bisa menggunakan nomor WhatsApp, username Telegram, Chat ID numerik, nama anggota, atau email.
+              </p>
             </div>
 
             {/* Password Input */}
@@ -744,7 +771,7 @@ function LoginForm() {
             {/* Submit Button */}
             <Button
               type="submit"
-              disabled={isLoading || !email.trim() || !password.trim()}
+              disabled={isLoading || !identifier.trim() || !password.trim()}
               className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs cursor-pointer gap-2 transition-all"
             >
               {isLoading ? (

@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2, HelpCircle, CheckCircle2, AlertCircle, Search, Send } from "lucide-react";
+import { Loader2, HelpCircle, CheckCircle2, AlertCircle, Search, Send, Lock, Eye, EyeOff, KeyRound } from "lucide-react";
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -52,6 +52,8 @@ export function AddMemberModal({
     message: string;
   } | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -75,9 +77,22 @@ export function AddMemberModal({
       setTelegramDisplayName("");
       setWhatsappNumber("");
     }
+    setPassword("");
+    setShowPassword(false);
     setTelegramCheckFeedback(null);
     setErrorMsg("");
   }, [memberToEdit, isOpen]);
+
+  const handleGeneratePassword = () => {
+    const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+    let gen = "";
+    for (let i = 0; i < 6; i++) {
+      gen += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(gen);
+    setShowPassword(true);
+    toast.info(`Kata sandi acak dibuat: ${gen}`);
+  };
 
   const handleCheckTelegram = async () => {
     const cleanId = telegramChatId.trim();
@@ -181,7 +196,7 @@ export function AddMemberModal({
     setErrorMsg("");
 
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         id: memberToEdit?.id,
         full_name: fullName.trim(),
         role,
@@ -190,6 +205,10 @@ export function AddMemberModal({
         telegram_username: telegramUsername.trim() ? telegramUsername.trim().replace(/^@/, "") : null,
         whatsapp_number: whatsappNumber.trim() || null,
       };
+
+      if (password.trim()) {
+        payload.password = password.trim();
+      }
 
       const url = "/api/members";
       const method = memberToEdit ? "PUT" : "POST";
@@ -413,6 +432,70 @@ export function AddMemberModal({
               onChange={(e) => setWhatsappNumber(e.target.value)}
               className="text-xs tabular-nums h-9"
             />
+          </div>
+
+          {/* 5. Keamanan Akun & Kata Sandi */}
+          <div className="space-y-2 pt-2 border-t border-border/60">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="memberPassword" className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Lock className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span>Kata Sandi Akun</span>
+                </Label>
+                {memberToEdit?.has_password ? (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                    <CheckCircle2 className="size-2.5" aria-hidden="true" />
+                    <span>Sandi Aktif</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground">
+                    Belum Disetel
+                  </Badge>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleGeneratePassword}
+                className="h-6 px-2 text-[11px] text-primary hover:text-primary/90 gap-1 cursor-pointer"
+                title="Buat kata sandi acak yang aman"
+              >
+                <KeyRound className="size-3" data-icon="inline-start" aria-hidden="true" />
+                <span>Acak Sandi</span>
+              </Button>
+            </div>
+
+            <div className="relative flex items-center">
+              <Input
+                id="memberPassword"
+                type={showPassword ? "text" : "password"}
+                placeholder={
+                  memberToEdit?.has_password
+                    ? "Ketik sandi baru (kosongkan jika tidak diubah)"
+                    : "Buat kata sandi akun (min. 6 karakter)"
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="text-xs h-9 pr-9 font-mono"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2.5 size-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded-md transition-colors"
+                title={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                aria-label={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {memberToEdit?.has_password
+                ? "Kosongkan jika tidak ingin mengubah kata sandi. Sandi ini digunakan anggota untuk login via WhatsApp, Telegram, atau Nama."
+                : "Kata sandi pribadi untuk login ke aplikasi. Jika kosong, anggota tetap dapat masuk menggunakan kata sandi keluarga utama."}
+            </p>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">

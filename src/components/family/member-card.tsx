@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   User,
   Phone,
+  KeyRound,
 } from "lucide-react";
 
 interface MemberCardProps {
@@ -47,7 +48,7 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
             <h3 className="font-semibold text-xs sm:text-sm text-foreground truncate" title={member.full_name}>
               {member.full_name}
             </h3>
-            <div className="flex items-center gap-1 text-[11px] mt-0.5">
+            <div className="flex items-center gap-1.5 text-[11px] mt-0.5 flex-wrap">
               {member.role === "admin" ? (
                 <span className="inline-flex items-center gap-1 text-primary font-medium">
                   <ShieldCheck className="size-3" aria-hidden="true" />
@@ -62,6 +63,16 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
                 <span className="inline-flex items-center gap-1 text-muted-foreground">
                   <User className="size-3" aria-hidden="true" />
                   <span>Anggota</span>
+                </span>
+              )}
+
+              {member.has_password && (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[10px] px-1 py-0 rounded-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/20"
+                  title="Anggota ini telah memiliki kata sandi pribadi"
+                >
+                  <KeyRound className="size-2.5" aria-hidden="true" />
+                  <span>Sandi</span>
                 </span>
               )}
             </div>
