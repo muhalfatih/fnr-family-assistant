@@ -32,10 +32,14 @@ import {
   Copy,
   Check,
   Zap,
+  Lock,
+  Unlock,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { SecretStatusInfo } from "@/lib/security/secret-manager";
+import { UnlockKeysDialog } from "@/components/settings/unlock-keys-dialog";
 
 interface ApiKeysModalProps {
   isOpen: boolean;
@@ -56,6 +60,69 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
     message: string;
   } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Security Unlock State
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [unlockedKeys, setUnlockedKeys] = useState<Record<string, string>>({});
+  const [revealedActiveKeys, setRevealedActiveKeys] = useState<Record<string, boolean>>({});
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false);
+
+  // 5-minute countdown timer for active unlock session
+  useEffect(() => {
+    if (!isUnlocked || remainingSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev <= 1) {
+          setIsUnlocked(false);
+          setUnlockedKeys({});
+          setRevealedActiveKeys({});
+          toast.info("Sesi akses kunci telah berakhir. Nilai kunci diamankan kembali.");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isUnlocked, remainingSeconds]);
+
+  const handleUnlockSuccess = async (seconds: number) => {
+    try {
+      const res = await fetch("/api/settings/keys/reveal");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.keys) {
+          setUnlockedKeys(data.keys);
+          setIsUnlocked(true);
+          setRemainingSeconds(seconds || data.remainingSeconds || 300);
+          return;
+        }
+      }
+      throw new Error("Gagal mendekripsi kunci API.");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal membuka akses kunci.");
+    }
+  };
+
+  const handleLockNow = async () => {
+    try {
+      await fetch("/api/settings/keys/unlock/lock", { method: "POST" });
+    } catch {}
+    setIsUnlocked(false);
+    setUnlockedKeys({});
+    setRevealedActiveKeys({});
+    toast.success("Kunci API telah dikunci kembali.");
+  };
+
+  const toggleRevealActiveKey = (keyName: string) => {
+    setRevealedActiveKeys((prev) => ({ ...prev, [keyName]: !prev[keyName] }));
+  };
+
+  const formatCountdown = (totalSec: number) => {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
 
   const fetchKeys = useCallback(async () => {
     setIsLoading(true);
@@ -269,27 +336,73 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
 
         <p className="text-[11px] text-muted-foreground leading-relaxed">{description}</p>
 
-        {/* Existing Masked Hint If Configured */}
+        {/* Active Key Display with Security Gate */}
         {hasValue && (
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-muted/40 border border-border/50 text-xs">
-            <div className="flex items-center gap-2 truncate">
+            <div className="flex items-center gap-2 min-w-0 flex-1 truncate">
               <span className="text-[11px] text-muted-foreground shrink-0 font-medium">Aktif saat ini:</span>
               <span className="font-mono text-xs text-foreground tracking-tight truncate select-all">
-                {info.maskedValue || "••••••••"}
+                {isUnlocked
+                  ? revealedActiveKeys[keyName]
+                    ? unlockedKeys[keyName] || info.maskedValue
+                    : info.maskedValue || "••••••••••••••••"
+                  : info.maskedValue || "••••••••••••••••"}
               </span>
             </div>
-            {info.maskedValue && !isSecret && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => handleCopy(keyName, info.maskedValue)}
-                className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
-                title="Salin nilai"
-              >
-                {copiedKey === keyName ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
-              </Button>
-            )}
+
+            <div className="flex items-center gap-1 shrink-0">
+              {!isUnlocked ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsUnlockDialogOpen(true)}
+                  className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 cursor-pointer font-medium"
+                  title="Verifikasi Password atau OTP untuk melihat nilai asli"
+                >
+                  <Lock className="size-3 text-amber-500" />
+                  <span>Buka</span>
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toggleRevealActiveKey(keyName)}
+                    className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title={revealedActiveKeys[keyName] ? "Sembunyikan nilai asli" : "Tampilkan nilai asli"}
+                  >
+                    {revealedActiveKeys[keyName] ? (
+                      <EyeOff className="size-3 text-primary" />
+                    ) : (
+                      <Eye className="size-3" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleCopy(
+                        keyName,
+                        revealedActiveKeys[keyName]
+                          ? unlockedKeys[keyName] || info.maskedValue
+                          : info.maskedValue
+                      )
+                    }
+                    className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title="Salin nilai"
+                  >
+                    {copiedKey === keyName ? (
+                      <Check className="size-3 text-emerald-600" />
+                    ) : (
+                      <Copy className="size-3" />
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -324,7 +437,17 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          setIsUnlocked(false);
+          setUnlockedKeys({});
+          setRevealedActiveKeys({});
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[620px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 flex flex-col gap-4">
         <DialogHeader className="gap-1 text-left">
           <div className="flex items-center gap-2">
@@ -339,6 +462,60 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
             Kelola kunci API pihak ketiga langsung ke database terenkripsi (AES-256-GCM). Sistem akan memprioritaskan database daripada berkas .env.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Security Status Banner */}
+        {!isUnlocked ? (
+          <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                <Lock className="size-3.5" aria-hidden="true" />
+              </div>
+              <p className="text-xs text-foreground font-medium truncate">
+                Nilai kunci aktif disembunyikan untuk keamanan.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsUnlockDialogOpen(true)}
+              className="h-7 text-xs border-amber-500/40 text-foreground hover:bg-amber-500/20 font-semibold gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Lock className="size-3 text-amber-500" />
+              <span>Buka Akses Kunci</span>
+            </Button>
+          </div>
+        ) : (
+          <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between gap-2.5 animate-in fade-in">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                <Unlock className="size-3.5" aria-hidden="true" />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                  Akses Kunci Terbuka
+                </span>
+                <Badge
+                  variant="outline"
+                  className="font-mono text-[10px] h-5 bg-background border-emerald-500/40 text-emerald-600 dark:text-emerald-400 gap-1 px-1.5 font-bold"
+                >
+                  <Clock className="size-2.5" />
+                  <span>{formatCountdown(remainingSeconds)}</span>
+                </Badge>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleLockNow}
+              className="h-7 text-xs border-emerald-500/40 text-foreground hover:bg-emerald-500/20 font-semibold gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Lock className="size-3 text-emerald-600 dark:text-emerald-400" />
+              <span>Kunci Sekarang</span>
+            </Button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
@@ -642,6 +819,12 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
           </Tabs>
         )}
       </DialogContent>
+
+      <UnlockKeysDialog
+        isOpen={isUnlockDialogOpen}
+        onClose={() => setIsUnlockDialogOpen(false)}
+        onSuccess={handleUnlockSuccess}
+      />
     </Dialog>
   );
 }

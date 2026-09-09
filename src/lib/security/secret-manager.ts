@@ -335,3 +335,20 @@ export async function getAllSecretStatuses(): Promise<Record<string, SecretStatu
 
   return result;
 }
+
+/**
+ * Returns full decrypted plain text values for all configured secrets.
+ * Strictly gated by security verification (Password or OTP) on the server.
+ */
+export async function getAllDecryptedSecrets(): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+
+  for (const def of KNOWN_SECRETS) {
+    const val = await getSecret(def.keyName);
+    if (val) {
+      result[def.keyName] = val;
+    }
+  }
+
+  return result;
+}
