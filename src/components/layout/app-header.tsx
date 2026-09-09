@@ -26,10 +26,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Activity, Bot, LogOut, ShieldCheck, Smartphone } from "lucide-react";
+import { Activity, Bot, LogOut, ShieldCheck, Smartphone, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
+import { ApiKeysModal } from "@/components/settings/api-keys-modal";
 import { triggerPwaInstall } from "@/components/pwa/install-pwa-prompt";
 import { useCurrentUser } from "@/lib/hooks/use-family-data";
 
@@ -45,6 +46,7 @@ export function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [isApiModalOpen, setIsApiModalOpen] = React.useState(false);
+  const [isApiKeysModalOpen, setIsApiKeysModalOpen] = React.useState(false);
   const { user, roleLabel, isAdmin } = useCurrentUser();
 
   const avatarInitials = React.useMemo(() => {
@@ -112,18 +114,27 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {isAdmin && (
-            <Badge
-              variant="outline"
-              onClick={() => setIsApiModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer hover:bg-muted/80 hover:text-foreground transition-colors select-none h-7 px-2.5"
-              title="Klik untuk melihat status koneksi API"
-            >
-              <span className="size-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-              <Bot className="size-3.5 text-muted-foreground" />
-              <span>API Status</span>
-            </Badge>
-          )}
+          {/* Direct Header Button for Kunci API */}
+          <Badge
+            variant="outline"
+            onClick={() => setIsApiKeysModalOpen(true)}
+            className="inline-flex items-center gap-1.5 text-[11px] text-foreground font-medium cursor-pointer bg-background hover:bg-amber-500/10 border-amber-500/40 hover:border-amber-500 transition-colors select-none h-7 px-2.5 shadow-xs"
+            title="Kelola Kunci API & Kredensial Sistem (Terenkripsi)"
+          >
+            <KeyRound className="size-3.5 text-amber-500 shrink-0" aria-hidden="true" />
+            <span>Kunci API</span>
+          </Badge>
+
+          <Badge
+            variant="outline"
+            onClick={() => setIsApiModalOpen(true)}
+            className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer hover:bg-muted/80 hover:text-foreground transition-colors select-none h-7 px-2.5"
+            title="Klik untuk melihat status koneksi API"
+          >
+            <span className="size-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+            <Bot className="size-3.5 text-muted-foreground" />
+            <span>Status API</span>
+          </Badge>
 
           <ThemeToggle compact />
 
@@ -159,17 +170,20 @@ export function AppHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {isAdmin && (
-                <>
-                  <DropdownMenuItem onClick={() => setIsApiModalOpen(true)} className="gap-2 cursor-pointer text-xs">
-                    <Activity className="size-3.5 text-primary" />
-                    <span>Status Koneksi & AI</span>
-                  </DropdownMenuItem>
-                  <Link href="/family">
-                    <DropdownMenuItem className="cursor-pointer text-xs">Profil & Roster Keluarga</DropdownMenuItem>
-                  </Link>
-                </>
-              )}
+              <DropdownMenuItem
+                onClick={() => setIsApiKeysModalOpen(true)}
+                className="gap-2 cursor-pointer text-xs font-semibold text-foreground hover:bg-amber-500/10 focus:bg-amber-500/10"
+              >
+                <KeyRound className="size-3.5 text-amber-500" />
+                <span>Kunci API & Kredensial</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsApiModalOpen(true)} className="gap-2 cursor-pointer text-xs">
+                <Activity className="size-3.5 text-primary" />
+                <span>Status Koneksi & AI</span>
+              </DropdownMenuItem>
+              <Link href="/family">
+                <DropdownMenuItem className="cursor-pointer text-xs">Profil & Roster Keluarga</DropdownMenuItem>
+              </Link>
               <DropdownMenuItem onClick={triggerPwaInstall} className="gap-2 cursor-pointer text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                 <Smartphone className="size-3.5" />
                 <span>Pasang Aplikasi (PWA)</span>
@@ -190,6 +204,12 @@ export function AppHeader() {
       <ApiStatusModal
         isOpen={isApiModalOpen}
         onClose={() => setIsApiModalOpen(false)}
+        onOpenApiKeysModal={() => setIsApiKeysModalOpen(true)}
+      />
+
+      <ApiKeysModal
+        isOpen={isApiKeysModalOpen}
+        onClose={() => setIsApiKeysModalOpen(false)}
       />
     </>
   );
