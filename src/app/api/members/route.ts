@@ -202,46 +202,33 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing member id" }, { status: 400 });
     }
 
-    const validatedRole = role === "admin" ? "admin" : role === "spouse" ? "spouse" : "member";
+    const updatePayload: Record<string, any> = {};
+    if (full_name !== undefined) updatePayload.full_name = full_name ? full_name.trim() : "";
+    if (role !== undefined) {
+      updatePayload.role = role === "admin" ? "admin" : role === "spouse" ? "spouse" : "member";
+    }
+    if (default_wallet_id !== undefined) updatePayload.default_wallet_id = default_wallet_id || null;
+    if (telegram_chat_id !== undefined) updatePayload.telegram_chat_id = telegram_chat_id ? Number(telegram_chat_id) : null;
+    if (telegram_username !== undefined) {
+      updatePayload.telegram_username = telegram_username ? telegram_username.replace(/^@/, "").trim() : null;
+    }
+    if (whatsapp_number !== undefined) updatePayload.whatsapp_number = whatsapp_number?.trim() || null;
+    if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url?.trim() || null;
 
     if (!isSupabaseConfigured()) {
-      const updated = mockStore.updateMember(id, {
-        full_name: full_name?.trim(),
-        role: validatedRole,
-        default_wallet_id: default_wallet_id || null,
-        telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
-        telegram_username: telegram_username !== undefined ? (telegram_username ? telegram_username.trim() : null) : undefined,
-        whatsapp_number: whatsapp_number?.trim() || null,
-      });
+      const updated = mockStore.updateMember(id, updatePayload);
       return NextResponse.json({ success: true, member: updated });
     }
 
-    const payload: any = {
-      full_name: full_name?.trim(),
-      role: validatedRole,
-      default_wallet_id: default_wallet_id || null,
-      telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
-      telegram_username: telegram_username !== undefined ? (telegram_username ? telegram_username.trim() : null) : undefined,
-      whatsapp_number: whatsapp_number?.trim() || null,
-      avatar_url: avatar_url?.trim() || null,
-    };
-
     const { data, error } = await supabaseAdmin
       .from("family_members")
-      .update(payload)
+      .update(updatePayload)
       .eq("id", id)
       .select("*, default_wallet:wallets(*)")
       .single();
 
     if (error) {
-      const updated = mockStore.updateMember(id, {
-        full_name: full_name?.trim(),
-        role: validatedRole,
-        default_wallet_id: default_wallet_id || null,
-        telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
-        telegram_username: telegram_username !== undefined ? (telegram_username ? telegram_username.trim() : null) : undefined,
-        whatsapp_number: whatsapp_number?.trim() || null,
-      });
+      const updated = mockStore.updateMember(id, updatePayload);
       return NextResponse.json({ success: true, member: updated });
     }
 

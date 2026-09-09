@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { Loader2, HelpCircle, CheckCircle2, AlertCircle, Search, Send } from "lucide-react";
 
 interface AddMemberModalProps {
@@ -55,6 +56,8 @@ export function AddMemberModal({
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (memberToEdit) {
       setFullName(memberToEdit.full_name || "");
       setRole(memberToEdit.role || "member");
@@ -74,7 +77,7 @@ export function AddMemberModal({
     }
     setTelegramCheckFeedback(null);
     setErrorMsg("");
-  }, [memberToEdit, isOpen, wallets]);
+  }, [memberToEdit, isOpen]);
 
   const handleCheckTelegram = async () => {
     const cleanId = telegramChatId.trim();
@@ -94,24 +97,61 @@ export function AddMemberModal({
       const data = await res.json();
 
       if (data.ok) {
-        if (data.username) {
-          setTelegramUsername(data.username);
-        } else {
-          setTelegramUsername("");
-        }
+        const cleanUsername = data.username ? data.username.replace(/^@/, "").trim() : "";
+        setTelegramUsername(cleanUsername);
+
         if (data.displayName) {
           setTelegramDisplayName(data.displayName);
+        }
+
+        // Auto-save immediately if editing an existing member
+        if (memberToEdit?.id) {
+          try {
+            const saveRes = await fetch("/api/members", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: memberToEdit.id,
+                telegram_chat_id: Number(cleanId),
+                telegram_username: cleanUsername || null,
+              }),
+            });
+
+            if (saveRes.ok) {
+              // Update local memberToEdit object reference so if modal re-renders it retains new values
+              memberToEdit.telegram_chat_id = Number(cleanId);
+              memberToEdit.telegram_username = cleanUsername || null;
+
+              // Revalidate parent SWR cache so members list card updates in background
+              onSuccess();
+
+              if (cleanUsername) {
+                toast.success(`Akun @${cleanUsername} terverifikasi dan otomatis tersimpan ke profil!`);
+              } else {
+                toast.success("Akun Telegram terhubung dan otomatis tersimpan ke profil!");
+              }
+            } else {
+              const errData = await saveRes.json().catch(() => ({}));
+              console.warn("Gagal menyimpan otomatis username telegram:", errData);
+            }
+          } catch (autoSaveErr) {
+            console.warn("Kesalahan koneksi saat menyimpan akun telegram:", autoSaveErr);
+          }
         }
 
         if (data.hasUsername) {
           setTelegramCheckFeedback({
             type: "success",
-            message: `Akun terverifikasi: @${data.username} (${data.displayName})`,
+            message: memberToEdit?.id
+              ? `Akun terverifikasi: @${data.username} (${data.displayName}) — otomatis tersimpan ke profil.`
+              : `Akun terverifikasi: @${data.username} (${data.displayName})`,
           });
         } else {
           setTelegramCheckFeedback({
             type: "info",
-            message: `Akun valid (${data.displayName}), namun belum menyetel @username publik di Telegram.`,
+            message: memberToEdit?.id
+              ? `Akun valid (${data.displayName}), namun belum menyetel @username publik di Telegram — otomatis tersimpan ke profil.`
+              : `Akun valid (${data.displayName}), namun belum menyetel @username publik di Telegram.`,
           });
         }
       } else {
