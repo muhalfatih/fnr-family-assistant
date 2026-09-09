@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import {
-  parseFinancialInputWithGemini,
-  answerFinancialQuestionWithGemini,
-} from "@/lib/gemini/parser";
-import { uploadReceiptToR2, deleteReceiptMedia } from "@/lib/storage/r2";
-import { appendTransactionToSheet } from "@/lib/google/sheets";
+import { deleteReceiptMedia } from "@/lib/storage/r2";
 import {
   sendTelegramMessage,
   editTelegramMessageText,
@@ -22,12 +17,15 @@ import {
   updateProcessLoadingMessage,
   recordChatLog,
 } from "@/lib/bot/process-manager";
-import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
 import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from "@/lib/bot/relevance-guard";
-import { isWebhookDuplicate, checkRecentDuplicateTransaction } from "@/lib/bot/idempotency";
-import { fastParseIndonesianFinancialText } from "@/lib/bot/fast-parser";
-import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
+import { isWebhookDuplicate } from "@/lib/bot/idempotency";
+import { formatRupiah } from "@/lib/utils";
 import { normalizePhoneNumber } from "@/lib/auth-otp";
+import {
+  ingestMultimodalInput,
+  getFamilyFinancialContext,
+  IngestionMediaInput,
+} from "@/lib/ingestion/multimodal-ingestor";
 
 // Persistent Quick Action Reply Keyboard
 const MAIN_KEYBOARD = {
@@ -99,85 +97,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, duplicate: true });
   }
 
-  const currentMonth = new Date().toISOString().substring(0, 7);
-
-  // Helper to fetch live financial data for a family directly from Supabase
-  const getFamilyFinancialData = async (familyId: string) => {
-    try {
-      const [walletsRes, categoriesRes, budgetsRes, recentTxRes, monthlyTxRes] = await Promise.all([
-        supabaseAdmin.from("wallets").select("*").eq("family_id", familyId).eq("is_active", true),
-        supabaseAdmin.from("categories").select("*").eq("family_id", familyId).eq("type", "expense"),
-        supabaseAdmin.from("budgets").select("*").eq("family_id", familyId).eq("month_year", currentMonth),
-        supabaseAdmin
-          .from("transactions")
-          .select("*, member:family_members(*), wallet:wallets!transactions_wallet_id_fkey(*), category:categories(*)")
-          .eq("family_id", familyId)
-          .order("transaction_date", { ascending: false })
-          .limit(10),
-        (() => {
-          const { startDate, endDate } = getMonthDateRange(currentMonth);
-          return supabaseAdmin
-            .from("transactions")
-            .select("category_id, amount, type")
-            .eq("family_id", familyId)
-            .gte("transaction_date", startDate)
-            .lte("transaction_date", endDate);
-        })(),
-      ]);
-
-      const wallets = walletsRes?.data || [];
-      const categories = categoriesRes?.data || [];
-      const budgets = budgetsRes?.data || [];
-      const transactions = recentTxRes?.data || [];
-      const monthlyTx = monthlyTxRes?.data || [];
-
-      const spentMap: Record<string, number> = {};
-      let monthlyTotalExpense = 0;
-      let monthlyTotalIncome = 0;
-
-      if (monthlyTx) {
-        monthlyTx.forEach((tx: any) => {
-          const amt = Number(tx.amount || 0);
-          if (tx.type === "expense") {
-            monthlyTotalExpense += amt;
-            if (tx.category_id) {
-              spentMap[tx.category_id] = (spentMap[tx.category_id] || 0) + amt;
-            }
-          } else if (tx.type === "income") {
-            monthlyTotalIncome += amt;
-          }
-        });
-      }
-
-      const budgetItems = (categories || []).map((cat: any) => {
-        const b = budgets?.find((item: any) => item.category_id === cat.id);
-        return {
-          id: b?.id || cat.id,
-          category_id: cat.id,
-          name: cat.name,
-          spent: spentMap[cat.id] || 0,
-          target: b ? Number(b.target_amount) : 0,
-        };
-      });
-
-      return {
-        wallets: wallets || [],
-        budgets: budgetItems,
-        recentTransactions: transactions || [],
-        monthlyTotalExpense,
-        monthlyTotalIncome,
-      };
-    } catch (e) {
-      console.warn("[Telegram] Error fetching live financial data from Supabase:", e);
-      return {
-        wallets: [],
-        budgets: [],
-        recentTransactions: [],
-        monthlyTotalExpense: 0,
-        monthlyTotalIncome: 0,
-      };
-    }
-  };
+  // Live financial context provider from multimodal ingestion module
+  const getFamilyFinancialData = getFamilyFinancialContext;
 
   // Helper to strictly authorize registered family members
   const resolveRegisteredTelegramMember = async (targetChatId: number | string) => {
@@ -781,25 +702,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2d. Check if User is Asking a Natural Language Financial Question
-    const questionKeywords = [
-      "berapa", "apakah", "sisa", "total", "kemarin", "siapa", "kapan",
-      "gimana", "bagaimana", "cukup", "bisa", "kenapa", "tanya", "apa aja", "?"
-    ];
-    const lowerText = text.toLowerCase();
-    const isQuestion =
-      questionKeywords.some((kw) => lowerText.startsWith(kw) || lowerText.endsWith(kw)) ||
-      lowerText.includes("?") ||
-      lowerText.includes("saldo") ||
-      lowerText.includes("anggaran") ||
-      lowerText.includes("pengeluaran") ||
-      lowerText.includes("habis berapa");
-
-    // 2d. Identify Input Type & Register Task with 15s Timeout Safeguard
-    let parsed: any = null;
+    // 2d. Identify Media Type & Register Task with 15s Timeout Safeguard
     let mediaType: "text" | "image" | "audio" = "text";
-    let driveFileId: string | null = null;
-    let driveViewUrl: string | null = null;
     let rawPrompt: string = text || "[Media]";
 
     const isPhoto = Boolean(message.photo && message.photo.length > 0);
@@ -856,6 +760,8 @@ export async function POST(req: NextRequest) {
       [{ text: "⛔ Batalkan Proses", callback_data: `cancel_task:${taskId}` }],
     ];
 
+    let mediaInput: IngestionMediaInput | null = null;
+
     if (isPhoto || isDocumentImage) {
       sendTelegramChatAction(chatId, "upload_photo").catch(() => {});
       const tempMsg = await sendTelegramMessage(
@@ -880,32 +786,13 @@ export async function POST(req: NextRequest) {
       }
 
       const downloaded = await downloadTelegramFile(fileIdToDownload);
-
       if (downloaded) {
-        // Parallel execution: Upload to Cloudflare R2 and parse with Gemini OCR simultaneously
-        const [r2Result, parsedResult] = await Promise.all([
-          uploadReceiptToR2(
-            downloaded.buffer,
-            originalName,
-            downloaded.mimeType
-          ).catch((err) => {
-            console.error("[Telegram] Error uploading receipt to Cloudflare R2:", err);
-            return null;
-          }),
-          withContinuousChatAction(chatId, "typing", async () => {
-            return await parseFinancialInputWithGemini({
-              text: message.caption,
-              imageBuffer: downloaded.buffer,
-              imageMimeType: downloaded.mimeType,
-            });
-          }),
-        ]);
-
-        if (r2Result) {
-          driveFileId = r2Result.fileId;
-          driveViewUrl = r2Result.url;
-        }
-        parsed = parsedResult;
+        mediaInput = {
+          type: "image",
+          mimeType: downloaded.mimeType,
+          buffer: downloaded.buffer,
+          fileName: originalName,
+        };
       }
     } else if (message.voice || message.audio) {
       sendTelegramChatAction(chatId, "record_voice").catch(() => {});
@@ -921,20 +808,27 @@ export async function POST(req: NextRequest) {
 
       const audioFile = message.voice || message.audio;
       const downloaded = await downloadTelegramFile(audioFile.file_id);
-
       if (downloaded) {
-        parsed = await withContinuousChatAction(chatId, "typing", async () => {
-          return await parseFinancialInputWithGemini({
-            audioBuffer: downloaded.buffer,
-            audioMimeType: downloaded.mimeType,
-          });
-        });
-        rawPrompt = parsed?.transcription || "[Pesan Suara]";
+        mediaInput = {
+          type: "audio",
+          mimeType: downloaded.mimeType,
+          buffer: downloaded.buffer,
+        };
       }
     } else if (message.text) {
-      rawPrompt = message.text;
+      const questionKeywords = [
+        "berapa", "apakah", "sisa", "total", "kemarin", "siapa", "kapan",
+        "gimana", "bagaimana", "cukup", "bisa", "kenapa", "tanya", "apa aja", "?"
+      ];
+      const lowerText = text.toLowerCase();
+      const isQuestion =
+        questionKeywords.some((kw) => lowerText.startsWith(kw) || lowerText.endsWith(kw)) ||
+        lowerText.includes("?") ||
+        lowerText.includes("saldo") ||
+        lowerText.includes("anggaran") ||
+        lowerText.includes("pengeluaran") ||
+        lowerText.includes("habis berapa");
 
-      // If it is a conversational financial question, handle with Gemini AI Q&A
       if (isQuestion) {
         const tempMsg = await sendTelegramMessage(
           chatId,
@@ -945,67 +839,126 @@ export async function POST(req: NextRequest) {
           loadingMessageId = tempMsg.result.message_id;
           updateProcessLoadingMessage(taskId, loadingMessageId);
         }
-
-        // Continuous typing indicator in chat header until Gemini finishes
-        const aiAnswer = await withContinuousChatAction(chatId, "typing", async () => {
-          const finData = await getFamilyFinancialData(familyId);
-          return await answerFinancialQuestionWithGemini(message.text, finData);
-        });
-
-        // Smooth in-place edit: loading message transforms directly into final AI answer!
-        await replyOrEditLoading(
-          chatId,
-          loadingMessageId,
-          `🤖 *Jawaban F&R Assistant:*\n\n${aiAnswer}`,
-          MAIN_KEYBOARD
-        );
-
-        await completeBotProcess(taskId, "success", undefined, {
-          latencyMs: Date.now() - startTime,
-          aiModel: "gemini-3.5-flash-lite",
-        });
-        return NextResponse.json({ ok: true });
-      }
-
-      // Fast typing feedback for transaction text
-      // 1. Fast-Path Regex Parsing (<0.8s) for common Indonesian transaction patterns
-      const fastResult = fastParseIndonesianFinancialText(message.text);
-      if (fastResult && fastResult.amount > 0 && fastResult.confidence >= 0.85) {
-        parsed = {
-          confidence: fastResult.confidence,
-          type: fastResult.type,
-          amount: fastResult.amount,
-          category: fastResult.category,
-          wallet_hint: fastResult.wallet_hint,
-          description: fastResult.description,
-          items: [],
-        };
-      } else {
-        parsed = await withContinuousChatAction(chatId, "typing", async () => {
-          return await parseFinancialInputWithGemini({ text: message.text });
-        });
       }
     }
 
-    if (!parsed || !parsed.amount || parsed.amount <= 0) {
-      // If unable to parse transaction, try answering as conversational prompt
-      if (message.text) {
-        const aiAnswer = await withContinuousChatAction(chatId, "typing", async () => {
-          const finData = await getFamilyFinancialData(familyId);
-          return await answerFinancialQuestionWithGemini(message.text, finData);
-        });
-        await replyOrEditLoading(chatId, loadingMessageId, `🤖 *F&R Assistant:*\n\n${aiAnswer}`, MAIN_KEYBOARD);
-        await completeBotProcess(taskId, "success", undefined, {
-          latencyMs: Date.now() - startTime,
-          aiModel: "gemini-3.5-flash-lite",
-        });
-        return NextResponse.json({ ok: true });
+    // Call deep multimodal ingestion module
+    const result = await withContinuousChatAction(chatId, "typing", async () => {
+      return await ingestMultimodalInput({
+        channel: "telegram",
+        familyId,
+        member,
+        senderName,
+        text: message.caption || message.text,
+        media: mediaInput,
+        onProgress: async (step) => {
+          if (loadingMessageId) {
+            await editTelegramMessageText(chatId, loadingMessageId, `⏳ _${step}_`, {
+              inline_keyboard: cancelKeyboard,
+            }).catch(() => {});
+          }
+        },
+      });
+    });
+
+    if (result.status === "transaction_recorded") {
+      const { transaction, categoryName, walletName, budgetStatus, parsed, driveViewUrl, usedFastPath } = result;
+      const typeText = parsed.type === "expense" ? "Pengeluaran" : parsed.type === "income" ? "Pemasukan" : "Transfer";
+
+      let replyText =
+        `✅ *${typeText} Berhasil Dicatat!*\n\n` +
+        (parsed.merchant_name ? `🏪 *Toko:* ${parsed.merchant_name}\n` : "") +
+        `💵 *Nominal:* \`${formatRupiah(parsed.amount)}\`\n` +
+        `🏷️ *Kategori:* ${categoryName}\n` +
+        `💳 *Dompet:* ${walletName}\n` +
+        `📝 *Catatan:* ${parsed.description}`;
+
+      if (parsed.type === "expense" && budgetStatus && budgetStatus.targetAmount > 0) {
+        const updatedTotalSpent = budgetStatus.totalSpent + parsed.amount;
+        const updatedPercent = Math.round((updatedTotalSpent / budgetStatus.targetAmount) * 100);
+        const isOver = updatedTotalSpent > budgetStatus.targetAmount;
+        const budgetStatusTag = isOver ? "🔴 Overbudget!" : updatedPercent >= 80 ? "🟡 Peringatan (≥80%)" : "🟢 Aman";
+
+        replyText +=
+          `\n\n🎯 *Status Anggaran ${categoryName}:*\n` +
+          `📊 Terpakai: \`${formatRupiah(updatedTotalSpent)}\` / \`${formatRupiah(budgetStatus.targetAmount)}\` (*${updatedPercent}%* ${budgetStatusTag})`;
+
+        if (isOver) {
+          replyText += `\n⚠️ _Peringatan: Total pengeluaran telah melebihi target anggaran bulan ini!_`;
+        }
       }
 
+      if (parsed.items && parsed.items.length > 0) {
+        replyText += `\n\n🧾 *Rincian Item (${parsed.items.length}):*\n`;
+        parsed.items.slice(0, 5).forEach((item: any) => {
+          replyText += `• ${item.name} (${item.qty}x): ${formatRupiah(item.price)}\n`;
+        });
+        if (parsed.items.length > 5) {
+          replyText += `_...dan ${parsed.items.length - 5} item lainnya_\n`;
+        }
+      }
+
+      if (driveViewUrl) {
+        if (driveViewUrl.startsWith("http")) {
+          replyText += `\n📁 [Lihat Foto Struk](${driveViewUrl})`;
+        } else {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:1000";
+          replyText += `\n📁 [Lihat Foto Struk](${appUrl}${driveViewUrl})`;
+        }
+      }
+
+      const inlineKeyboard = [
+        [
+          { text: "🗑️ Batalkan", callback_data: `undo:${transaction.id}` },
+          { text: "💳 Ganti Dompet", callback_data: `prompt_wallet:${transaction.id}` },
+        ],
+      ];
+
+      await replyOrEditLoading(chatId, loadingMessageId, replyText, { inline_keyboard: inlineKeyboard });
+
+      await completeBotProcess(taskId, "success", undefined, {
+        latencyMs: Date.now() - startTime,
+        aiModel: usedFastPath ? "Fast-Path Regex (<0.8s)" : "gemini-3.5-flash-lite",
+        parsedMetadata: parsed,
+        transactionId: transaction.id,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    if (result.status === "duplicate_skipped") {
       await replyOrEditLoading(
         chatId,
         loadingMessageId,
-        "🤔 Maaf, saya belum bisa mengenali transaksi dari input tersebut. Silakan ketik nominal yang jelas (contoh: *Beli makan siang 35rb*) atau kirim foto struk.",
+        `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n${result.message}`,
+        MAIN_KEYBOARD
+      );
+      await completeBotProcess(taskId, "success", undefined, {
+        parsedMetadata: { duplicateSkipped: true },
+        latencyMs: Date.now() - startTime,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (result.status === "financial_qa_answered") {
+      await replyOrEditLoading(
+        chatId,
+        loadingMessageId,
+        `🤖 *Jawaban F&R Assistant:*\n\n${result.answer}`,
+        MAIN_KEYBOARD
+      );
+      await completeBotProcess(taskId, "success", undefined, {
+        latencyMs: Date.now() - startTime,
+        aiModel: "gemini-3.5-flash-lite",
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (result.status === "unrecognized") {
+      await replyOrEditLoading(
+        chatId,
+        loadingMessageId,
+        `🤔 ${result.message}`,
         MAIN_KEYBOARD
       );
       await completeBotProcess(taskId, "failed", "Nominal transaksi tidak terdeteksi", {
@@ -1014,206 +967,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 2e. Match Wallet
-    let chosenWallet: any = null;
-    try {
-      const { data: wallets } = await supabaseAdmin
-        .from("wallets")
-        .select("*")
-        .eq("family_id", familyId)
-        .eq("is_active", true);
-
-      chosenWallet = wallets?.find((w: any) =>
-        parsed.wallet_hint && w.name.toLowerCase().includes(parsed.wallet_hint.toLowerCase())
-      );
-
-      if (!chosenWallet && defaultWalletId) {
-        chosenWallet = wallets?.find((w: any) => w.id === defaultWalletId);
-      }
-
-      if (!chosenWallet && wallets && wallets.length > 0) {
-        chosenWallet = wallets[0];
-      }
-
-      if (!chosenWallet) {
-        const { data: newWallet } = await supabaseAdmin
-          .from("wallets")
-          .insert({
-            family_id: familyId,
-            name: "Dompet Tunai",
-            type: "cash",
-            current_balance: 0,
-            is_active: true,
-          })
-          .select()
-          .single();
-        chosenWallet = newWallet;
-      }
-    } catch (err) {
-      console.warn("[Telegram] Error fetching wallets from Supabase:", err);
-    }
-
-    // 2f. Intelligently Match Category & Automatically Sync with Current Month Budget
-    const budgetSync = await matchCategoryAndSyncBudget(
-      familyId,
-      parsed.category,
-      parsed.description,
-      parsed.amount,
-      parsed.type
+    // status: "error"
+    await replyOrEditLoading(
+      chatId,
+      loadingMessageId,
+      `⚠️ ${result.error}`,
+      MAIN_KEYBOARD
     );
-    const categoryId = budgetSync?.categoryId || null;
-    const categoryDisplayName = budgetSync?.categoryName || parsed.category || "Lain-lain";
-
-    // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard (Mencegah Pencatatan Ganda)
-    const dupCheck = await checkRecentDuplicateTransaction({
-      familyId,
-      amount: parsed.amount,
-      type: parsed.type,
-      merchant: parsed.merchant_name,
-      description: parsed.description,
-      windowMinutes: 5,
-    });
-
-    if (dupCheck.isDuplicate) {
-      const dupLabel = parsed.merchant_name || parsed.description || "Transaksi";
-      const dupMsg =
-        `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
-        `Transaksi *${dupLabel}* sebesar \`${formatRupiah(parsed.amount)}\` baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
-        `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
-
-      await replyOrEditLoading(chatId, loadingMessageId, dupMsg, MAIN_KEYBOARD);
-      await completeBotProcess(taskId, "success", undefined, {
-        parsedMetadata: { duplicateSkipped: true },
-        latencyMs: Date.now() - startTime,
-      });
-      return NextResponse.json({ ok: true });
-    }
-
-    // 2g. Insert Transaction into Supabase
-    let transaction: any = null;
-    try {
-      const { data, error: txError } = await supabaseAdmin
-        .from("transactions")
-        .insert({
-          family_id: familyId,
-          member_id: member?.id || null,
-          wallet_id: chosenWallet?.id,
-          category_id: categoryId,
-          type: parsed.type,
-          amount: parsed.amount,
-          transaction_date: (() => {
-            if (parsed.transaction_date) {
-              const d = new Date(parsed.transaction_date);
-              if (!isNaN(d.getTime())) return d.toISOString();
-            }
-            return new Date().toISOString();
-          })(),
-          description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
-          raw_prompt: rawPrompt,
-          media_type: mediaType,
-          media_url: driveViewUrl || null,
-          drive_file_id: driveFileId,
-          drive_view_url: driveViewUrl,
-          parsed_metadata: {
-            merchant: parsed.merchant_name,
-            items: parsed.items,
-            confidence: parsed.confidence,
-            transcription: parsed.transcription,
-          },
-        })
-        .select()
-        .single();
-
-      if (txError) throw txError;
-      transaction = data;
-    } catch (e: any) {
-      console.error("[Telegram] Failed to insert transaction to Supabase:", e);
-    }
-
-    if (!transaction) {
-      await replyOrEditLoading(chatId, loadingMessageId, "⚠️ Terjadi kesalahan saat menyimpan ke database.", MAIN_KEYBOARD);
-      await completeBotProcess(taskId, "failed", "Insert database error", {
-        latencyMs: Date.now() - startTime,
-      });
-      return NextResponse.json({ ok: true });
-    }
-
-    // 2h. Real-time Append to Google Sheets
-    appendTransactionToSheet({
-      transactionDate: new Date().toISOString().split("T")[0],
-      type: parsed.type,
-      category: categoryDisplayName,
-      amount: parsed.amount,
-      walletName: chosenWallet.name,
-      description: parsed.description,
-      memberName: member?.full_name || senderName,
-      driveLink: driveViewUrl || undefined,
-    }).catch((err) => console.error("Async Google Sheet Sync Error:", err));
-
-    // 2i. Reply Confirmation Message with Live Budget Progress & Action Buttons
-    const typeText = parsed.type === "expense" ? "Pengeluaran" : parsed.type === "income" ? "Pemasukan" : "Transfer";
-
-    let replyText =
-      `✅ *${typeText} Berhasil Dicatat!*\n\n` +
-      (parsed.merchant_name ? `🏪 *Toko:* ${parsed.merchant_name}\n` : "") +
-      `💵 *Nominal:* \`${formatRupiah(parsed.amount)}\`\n` +
-      `🏷️ *Kategori:* ${categoryDisplayName}\n` +
-      `💳 *Dompet:* ${chosenWallet.name}\n` +
-      `📝 *Catatan:* ${parsed.description}`;
-
-    // Append Real-time Budget Progress if applicable
-    if (parsed.type === "expense" && budgetSync && budgetSync.targetAmount > 0) {
-      const updatedTotalSpent = budgetSync.totalSpent + parsed.amount;
-      const updatedPercent = Math.round((updatedTotalSpent / budgetSync.targetAmount) * 100);
-      const isOver = updatedTotalSpent > budgetSync.targetAmount;
-      const budgetStatusTag = isOver ? "🔴 Overbudget!" : updatedPercent >= 80 ? "🟡 Peringatan (≥80%)" : "🟢 Aman";
-
-      replyText +=
-        `\n\n🎯 *Status Anggaran ${categoryDisplayName}:*\n` +
-        `📊 Terpakai: \`${formatRupiah(updatedTotalSpent)}\` / \`${formatRupiah(budgetSync.targetAmount)}\` (*${updatedPercent}%* ${budgetStatusTag})`;
-
-      if (isOver) {
-        replyText += `\n⚠️ _Peringatan: Total pengeluaran telah melebihi target anggaran bulan ini!_`;
-      }
-    }
-
-    if (parsed.items && parsed.items.length > 0) {
-      replyText += `\n\n🧾 *Rincian Item (${parsed.items.length}):*\n`;
-      parsed.items.slice(0, 5).forEach((item: any) => {
-        replyText += `• ${item.name} (${item.qty}x): ${formatRupiah(item.price)}\n`;
-      });
-      if (parsed.items.length > 5) {
-        replyText += `_...dan ${parsed.items.length - 5} item lainnya_\n`;
-      }
-    }
-
-    if (driveViewUrl) {
-      if (driveViewUrl.startsWith("http")) {
-        replyText += `\n📁 [Lihat Foto Struk](${driveViewUrl})`;
-      } else {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:1000";
-        replyText += `\n📁 [Lihat Foto Struk](${appUrl}${driveViewUrl})`;
-      }
-    }
-
-    const inlineKeyboard = [
-      [
-        { text: "🗑️ Batalkan", callback_data: `undo:${transaction.id}` },
-        { text: "💳 Ganti Dompet", callback_data: `prompt_wallet:${transaction.id}` },
-      ],
-    ];
-
-    // Smooth transition: in-place transform loading message directly into the receipt!
-    await replyOrEditLoading(chatId, loadingMessageId, replyText, { inline_keyboard: inlineKeyboard });
-
-    // Mark process as completed successfully
-    await completeBotProcess(taskId, "success", undefined, {
+    await completeBotProcess(taskId, "failed", result.error, {
       latencyMs: Date.now() - startTime,
-      aiModel: "gemini-3.5-flash-lite",
-      parsedMetadata: parsed,
-      transactionId: transaction.id,
     });
-
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error("Unhandled error in Telegram webhook:", err);

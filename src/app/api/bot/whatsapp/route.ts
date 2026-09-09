@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import {
-  parseFinancialInputWithGemini,
-  answerFinancialQuestionWithGemini,
-} from "@/lib/gemini/parser";
-import { uploadReceiptToR2, deleteReceiptMedia } from "@/lib/storage/r2";
-import { appendTransactionToSheet } from "@/lib/google/sheets";
+import { deleteReceiptMedia } from "@/lib/storage/r2";
 import {
   sendWhatsAppTextMessage,
   sendWhatsAppInteractiveButtons,
@@ -18,12 +13,15 @@ import {
   completeBotProcess,
   recordChatLog,
 } from "@/lib/bot/process-manager";
-import { matchCategoryAndSyncBudget } from "@/lib/bot/budget-matcher";
 import { checkMessageRelevance, checkRateLimit, getPoliteRejectionMessage } from "@/lib/bot/relevance-guard";
-import { formatRupiah, formatDateIndo, getMonthDateRange } from "@/lib/utils";
+import { formatRupiah, formatDateIndo } from "@/lib/utils";
 import { whatsAppConfig, getReceiptAckMessage, getAudioAckMessage } from "@/lib/whatsapp/config";
-import { fastParseIndonesianFinancialText } from "@/lib/bot/fast-parser";
-import { isWebhookDuplicate, checkRecentDuplicateTransaction } from "@/lib/bot/idempotency";
+import { isWebhookDuplicate } from "@/lib/bot/idempotency";
+import {
+  ingestMultimodalInput,
+  getFamilyFinancialContext,
+  IngestionMediaInput,
+} from "@/lib/ingestion/multimodal-ingestor";
 
 // Standard quick action buttons for WhatsApp interactive messages
 const DEFAULT_WHATSAPP_BUTTONS = [
@@ -52,121 +50,8 @@ export async function GET(req: NextRequest) {
 }
 
 
-/**
- * Helper to fetch live financial data for a family directly from Supabase
- */
-async function getFamilyFinancialData(familyId: string) {
-  const currentMonth = new Date().toISOString().substring(0, 7);
-  const { startDate, endDate } = getMonthDateRange(currentMonth);
-
-  try {
-    const [walletsRes, categoriesRes, budgetsRes, monthTxRes, recentTxRes] = await Promise.all([
-      supabaseAdmin.from("wallets").select("*").eq("family_id", familyId).eq("is_active", true),
-      supabaseAdmin.from("categories").select("*").eq("family_id", familyId),
-      supabaseAdmin.from("budgets").select("*, category:categories(*)").eq("family_id", familyId).eq("month_year", currentMonth),
-      supabaseAdmin.from("transactions").select("amount, type, category_id").eq("family_id", familyId).gte("transaction_date", startDate).lte("transaction_date", endDate),
-      supabaseAdmin.from("transactions").select("*, category:categories(name, color), wallet:wallets!transactions_wallet_id_fkey(name)").eq("family_id", familyId).order("transaction_date", { ascending: false }).limit(5),
-    ]);
-
-    const wallets = walletsRes?.data || [];
-    const categories = categoriesRes?.data || [];
-    const budgets = budgetsRes?.data || [];
-    const monthTransactions = monthTxRes?.data || [];
-    const recentTransactions = recentTxRes?.data || [];
-
-    let monthlyTotalExpense = 0;
-    let monthlyTotalIncome = 0;
-
-    monthTransactions.forEach((t: any) => {
-      if (t.type === "expense") monthlyTotalExpense += Number(t.amount);
-      if (t.type === "income") monthlyTotalIncome += Number(t.amount);
-    });
-
-    return {
-      wallets,
-      categories,
-      budgets,
-      monthTransactions,
-      recentTransactions,
-      monthlyTotalExpense,
-      monthlyTotalIncome,
-    };
-  } catch (e) {
-    return {
-      wallets: [],
-      categories: [],
-      budgets: [],
-      monthTransactions: [],
-      recentTransactions: [],
-      monthlyTotalExpense: 0,
-      monthlyTotalIncome: 0,
-    };
-  }
-}
-
-/**
- * Helper to resolve the appropriate wallet for a family with instant fallback
- */
-async function resolveWallet(
-  familyId: string,
-  walletHint?: string | null,
-  defaultWalletId?: string | null
-) {
-  try {
-    const { data: wallets, error: fetchErr } = await supabaseAdmin
-      .from("wallets")
-      .select("*")
-      .eq("family_id", familyId)
-      .eq("is_active", true);
-
-    if (fetchErr) {
-      console.error("[WhatsApp] Error fetching wallets from Supabase:", fetchErr);
-    }
-
-    let chosenWallet = wallets?.find((w: any) =>
-      walletHint && w.name.toLowerCase().includes(walletHint.toLowerCase())
-    );
-
-    if (!chosenWallet && defaultWalletId) {
-      chosenWallet = wallets?.find((w: any) => w.id === defaultWalletId);
-    }
-
-    if (!chosenWallet && wallets && wallets.length > 0) {
-      chosenWallet = wallets[0];
-    }
-
-    // Auto-create Dompet Tunai in Supabase if family doesn't have an active wallet yet
-    if (!chosenWallet) {
-      const { data: newWallet, error: createWalletErr } = await supabaseAdmin
-        .from("wallets")
-        .insert({
-          family_id: familyId,
-          name: "Dompet Tunai",
-          type: "cash",
-          current_balance: 0,
-          is_active: true,
-        })
-        .select()
-        .single();
-
-      if (createWalletErr) {
-        console.error("[WhatsApp] Failed to auto-create wallet in Supabase:", createWalletErr);
-      }
-      chosenWallet = newWallet;
-    }
-
-    if (chosenWallet) return chosenWallet;
-
-    // Fallback: fetch any active wallet from Supabase to guarantee valid UUID
-    const { data: anyWallet } = await supabaseAdmin.from("wallets").select("*").limit(1).maybeSingle();
-    if (anyWallet) return anyWallet;
-
-    return { id: "wal-cash", name: "Dompet Tunai" };
-  } catch (e) {
-    console.error("[WhatsApp] Exception in resolveWallet:", e);
-    return { id: "wal-cash", name: "Dompet Tunai" };
-  }
-}
+// Live financial context provider from multimodal ingestion module
+const getFamilyFinancialData = getFamilyFinancialContext;
 
 /**
  * POST Handler: Processes incoming messages from WhatsApp Cloud API
@@ -441,13 +326,10 @@ async function processWhatsAppMessage(
     const data = await getFamilyFinancialData(familyId);
     let budgetText = "";
 
-    data.budgets.forEach((b) => {
-      const catName = b.category?.name || "Kategori";
-      const spent = data.monthTransactions
-        .filter((t) => t.category_id === b.category_id && t.type === "expense")
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const target = Number(b.target_amount);
+    data.budgets.forEach((b: any) => {
+      const catName = b.category?.name || b.name || "Kategori";
+      const spent = Number(b.spent || 0);
+      const target = Number(b.target_amount || b.target || 0);
       const percent = target > 0 ? Math.round((spent / target) * 100) : 0;
       const sisa = target - spent;
 
@@ -678,11 +560,22 @@ async function processWhatsAppMessage(
   }
 
   try {
-    // 6. Handle Image (Receipt / Struk OCR)
+    // 6. Relevance Guard for Pure Text Messages
+    if (msgType === "text" && text) {
+      const relevance = checkMessageRelevance(text, senderName);
+      if (!relevance.isRelevant) {
+        const rejectionMsg = getPoliteRejectionMessage(senderName);
+        completeBotProcess(taskId, "failed", "Pesan di luar cakupan finansial");
+        await sendWhatsAppTextMessage(senderPhone, rejectionMsg);
+        return;
+      }
+    }
+
+    // 7. Prepare Media Input
+    let mediaInput: IngestionMediaInput | null = null;
+
     if (msgType === "image") {
       const mediaId = message.image?.id;
-      const caption = message.image?.caption || "";
-
       if (!mediaId) {
         completeBotProcess(taskId, "failed", "ID media gambar tidak ditemukan.");
         await sendWhatsAppTextMessage(senderPhone, "⚠️ Gagal mengunduh gambar struk. Silakan coba kirim ulang foto.");
@@ -696,178 +589,13 @@ async function processWhatsAppMessage(
         return;
       }
 
-      // Run Cloudflare R2 upload and Gemini OCR simultaneously
-      const [r2Result, parsed] = await Promise.all([
-        whatsAppConfig.enableAsyncMediaUpload
-          ? uploadReceiptToR2(
-              media.buffer,
-              `Struk_WA_${Date.now()}.jpg`,
-              media.mimeType || "image/jpeg"
-            ).catch((r2Err) => {
-              console.error("[WhatsApp] Error uploading receipt to Cloudflare R2:", r2Err);
-              return null;
-            })
-          : Promise.resolve(null),
-        parseFinancialInputWithGemini({
-          imageBuffer: media.buffer,
-          imageMimeType: media.mimeType || "image/jpeg",
-          text: caption || undefined,
-        }),
-      ]);
-
-      const r2FileId: string | null = r2Result?.fileId || null;
-      const r2ViewUrl: string | null = r2Result?.url || null;
-
-      if (!parsed || parsed.amount <= 0) {
-        completeBotProcess(taskId, "failed", "Gemini OCR tidak menemukan nominal transaksi valid.");
-        await sendWhatsAppTextMessage(
-          senderPhone,
-          "⚠️ AI tidak dapat mendeteksi nominal transaksi yang jelas pada foto struk tersebut. Pastikan foto terang dan terbaca jelas."
-        );
-        return;
-      }
-
-      // 2. Resolve Wallet
-      const chosenWallet = await resolveWallet(familyId, parsed.wallet_hint, defaultWalletId);
-
-      // 3. Resolve Category & Budget
-      const budgetSync = await matchCategoryAndSyncBudget(
-        familyId,
-        parsed.category,
-        parsed.description,
-        parsed.amount,
-        parsed.type
-      );
-      const categoryId = budgetSync?.categoryId || null;
-
-      // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard
-      const dupCheck = await checkRecentDuplicateTransaction({
-        familyId,
-        amount: parsed.amount,
-        type: parsed.type,
-        merchant: parsed.merchant_name,
-        description: parsed.description,
-        windowMinutes: 5,
-      });
-
-      if (dupCheck.isDuplicate) {
-        const dupLabel = parsed.merchant_name || parsed.description || "Transaksi";
-        const dupMsg =
-          `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
-          `Transaksi *${dupLabel}* sebesar *${formatRupiah(parsed.amount)}* baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
-          `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
-
-        await sendWhatsAppTextMessage(senderPhone, dupMsg);
-        completeBotProcess(taskId, "success", undefined, { parsedMetadata: { duplicateSkipped: true } });
-        return;
-      }
-
-      // 4. Insert Transaction into Supabase
-      let newTx: any = null;
-      if (isSupabaseConfigured()) {
-        try {
-          const { data, error: txErr } = await supabaseAdmin
-            .from("transactions")
-            .insert({
-              family_id: familyId,
-              member_id: member?.id || null,
-              wallet_id: chosenWallet.id,
-              category_id: categoryId,
-              type: parsed.type,
-              amount: parsed.amount,
-              transaction_date: (() => {
-                if (parsed.transaction_date) {
-                  const d = new Date(parsed.transaction_date);
-                  if (!isNaN(d.getTime())) return d.toISOString();
-                }
-                return new Date().toISOString();
-              })(),
-              description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
-              raw_prompt: caption || "Struk Foto WhatsApp",
-              media_type: "image",
-              media_url: r2ViewUrl || null,
-              drive_file_id: r2FileId,
-              drive_view_url: r2ViewUrl,
-              parsed_metadata: {
-                merchant: parsed.merchant_name,
-                items: parsed.items,
-                confidence: parsed.confidence,
-                source: "whatsapp",
-              },
-            })
-            .select()
-            .single();
-
-          if (txErr) {
-            console.error("[WhatsApp] Supabase image insert error:", txErr);
-          } else if (data) {
-            newTx = data;
-          }
-        } catch (e) {
-          console.error("[WhatsApp] Supabase image insert exception:", e);
-        }
-      }
-
-      if (!newTx) {
-        completeBotProcess(taskId, "failed", "Gagal menyimpan transaksi ke database.");
-        await sendWhatsAppTextMessage(
-          senderPhone,
-          "❌ Maaf, terjadi kesalahan saat menyimpan transaksi ke database. Silakan coba kembali sesaat lagi."
-        );
-        return;
-      }
-
-      // Sync to Google Sheets
-      appendTransactionToSheet(newTx).catch(() => {});
-
-      // Build Success Message
-      let itemSummary = "";
-      if (parsed.items && parsed.items.length > 0) {
-        itemSummary = `\n📋 *Rincian Item (${parsed.items.length} item):*\n`;
-        parsed.items.slice(0, 5).forEach((item) => {
-          itemSummary += ` • ${item.qty}x ${item.name} (${formatRupiah(item.price)})\n`;
-        });
-        if (parsed.items.length > 5) {
-          itemSummary += ` • ... dan ${parsed.items.length - 5} item lainnya\n`;
-        }
-      }
-
-      const receiptArchiveNote = r2ViewUrl
-        ? `\n📁 Bukti struk berhasil diarsipkan ke Cloudflare R2.`
-        : "";
-
-      const replySuccess =
-        `✅ *STRUK BERHASIL DICATAT!*\n\n` +
-        `🏪 Toko: *${parsed.merchant_name || "Struk Belanja"}*\n` +
-        `💰 Total: *${formatRupiah(parsed.amount)}*\n` +
-        `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
-        `💳 Dompet: *${newTx.wallet?.name || chosenWallet.name || "Dompet Utama"}*\n` +
-        itemSummary +
-        receiptArchiveNote;
-
-      completeBotProcess(taskId, "success", undefined, {
-        aiModel: "Gemini 3.5 Flash Lite OCR",
-        transactionId: newTx.id,
-        parsedMetadata: parsed,
-      });
-
-      const receiptButtons = [
-        { id: `undo_${newTx.id}`, title: "❌ Batalkan" },
-        { id: "action_summary", title: "📊 Ringkasan" },
-        { id: "action_balance", title: "💳 Cek Saldo" },
-      ];
-
-      await sendWhatsAppInteractiveButtons(
-        senderPhone,
-        replySuccess,
-        receiptButtons,
-        "Pencatatan Struk Otomatis"
-      );
-      return;
-    }
-
-    // 7. Handle Audio (Voice Note)
-    if (msgType === "audio") {
+      mediaInput = {
+        type: "image",
+        mimeType: media.mimeType || "image/jpeg",
+        buffer: media.buffer,
+        fileName: `Struk_WA_${Date.now()}.jpg`,
+      };
+    } else if (msgType === "audio") {
       const mediaId = message.audio?.id;
       if (!mediaId) {
         completeBotProcess(taskId, "failed", "ID media suara tidak ditemukan.");
@@ -882,292 +610,117 @@ async function processWhatsAppMessage(
         return;
       }
 
-      const parsed = await parseFinancialInputWithGemini({
-        audioBuffer: media.buffer,
-        audioMimeType: media.mimeType || "audio/ogg",
+      mediaInput = {
+        type: "audio",
+        mimeType: media.mimeType || "audio/ogg",
+        buffer: media.buffer,
+      };
+    }
+
+    // 8. Execute Multimodal Ingestion Pipeline
+    const result = await ingestMultimodalInput({
+      channel: "whatsapp",
+      familyId,
+      member,
+      senderName,
+      text: msgType === "image" ? (message.image?.caption || "") : (text || ""),
+      media: mediaInput,
+    });
+
+    // 9. Dispatch WhatsApp Responses
+    if (result.status === "transaction_recorded") {
+      const { transaction: newTx, categoryName, walletName, parsed, driveViewUrl, usedFastPath } = result;
+
+      let itemSummary = "";
+      if (parsed.items && parsed.items.length > 0) {
+        itemSummary = `\n📋 *Rincian Item (${parsed.items.length} item):*\n`;
+        parsed.items.slice(0, 5).forEach((item: any) => {
+          itemSummary += ` • ${item.qty}x ${item.name} (${formatRupiah(item.price)})\n`;
+        });
+        if (parsed.items.length > 5) {
+          itemSummary += ` • ... dan ${parsed.items.length - 5} item lainnya\n`;
+        }
+      }
+
+      const receiptArchiveNote = driveViewUrl ? `\n📁 Bukti struk berhasil diarsipkan ke Cloudflare R2.` : "";
+
+      let replySuccess = "";
+      let headerTitle = "Pencatatan Transaksi";
+
+      if (msgType === "image") {
+        headerTitle = "Pencatatan Struk Otomatis";
+        replySuccess =
+          `✅ *STRUK BERHASIL DICATAT!*\n\n` +
+          `🏪 Toko: *${parsed.merchant_name || "Struk Belanja"}*\n` +
+          `💰 Total: *${formatRupiah(parsed.amount)}*\n` +
+          `🏷️ Kategori: *${categoryName}*\n` +
+          `💳 Dompet: *${walletName}*\n` +
+          itemSummary +
+          receiptArchiveNote;
+      } else if (msgType === "audio") {
+        headerTitle = "Pencatatan Voice Note";
+        replySuccess =
+          `🎙️ *TRANSAKSI SUARA DICATAT!*\n\n` +
+          (parsed.transcription ? `💬 Transkripsi: _"${parsed.transcription}"_\n\n` : "") +
+          `📝 Keterangan: *${parsed.description}*\n` +
+          `💰 Nominal: *${formatRupiah(parsed.amount)}*\n` +
+          `🏷️ Kategori: *${categoryName}*\n` +
+          `💳 Dompet: *${walletName}*`;
+      } else {
+        replySuccess =
+          `✅ *TRANSAKSI BERHASIL DICATAT!*\n\n` +
+          `📝 Keterangan: *${parsed.description}*\n` +
+          `💰 Nominal: *${parsed.type === "income" ? "+" : "-"}${formatRupiah(parsed.amount)}*\n` +
+          `🏷️ Kategori: *${categoryName}*\n` +
+          `💳 Dompet: *${walletName}*`;
+      }
+
+      completeBotProcess(taskId, "success", undefined, {
+        aiModel: usedFastPath
+          ? "Fast-Path Regex (<0.8s)"
+          : msgType === "image"
+          ? "Gemini 3.5 Flash Lite OCR"
+          : "Gemini 3.5 Flash Lite",
+        transactionId: newTx.id,
+        parsedMetadata: { ...parsed, usedFastPath },
       });
 
-      if (!parsed || parsed.amount <= 0) {
-        completeBotProcess(taskId, "failed", "Gagal mengekstrak transaksi dari audio.");
-        await sendWhatsAppTextMessage(
-          senderPhone,
-          "⚠️ Suara Anda telah diterima, namun AI tidak menemukan nominal transaksi keuangan yang jelas."
-        );
-        return;
-      }
-
-      const chosenWallet = await resolveWallet(familyId, parsed.wallet_hint, defaultWalletId);
-
-      const budgetSync = await matchCategoryAndSyncBudget(
-        familyId,
-        parsed.category,
-        parsed.description,
-        parsed.amount,
-        parsed.type
-      );
-      const categoryId = budgetSync?.categoryId || null;
-
-      // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard
-      const dupCheck = await checkRecentDuplicateTransaction({
-        familyId,
-        amount: parsed.amount,
-        type: parsed.type,
-        merchant: parsed.merchant_name,
-        description: parsed.description,
-        windowMinutes: 5,
-      });
-
-      if (dupCheck.isDuplicate) {
-        const dupLabel = parsed.description || "Pesan Suara";
-        const dupMsg =
-          `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
-          `Transaksi *${dupLabel}* sebesar *${formatRupiah(parsed.amount)}* baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
-          `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
-
-        await sendWhatsAppTextMessage(senderPhone, dupMsg);
-        completeBotProcess(taskId, "success", undefined, { parsedMetadata: { duplicateSkipped: true } });
-        return;
-      }
-
-      const { data: newTx, error: txErr } = await supabaseAdmin
-        .from("transactions")
-        .insert({
-          family_id: familyId,
-          member_id: member?.id || null,
-          wallet_id: chosenWallet.id,
-          category_id: categoryId,
-          type: parsed.type,
-          amount: parsed.amount,
-          transaction_date: new Date().toISOString(),
-          description: parsed.description,
-          raw_prompt: parsed.transcription || "Pesan Suara WhatsApp",
-          media_type: "audio",
-          parsed_metadata: {
-            transcription: parsed.transcription,
-            confidence: parsed.confidence,
-            source: "whatsapp",
-          },
-        })
-        .select()
-        .single();
-
-      if (txErr || !newTx) {
-        completeBotProcess(taskId, "failed", txErr?.message || "Gagal menyimpan transaksi");
-        await sendWhatsAppTextMessage(senderPhone, "⚠️ Gagal mencatat transaksi suara.");
-        return;
-      }
-
-      appendTransactionToSheet(newTx).catch(() => {});
-
-      const replyVoiceSuccess =
-        `🎙️ *TRANSAKSI SUARA DICATAT!*\n\n` +
-        (parsed.transcription ? `💬 Transkripsi: _"${parsed.transcription}"_\n\n` : "") +
-        `📝 Keterangan: *${parsed.description}*\n` +
-        `💰 Nominal: *${formatRupiah(parsed.amount)}*\n` +
-        `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
-        `💳 Dompet: *${newTx.wallet?.name || chosenWallet.name || "Dompet Utama"}*`;
-
-      completeBotProcess(taskId, "success");
       recordChatLog({
         id: taskId,
         channel: "whatsapp",
         chat_id: senderPhone,
         sender_name: senderName,
-        input_type: "audio",
-        raw_prompt: parsed.transcription || "[Pesan Suara]",
+        input_type: msgType,
+        raw_prompt: text || (msgType === "image" ? "[Foto Struk]" : "[Pesan Suara]"),
         parsed_metadata: parsed,
         status: "success",
         created_at: new Date().toISOString(),
       });
 
-      await sendWhatsAppInteractiveButtons(
-        senderPhone,
-        replyVoiceSuccess,
-        DEFAULT_WHATSAPP_BUTTONS,
-        "Pencatatan Voice Note"
-      );
+      const buttons = [
+        { id: `undo_${newTx.id}`, title: "❌ Batalkan" },
+        { id: "action_summary", title: "📊 Ringkasan" },
+        { id: "action_balance", title: "💳 Cek Saldo" },
+      ];
+
+      await sendWhatsAppInteractiveButtons(senderPhone, replySuccess, buttons, headerTitle);
       return;
     }
 
-    // 8. Handle Text (Transaction Input or AI Question)
-    if (msgType === "text" && text) {
-      // Check relevance
-      const relevance = checkMessageRelevance(text, senderName);
-      if (!relevance.isRelevant) {
-        const rejectionMsg = getPoliteRejectionMessage(senderName);
-        completeBotProcess(taskId, "failed", "Pesan di luar cakupan finansial");
-        await sendWhatsAppTextMessage(senderPhone, rejectionMsg);
-        return;
-      }
+    if (result.status === "duplicate_skipped") {
+      const dupLabel = result.parsed.description || result.parsed.merchant_name || text || "Transaksi";
+      const dupMsg =
+        `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
+        `Transaksi *${dupLabel}* sebesar *${formatRupiah(result.parsed.amount)}* baru saja dicatat ${result.minutesAgo || 1} menit yang lalu.\n\n` +
+        `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
 
-      // Check if user is asking a financial question
-      const isQuestion =
-        lowerText.startsWith("tanya") ||
-        lowerText.startsWith("apakah") ||
-        lowerText.startsWith("bagaimana") ||
-        lowerText.startsWith("berapa") ||
-        lowerText.startsWith("rekomendasi") ||
-        lowerText.includes("?");
+      await sendWhatsAppTextMessage(senderPhone, dupMsg);
+      completeBotProcess(taskId, "success", undefined, { parsedMetadata: { duplicateSkipped: true } });
+      return;
+    }
 
-      if (isQuestion) {
-        const financialContext = await getFamilyFinancialData(familyId);
-        const aiAnswer = await answerFinancialQuestionWithGemini(text, financialContext);
-
-        completeBotProcess(taskId, "success");
-        recordChatLog({
-          id: taskId,
-          channel: "whatsapp",
-          chat_id: senderPhone,
-          sender_name: senderName,
-          input_type: "text",
-          raw_prompt: text,
-          parsed_metadata: { answer: aiAnswer },
-          status: "success",
-          created_at: new Date().toISOString(),
-        });
-
-        await sendWhatsAppInteractiveButtons(
-          senderPhone,
-          `💡 *JAWABAN AI KEUANGAN:*\n\n${aiAnswer}`,
-          DEFAULT_WHATSAPP_BUTTONS,
-          "Konsultasi Keuangan"
-        );
-        return;
-      }
-
-      // 1. Fast-Path Regex Parsing (<0.8s) for common Indonesian transaction patterns
-      let parsed: any = null;
-      let usedFastPath = false;
-
-      if (whatsAppConfig.enableFastPathRegex) {
-        const fastResult = fastParseIndonesianFinancialText(text);
-        if (fastResult && fastResult.amount > 0 && fastResult.confidence >= 0.85) {
-          parsed = {
-            confidence: fastResult.confidence,
-            type: fastResult.type,
-            amount: fastResult.amount,
-            category: fastResult.category,
-            wallet_hint: fastResult.wallet_hint,
-            description: fastResult.description,
-            items: [],
-          };
-          usedFastPath = true;
-        }
-      }
-
-      // 2. Fallback to Gemini AI if not parsed via Fast-Path
-      if (!parsed) {
-        parsed = await parseFinancialInputWithGemini({ text });
-      }
-
-      if (!parsed || parsed.amount <= 0) {
-        // If not parsed as clear transaction, answer intelligently with Gemini
-        const financialContext = await getFamilyFinancialData(familyId);
-        const aiFallback = await answerFinancialQuestionWithGemini(text, financialContext);
-
-        completeBotProcess(taskId, "success");
-        await sendWhatsAppTextMessage(senderPhone, `💡 ${aiFallback}`);
-        return;
-      }
-
-      // Resolve Wallet
-      const chosenWallet = await resolveWallet(familyId, parsed.wallet_hint, defaultWalletId);
-
-      // Resolve Category & Budget
-      const budgetSync = await matchCategoryAndSyncBudget(
-        familyId,
-        parsed.category,
-        parsed.description,
-        parsed.amount,
-        parsed.type
-      );
-      const categoryId = budgetSync?.categoryId || null;
-
-      // Lapis 2: 5-Minute Semantic Duplicate Transaction Guard
-      const dupCheck = await checkRecentDuplicateTransaction({
-        familyId,
-        amount: parsed.amount,
-        type: parsed.type,
-        merchant: parsed.merchant_name,
-        description: parsed.description,
-        windowMinutes: 5,
-      });
-
-      if (dupCheck.isDuplicate) {
-        const dupLabel = parsed.description || text;
-        const dupMsg =
-          `⚠️ *Transaksi Serupa Sudah Dicatat*\n\n` +
-          `Transaksi *${dupLabel}* sebesar *${formatRupiah(parsed.amount)}* baru saja dicatat ${dupCheck.minutesAgo || 1} menit yang lalu.\n\n` +
-          `_Sistem melewatinya secara otomatis untuk mencegah pencatatan data ganda._`;
-
-        await sendWhatsAppTextMessage(senderPhone, dupMsg);
-        completeBotProcess(taskId, "success", undefined, { parsedMetadata: { duplicateSkipped: true } });
-        return;
-      }
-
-      // Insert Transaction
-      let newTx: any = null;
-      if (isSupabaseConfigured()) {
-        try {
-          const { data, error: txErr } = await supabaseAdmin
-            .from("transactions")
-            .insert({
-              family_id: familyId,
-              member_id: member?.id || null,
-              wallet_id: chosenWallet.id,
-              category_id: categoryId,
-              type: parsed.type,
-              amount: parsed.amount,
-              transaction_date: new Date().toISOString(),
-              description: parsed.description,
-              raw_prompt: text,
-              media_type: "text",
-              parsed_metadata: {
-                items: parsed.items,
-                confidence: parsed.confidence,
-                source: "whatsapp",
-                engine: usedFastPath ? "fast_path_regex" : "gemini_ai",
-              },
-            })
-            .select()
-            .single();
-
-          if (txErr) {
-            console.error("[WhatsApp] Supabase text insert error:", txErr);
-          } else if (data) {
-            newTx = data;
-          }
-        } catch (e) {
-          console.error("[WhatsApp] Supabase text insert exception:", e);
-        }
-      }
-
-      if (!newTx) {
-        completeBotProcess(taskId, "failed", "Gagal menyimpan transaksi ke database.");
-        await sendWhatsAppTextMessage(
-          senderPhone,
-          "❌ Maaf, transaksi tidak berhasil disimpan ke database. Silakan coba kembali sesaat lagi."
-        );
-        return;
-      }
-
-      appendTransactionToSheet(newTx).catch(() => {});
-
-      const replyTxSuccess =
-        `✅ *TRANSAKSI BERHASIL DICATAT!*\n\n` +
-        `📝 Keterangan: *${parsed.description}*\n` +
-        `💰 Nominal: *${parsed.type === "income" ? "+" : "-"}${formatRupiah(parsed.amount)}*\n` +
-        `🏷️ Kategori: *${newTx.category?.name || parsed.category}*\n` +
-        `💳 Dompet: *${newTx.wallet?.name || chosenWallet.name || "Dompet Utama"}*`;
-
-      completeBotProcess(taskId, "success", undefined, {
-        aiModel: usedFastPath ? "Fast-Path Regex (<0.8s)" : "Gemini 2.5 Flash",
-        transactionId: newTx.id,
-        parsedMetadata: {
-          ...parsed,
-          usedFastPath,
-        },
-      });
+    if (result.status === "financial_qa_answered") {
+      completeBotProcess(taskId, "success");
       recordChatLog({
         id: taskId,
         channel: "whatsapp",
@@ -1175,19 +728,30 @@ async function processWhatsAppMessage(
         sender_name: senderName,
         input_type: "text",
         raw_prompt: text,
-        parsed_metadata: parsed,
+        parsed_metadata: { answer: result.answer },
         status: "success",
         created_at: new Date().toISOString(),
       });
 
       await sendWhatsAppInteractiveButtons(
         senderPhone,
-        replyTxSuccess,
+        `💡 *JAWABAN AI KEUANGAN:*\n\n${result.answer}`,
         DEFAULT_WHATSAPP_BUTTONS,
-        "Pencatatan Transaksi"
+        "Konsultasi Keuangan"
       );
       return;
     }
+
+    if (result.status === "unrecognized") {
+      completeBotProcess(taskId, "failed", "Nominal transaksi tidak terdeteksi");
+      await sendWhatsAppTextMessage(senderPhone, `⚠️ ${result.message}`);
+      return;
+    }
+
+    // result.status === "error"
+    completeBotProcess(taskId, "failed", result.error);
+    await sendWhatsAppTextMessage(senderPhone, `❌ ${result.error}`);
+    return;
   } catch (err: any) {
     console.error("[WhatsApp] Unhandled error:", err);
     completeBotProcess(taskId, "failed", err.message || "Internal server error");
