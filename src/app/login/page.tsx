@@ -343,33 +343,25 @@ function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 relative select-none">
+    <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 select-none">
       {/* Main Centered Card Container */}
-      <div className="sm:max-w-[400px] w-full rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs space-y-4 z-10">
-        {/* Integrated Card Header */}
-        <div className="space-y-1 pb-3.5 border-b border-border/40 text-left">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <ShieldCheck className="size-4" strokeWidth={2.2} aria-hidden="true" />
-              </div>
-              <div className="flex flex-col">
-                <h1 className="text-base font-semibold tracking-tight text-foreground">
-                  F&amp;R Family Hub
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  Buku Kas &amp; Asisten Finansial Keluarga
-                </p>
-              </div>
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md shrink-0">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              <span>Privat</span>
-            </span>
+      <div className="w-full sm:max-w-[380px] rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-5">
+        {/* Brand Masthead */}
+        <div className="flex items-center gap-3">
+          <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 ring-1 ring-emerald-500/20">
+            <ShieldCheck className="size-4.5" strokeWidth={2.2} aria-hidden="true" />
+          </div>
+          <div>
+            <h1 className="text-base font-semibold tracking-tight text-foreground">
+              F&amp;R Family Hub
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Asisten finansial &amp; buku kas keluarga
+            </p>
           </div>
         </div>
 
-        {/* Method Switcher Tabs (shadcn Tabs component) */}
+        {/* Method Switcher Tabs */}
         {step === "input" && (
           <Tabs
             value={method}
@@ -380,27 +372,27 @@ function LoginForm() {
             }}
             className="w-full"
           >
-            <TabsList className="w-full grid grid-cols-3 bg-muted/60 p-1 border border-border/60 h-auto gap-1 rounded-lg">
+            <TabsList className="w-full grid grid-cols-3 bg-muted/60 p-1 border border-border/50 h-9 rounded-lg">
               <TabsTrigger
                 value="whatsapp"
-                className="text-xs px-2 sm:px-3 py-1.5 truncate gap-1.5 cursor-pointer"
+                className="text-xs py-1 gap-1.5 cursor-pointer data-[state=active]:bg-background data-[state=active]:shadow-xs"
               >
                 <Smartphone className="size-3.5 shrink-0" />
                 <span>WhatsApp</span>
               </TabsTrigger>
               <TabsTrigger
                 value="telegram"
-                className="text-xs px-2 sm:px-3 py-1.5 truncate gap-1.5 cursor-pointer"
+                className="text-xs py-1 gap-1.5 cursor-pointer data-[state=active]:bg-background data-[state=active]:shadow-xs"
               >
                 <Send className="size-3.5 shrink-0" />
                 <span>Telegram</span>
               </TabsTrigger>
               <TabsTrigger
                 value="password"
-                className="text-xs px-2 sm:px-3 py-1.5 truncate gap-1.5 cursor-pointer"
+                className="text-xs py-1 gap-1.5 cursor-pointer data-[state=active]:bg-background data-[state=active]:shadow-xs"
               >
                 <KeyRound className="size-3.5 shrink-0" />
-                <span>Kata Sandi</span>
+                <span>Sandi</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -408,37 +400,37 @@ function LoginForm() {
 
         {/* STEP 1: WHATSAPP / TELEGRAM INPUT */}
         {step === "input" && (method === "whatsapp" || method === "telegram") && (
-          <form onSubmit={handleSendOtp} className="space-y-3.5 pt-1">
+          <form onSubmit={handleSendOtp} className="space-y-4 pt-1">
             {method === "whatsapp" ? (
               <div className="space-y-1.5">
                 <Label htmlFor="whatsappInput" className="text-xs font-medium text-foreground">
-                  Nomor WhatsApp atau ID Telegram
+                  Nomor WhatsApp
                 </Label>
                 <div className="relative flex items-center">
                   <Smartphone className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
                   <Input
                     id="whatsappInput"
-                    type="text"
+                    type="tel"
                     value={phone}
                     onChange={(e) => {
                       setPhone(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="0812-3456-7890 atau ID Chat"
-                    className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                    placeholder="0812-3456-7890"
+                    className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus-visible:ring-primary/20"
                     disabled={isLoading}
                     autoFocus
                     required
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Kode 6-digit dan tautan masuk instan akan dikirimkan ke nomor WhatsApp Anda.
+                  Kode 6 digit akan dikirim ke nomor WhatsApp Anda.
                 </p>
               </div>
             ) : (
               <div className="space-y-1.5">
                 <Label htmlFor="telegramInput" className="text-xs font-medium text-foreground">
-                  Username, Nomor HP, atau ID Chat Telegram
+                  Username atau ID Telegram
                 </Label>
                 <div className="relative flex items-center">
                   <Send className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
@@ -451,35 +443,35 @@ function LoginForm() {
                       if (error) setError(null);
                       if (telegramActivationPrompt) setTelegramActivationPrompt(null);
                     }}
-                    placeholder="@username, nomor HP, atau ID Chat"
-                    className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                    placeholder="@username atau ID chat"
+                    className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus-visible:ring-primary/20"
                     disabled={isLoading}
                     autoFocus
                     required
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Kode 6-digit dan tautan masuk instan akan dikirimkan ke Telegram Anda.
+                  Kode 6 digit akan dikirim ke Telegram Anda.
                 </p>
               </div>
             )}
 
             {/* Telegram Activation Guide Card */}
             {telegramActivationPrompt ? (
-              <div className="flex flex-col gap-2.5 p-3 rounded-xl bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs border border-amber-500/20 animate-in fade-in">
-                <div className="flex items-start gap-2">
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2 animate-in fade-in">
+                <div className="flex items-start gap-2 text-amber-900 dark:text-amber-200">
                   <Sparkles className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <p className="font-semibold text-foreground">
-                      Akun {telegramActivationPrompt.memberName || "Anggota"} Ditemukan!
+                      Akun {telegramActivationPrompt.memberName || "Anggota"} Ditemukan
                     </p>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      Karena ini pertama kali Anda login via Telegram, silakan aktifkan dengan membuka bot dan mengirim <code>/start</code> agar akun Anda otomatis terhubung.
+                    <p className="text-[11px] text-muted-foreground">
+                      Kirim <code>/start</code> ke bot agar Telegram Anda otomatis terhubung.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-500/20">
+                <div className="flex items-center gap-2 pt-1 border-t border-amber-500/20">
                   <a
                     href={`https://t.me/${telegramActivationPrompt.botUsername || "fnr_assistant_bot"}?start=login`}
                     target="_blank"
@@ -487,7 +479,7 @@ function LoginForm() {
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-[11px] font-medium hover:bg-primary/90 transition-colors"
                   >
                     <Send className="size-3" />
-                    <span>Buka Bot Telegram (@{telegramActivationPrompt.botUsername || "fnr_assistant_bot"})</span>
+                    <span>Buka Bot Telegram</span>
                   </a>
 
                   {telegramActivationPrompt.hasWhatsapp && (
@@ -498,31 +490,30 @@ function LoginForm() {
                         setTelegramActivationPrompt(null);
                         setError(null);
                       }}
-                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                      className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
                     >
-                      <Smartphone className="size-3" />
-                      <span>Masuk via WhatsApp</span>
+                      Masuk via WhatsApp
                     </button>
                   )}
                 </div>
               </div>
             ) : error ? (
-              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs border border-destructive/20 animate-in fade-in">
                 <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             ) : null}
 
             {/* Remember Me Checkbox */}
-            <div className="flex items-center justify-between pt-0.5">
+            <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="size-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                  className="size-3.5 rounded border-border text-primary accent-primary cursor-pointer"
                 />
-                <span className="text-xs text-muted-foreground">Ingat sesi di perangkat ini</span>
+                <span className="text-xs text-muted-foreground">Ingat perangkat ini</span>
               </label>
             </div>
 
@@ -530,16 +521,16 @@ function LoginForm() {
             <Button
               type="submit"
               disabled={isLoading || (method === "whatsapp" ? !phone.trim() : !telegramId.trim())}
-              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs cursor-pointer gap-2 transition-all"
+              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg cursor-pointer gap-2 transition-all"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  <span>Mengirimkan kode masuk...</span>
+                  <span>Mengirim kode...</span>
                 </>
               ) : (
                 <>
-                  <span>Kirim Kode &amp; Tautan Masuk</span>
+                  <span>Kirim Kode Masuk</span>
                   <ArrowRight className="size-3.5" />
                 </>
               )}
@@ -549,7 +540,7 @@ function LoginForm() {
 
         {/* STEP 2: VERIFY 6-DIGIT OTP INDIVIDUAL SLOTS */}
         {step === "verify" && (method === "whatsapp" || method === "telegram") && (
-          <form onSubmit={handleVerifyOtp} className="space-y-4 pt-1">
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div className="flex items-center justify-between">
               <button
                 type="button"
@@ -560,19 +551,19 @@ function LoginForm() {
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <ArrowLeft className="size-3.5" />
-                <span>Ganti nomor atau ID</span>
+                <span>Ganti nomor / ID</span>
               </button>
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-muted/70 text-muted-foreground border border-border/50">
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/50">
                 {method === "whatsapp" ? "WhatsApp" : "Telegram"}
               </span>
             </div>
 
-            <div className="text-center space-y-0.5 py-0.5">
+            <div className="text-center space-y-0.5">
               <p className="text-xs font-semibold text-foreground">
-                Masukkan 6-Digit Kode Masuk
+                Masukkan Kode Verifikasi
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Telah dikirim ke <strong className="font-semibold text-foreground">{targetDisplay}</strong>
+                Dikirim ke <strong className="font-semibold text-foreground">{targetDisplay}</strong>
               </p>
             </div>
 
@@ -581,10 +572,10 @@ function LoginForm() {
               <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300 space-y-1">
                 <div className="flex items-center gap-1.5 font-semibold">
                   <Sparkles className="size-3.5 text-amber-500" />
-                  <span>Mode Pengujian / Simulasi</span>
+                  <span>Mode Pengujian</span>
                 </div>
-                <p className="text-[11px] leading-tight">
-                  Kode verifikasi Anda:{" "}
+                <p>
+                  Kode Anda:{" "}
                   <code className="font-bold text-xs bg-amber-500/20 px-1.5 py-0.5 rounded font-mono">
                     {simulationHint.code}
                   </code>
@@ -600,7 +591,7 @@ function LoginForm() {
               </div>
             )}
 
-            {/* 6-Slot Kotak Input OTP (Shadcn Native Style) */}
+            {/* 6-Slot Kotak Input OTP */}
             <div className="flex items-center justify-center gap-2 py-1">
               {Array.from({ length: 6 }).map((_, index) => (
                 <input
@@ -616,7 +607,7 @@ function LoginForm() {
                   onChange={(e) => handleDigitChange(index, e.target.value)}
                   onKeyDown={(e) => handleDigitKeyDown(index, e)}
                   onPaste={handleDigitPaste}
-                  className="size-10 rounded-lg border border-border/80 bg-background/50 text-center font-mono text-base font-bold text-foreground tabular-nums shadow-xs transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
+                  className="size-10 rounded-lg border border-border/80 bg-background/50 text-center font-mono text-base font-bold text-foreground tabular-nums shadow-2xs transition-all focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:outline-none"
                   aria-label={`Digit ke ${index + 1}`}
                 />
               ))}
@@ -632,18 +623,18 @@ function LoginForm() {
 
             {/* Error Message */}
             {error && (
-              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs border border-destructive/20 animate-in fade-in">
                 <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
 
-            {/* Resend Cooldown Button */}
-            <div className="text-center pt-0.5">
+            {/* Resend Cooldown */}
+            <div className="text-center">
               {resendCooldown > 0 ? (
                 <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
                   <RefreshCw className="size-3 animate-spin text-muted-foreground" />
-                  <span>Kirim ulang kode dalam {resendCooldown} detik</span>
+                  <span>Kirim ulang dalam {resendCooldown}d</span>
                 </p>
               ) : (
                 <button
@@ -661,12 +652,12 @@ function LoginForm() {
             <Button
               type="submit"
               disabled={isLoading || currentFullCode.length < 6}
-              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs cursor-pointer gap-2 transition-all"
+              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg cursor-pointer gap-2 transition-all"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  <span>Memverifikasi kode...</span>
+                  <span>Memverifikasi...</span>
                 </>
               ) : (
                 <>
@@ -680,17 +671,12 @@ function LoginForm() {
 
         {/* STEP 1: AKUN & KATA SANDI TAB */}
         {step === "input" && method === "password" && (
-          <form onSubmit={handleEmailPasswordLogin} className="space-y-3.5 pt-1">
+          <form onSubmit={handleEmailPasswordLogin} className="space-y-4 pt-1">
             {/* Universal Identifier Input */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="loginIdentifierInput" className="text-xs font-medium text-foreground">
-                  Akun / Pengenal
-                </Label>
-                <span className="text-[10px] text-muted-foreground">
-                  WA, Telegram, atau Nama
-                </span>
-              </div>
+              <Label htmlFor="loginIdentifierInput" className="text-xs font-medium text-foreground">
+                Akun / Pengenal
+              </Label>
               <div className="relative flex items-center">
                 {getIdentifierIcon(identifier)}
                 <Input
@@ -701,17 +687,14 @@ function LoginForm() {
                     setIdentifier(e.target.value);
                     if (error) setError(null);
                   }}
-                  placeholder="No. WA / @username / ID Telegram / Nama"
-                  className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80 font-medium"
+                  placeholder="No. WA, @username, ID, atau nama"
+                  className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus-visible:ring-primary/20 font-medium"
                   disabled={isLoading}
                   autoComplete="username"
                   autoFocus
                   required
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Bisa menggunakan nomor WhatsApp, username Telegram, Chat ID numerik, nama anggota, atau email.
-              </p>
             </div>
 
             {/* Password Input */}
@@ -730,7 +713,7 @@ function LoginForm() {
                     if (error) setError(null);
                   }}
                   placeholder="Masukkan kata sandi"
-                  className="h-9 pl-9 pr-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
+                  className="h-9 pl-9 pr-9 text-xs bg-background/50 border-border/60 focus-visible:ring-primary/20"
                   disabled={isLoading}
                   autoComplete="current-password"
                   required
@@ -739,7 +722,6 @@ function LoginForm() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2.5 size-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded-md transition-colors"
-                  title={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
                   aria-label={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
                 >
                   {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -748,21 +730,21 @@ function LoginForm() {
             </div>
 
             {/* Remember Me Checkbox */}
-            <div className="flex items-center justify-between pt-0.5">
+            <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="size-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                  className="size-3.5 rounded border-border text-primary accent-primary cursor-pointer"
                 />
-                <span className="text-xs text-muted-foreground">Ingat sesi di perangkat ini</span>
+                <span className="text-xs text-muted-foreground">Ingat perangkat ini</span>
               </label>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs leading-relaxed border border-destructive/20 animate-in fade-in">
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs border border-destructive/20 animate-in fade-in">
                 <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
@@ -772,16 +754,16 @@ function LoginForm() {
             <Button
               type="submit"
               disabled={isLoading || !identifier.trim() || !password.trim()}
-              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-xs cursor-pointer gap-2 transition-all"
+              className="w-full h-9 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg cursor-pointer gap-2 transition-all"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  <span>Memverifikasi kredensial...</span>
+                  <span>Memverifikasi...</span>
                 </>
               ) : (
                 <>
-                  <span>Masuk ke Dashboard</span>
+                  <span>Masuk</span>
                   <ArrowRight className="size-3.5" />
                 </>
               )}
@@ -791,8 +773,8 @@ function LoginForm() {
 
         {/* Footer Reassurance */}
         <div className="text-center pt-2 border-t border-border/40">
-          <p className="text-[11px] text-muted-foreground">
-            Aplikasi privat keluarga F&amp;R • Terenkripsi end-to-end
+          <p className="text-[11px] text-muted-foreground/80">
+            Akses privat keluarga F&amp;R • Terenkripsi
           </p>
         </div>
       </div>
@@ -805,9 +787,9 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <main className="min-h-screen w-full bg-background flex flex-col justify-center items-center p-4 sm:p-6 select-none">
-          <div className="sm:max-w-[400px] w-full rounded-2xl border border-border/80 bg-card p-6 shadow-xs flex flex-col items-center gap-3">
-            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center ring-1 ring-emerald-500/20">
-              <ShieldCheck className="size-4" />
+          <div className="w-full sm:max-w-[380px] rounded-2xl border border-border/80 bg-card p-6 shadow-sm flex flex-col items-center gap-3">
+            <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center ring-1 ring-emerald-500/20">
+              <ShieldCheck className="size-4.5" />
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
