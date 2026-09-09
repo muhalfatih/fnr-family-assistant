@@ -393,19 +393,19 @@ function LoginForm() {
             {method === "whatsapp" ? (
               <div className="space-y-1.5">
                 <Label htmlFor="whatsappInput" className="text-xs font-medium text-foreground">
-                  Nomor WhatsApp
+                  Nomor WhatsApp atau ID Telegram
                 </Label>
                 <div className="relative flex items-center">
                   <Smartphone className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
                   <Input
                     id="whatsappInput"
-                    type="tel"
+                    type="text"
                     value={phone}
                     onChange={(e) => {
                       setPhone(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="0812-3456-7890"
+                    placeholder="0812-3456-7890 atau ID Chat"
                     className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
                     autoFocus
@@ -419,7 +419,7 @@ function LoginForm() {
             ) : (
               <div className="space-y-1.5">
                 <Label htmlFor="telegramInput" className="text-xs font-medium text-foreground">
-                  Username atau ID Chat Telegram
+                  Username, Nomor HP, atau ID Chat Telegram
                 </Label>
                 <div className="relative flex items-center">
                   <Send className="absolute left-3 size-3.5 text-muted-foreground pointer-events-none" />
@@ -432,7 +432,7 @@ function LoginForm() {
                       if (error) setError(null);
                       if (telegramActivationPrompt) setTelegramActivationPrompt(null);
                     }}
-                    placeholder="Contoh: @muhalfatih atau 123456789"
+                    placeholder="@username, nomor HP, atau ID Chat"
                     className="h-9 pl-9 text-xs bg-background/50 border-border/60 focus:border-primary/80"
                     disabled={isLoading}
                     autoFocus
@@ -440,7 +440,7 @@ function LoginForm() {
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Gunakan <b>@username Telegram</b> atau ID Chat numerik akun Anda.
+                  Kode 6-digit dan tautan masuk instan akan dikirimkan ke Telegram Anda.
                 </p>
               </div>
             )}

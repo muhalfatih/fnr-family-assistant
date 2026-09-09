@@ -156,56 +156,79 @@ export async function findMemberByIdentifier(
       if (error) {
         console.error("[Auth] Error fetching family_members from Supabase:", error);
       } else if (members && members.length > 0) {
-        if (channel === "whatsapp") {
-          for (const m of members) {
-            if (m.whatsapp_number) {
-              const normalizedMember = normalizePhoneNumber(m.whatsapp_number);
-              if (normalizedMember === normalizedPhone) {
-                return {
-                  id: m.id,
-                  name: m.full_name,
-                  email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
-                  role: m.role || "member",
-                  telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
-                  telegramUsername: (m as any).telegram_username || null,
-                  whatsappNumber: m.whatsapp_number,
-                };
-              }
+        const candidateMembers: { member: any; score: number }[] = [];
+
+        for (const m of members) {
+          const memberPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
+          const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id).trim() : "";
+          const memberNameLower = (m.full_name || "").toLowerCase();
+          const memberUsername = (m as any).telegram_username
+            ? String((m as any).telegram_username).replace(/^@/, "").trim().toLowerCase()
+            : "";
+
+          // Check criteria matches
+          const isPhoneMatch = Boolean(
+            normalizedPhone &&
+              memberPhone &&
+              (normalizedPhone === memberPhone ||
+                memberPhone.endsWith(normalizedPhone) ||
+                normalizedPhone.endsWith(memberPhone))
+          );
+          const isChatIdMatch = Boolean(
+            chatIdStr &&
+              (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly))
+          );
+          const isUsernameMatch = Boolean(
+            memberUsername && memberUsername === cleanInput
+          );
+          const isNameMatch = Boolean(
+            cleanInput.length >= 2 &&
+              (memberNameLower === cleanInput || memberNameLower.includes(cleanInput))
+          );
+
+          if (channel === "whatsapp") {
+            // Must have a valid phone number to dispatch WhatsApp OTP
+            if (!memberPhone) continue;
+
+            let score = 0;
+            if (isPhoneMatch) score += 100;
+            if (isChatIdMatch) score += 50;
+            if (isUsernameMatch) score += 40;
+            if (isNameMatch) score += 20;
+
+            if (score > 0) {
+              // Preferred profile bonus for WhatsApp
+              if (memberNameLower.includes("whatsapp")) score += 10;
+              candidateMembers.push({ member: m, score });
+            }
+          } else if (channel === "telegram") {
+            // Can be resolved by Chat ID, Username, Phone number, or Name
+            let score = 0;
+            if (isChatIdMatch) score += 100;
+            if (isUsernameMatch) score += 80;
+            if (isPhoneMatch) score += 50;
+            if (isNameMatch) score += 20;
+
+            if (score > 0) {
+              // Preferred profile bonus for Telegram
+              if (memberNameLower.includes("telegram")) score += 10;
+              candidateMembers.push({ member: m, score });
             }
           }
-        } else if (channel === "telegram") {
-          for (const m of members) {
-            const chatIdStr = m.telegram_chat_id ? String(m.telegram_chat_id).trim() : "";
-            const memberNameLower = m.full_name.toLowerCase();
-            const memberPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
-            const memberUsername = (m as any).telegram_username
-              ? String((m as any).telegram_username).replace(/^@/, "").trim().toLowerCase()
-              : "";
+        }
 
-            // A. Numeric Chat ID match
-            const isChatIdMatch = Boolean(chatIdStr && (chatIdStr === cleanInput || (digitsOnly && chatIdStr === digitsOnly)));
-
-            // B. Telegram Username match (e.g. @username or username)
-            const isUsernameMatch = Boolean(memberUsername && memberUsername === cleanInput);
-
-            // C. Registered Phone number match (if user entered phone on Telegram tab)
-            const isPhoneMatch = Boolean(normalizedPhone && memberPhone && normalizedPhone === memberPhone);
-
-            // D. Name or Substring match
-            const isNameMatch = memberNameLower === cleanInput || memberNameLower.includes(cleanInput);
-
-            if (isChatIdMatch || isUsernameMatch || isPhoneMatch || isNameMatch) {
-              return {
-                id: m.id,
-                name: m.full_name,
-                email: `${m.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
-                role: m.role || "member",
-                telegramChatId: m.telegram_chat_id ? Number(m.telegram_chat_id) : null,
-                telegramUsername: (m as any).telegram_username || null,
-                whatsappNumber: m.whatsapp_number,
-              };
-            }
-          }
+        if (candidateMembers.length > 0) {
+          candidateMembers.sort((a, b) => b.score - a.score);
+          const best = candidateMembers[0].member;
+          return {
+            id: best.id,
+            name: best.full_name,
+            email: `${best.full_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@keluarga.hub`,
+            role: best.role || "member",
+            telegramChatId: best.telegram_chat_id ? Number(best.telegram_chat_id) : null,
+            telegramUsername: (best as any).telegram_username || null,
+            whatsappNumber: best.whatsapp_number,
+          };
         }
       }
     } catch (err) {
@@ -229,7 +252,10 @@ export function issueOtp(
   record?: OtpRecord;
   error?: string;
 } {
-  const normalizedKey = channel === "whatsapp" ? normalizePhoneNumber(identifier) : identifier.trim().toLowerCase();
+  const normalizedKey =
+    channel === "whatsapp"
+      ? normalizePhoneNumber(identifier) || identifier.trim().toLowerCase()
+      : identifier.trim().toLowerCase();
   const now = Date.now();
 
   const existing = otpStore.get(normalizedKey);
@@ -252,11 +278,22 @@ export function issueOtp(
   // Generate 32-char url-safe magic token
   const magicToken = crypto.randomBytes(24).toString("base64url");
 
+  // Determine appropriate masked display based on actual recipient target
+  const targetDisplay =
+    channel === "whatsapp"
+      ? maskTarget(user.whatsappNumber || identifier, "whatsapp")
+      : maskTarget(
+          user.telegramUsername
+            ? `@${user.telegramUsername}`
+            : String(user.telegramChatId || identifier),
+          "telegram"
+        );
+
   const record: OtpRecord = {
     id: `otp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     channel,
     identifier: normalizedKey,
-    targetDisplay: maskTarget(identifier, channel),
+    targetDisplay,
     code,
     magicToken,
     user,

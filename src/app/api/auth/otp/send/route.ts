@@ -35,7 +35,11 @@ export async function POST(req: NextRequest) {
 
     // Jika login Telegram tetapi profil belum ditautkan dengan Chat ID numerik
     const numericInput = identifier.trim().replace(/^id:?\s*/i, "").replace(/^@/, "");
-    const resolvedChatId = user.telegramChatId || (/^\d+$/.test(numericInput) ? numericInput : null);
+    const isDirectChatId =
+      /^\d{5,12}$/.test(numericInput) &&
+      !numericInput.startsWith("08") &&
+      !numericInput.startsWith("628");
+    const resolvedChatId = user.telegramChatId || (isDirectChatId ? numericInput : null);
 
     if (channel === "telegram" && !resolvedChatId) {
       const botUsername = process.env.TELEGRAM_BOT_USERNAME || "fnr_assistant_bot";
@@ -93,7 +97,8 @@ export async function POST(req: NextRequest) {
     // 4. Kirimkan pesan melalui Bot API yang sesuai
     if (channel === "whatsapp") {
       try {
-        const waResult = await sendWhatsAppTextMessage(record.identifier, messageText);
+        const targetPhone = user.whatsappNumber || record.identifier;
+        const waResult = await sendWhatsAppTextMessage(targetPhone, messageText);
         if (waResult.ok) {
           isDispatched = true;
         } else {
@@ -104,7 +109,7 @@ export async function POST(req: NextRequest) {
       }
     } else if (channel === "telegram") {
       try {
-        const targetChatId = resolvedChatId!;
+        const targetChatId = resolvedChatId || user.telegramChatId!;
         const tgResult = await sendTelegramMessage(targetChatId, messageText);
         if (tgResult && tgResult.ok) {
           isDispatched = true;

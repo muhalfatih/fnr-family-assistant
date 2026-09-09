@@ -182,16 +182,23 @@ export async function POST(req: NextRequest) {
   // Helper to strictly authorize registered family members
   const resolveRegisteredTelegramMember = async (targetChatId: number | string) => {
     try {
-      const { data: memberData, error } = await supabaseAdmin
+      const { data: memberRows, error } = await supabaseAdmin
         .from("family_members")
         .select("*, family:families(*)")
         .eq("telegram_chat_id", targetChatId)
-        .maybeSingle();
+        .limit(5);
 
       if (error) {
         console.warn("[Telegram Auth] Member lookup warning:", error.message);
       }
-      return memberData || null;
+      if (memberRows && memberRows.length > 0) {
+        // Prioritize member with 'telegram' in full_name, or return first
+        const preferred = memberRows.find((m: any) =>
+          m.full_name?.toLowerCase().includes("telegram")
+        );
+        return preferred || memberRows[0];
+      }
+      return null;
     } catch (err) {
       console.error("[Telegram Auth] Member lookup exception:", err);
       return null;

@@ -231,18 +231,25 @@ async function resolveRegisteredWhatsAppMember(normalizedPhone: string) {
   const cleanWithoutCountry = normalizedPhone.replace(/^62/, "");
 
   try {
-    const { data: memberData, error: memberErr } = await supabaseAdmin
+    const { data: memberRows, error: memberErr } = await supabaseAdmin
       .from("family_members")
       .select("*, family:families(*)")
       .or(
         `whatsapp_number.eq.${normalizedPhone},whatsapp_number.eq.0${cleanWithoutCountry},whatsapp_number.eq.+${normalizedPhone},whatsapp_number.eq.${cleanWithoutCountry}`
       )
-      .maybeSingle();
+      .limit(5);
 
     if (memberErr) {
       console.warn("[WhatsApp Auth] Member lookup warning:", memberErr.message);
     }
-    return memberData || null;
+    if (memberRows && memberRows.length > 0) {
+      // Prioritize member with 'whatsapp' in full_name, or return first
+      const preferred = memberRows.find((m: any) =>
+        m.full_name?.toLowerCase().includes("whatsapp")
+      );
+      return preferred || memberRows[0];
+    }
+    return null;
   } catch (err) {
     console.error("[WhatsApp Auth] Member lookup exception:", err);
     return null;
