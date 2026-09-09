@@ -23,15 +23,17 @@ import {
   Clock,
   ExternalLink,
   MessageSquare,
+  KeyRound,
 } from "lucide-react";
 import { ServiceDiagnosticResult } from "@/app/api/diagnostics/route";
 
 interface ApiStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenApiKeysModal?: () => void;
 }
 
-export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
+export function ApiStatusModal({ isOpen, onClose, onOpenApiKeysModal }: ApiStatusModalProps) {
   const [results, setResults] = useState<ServiceDiagnosticResult[]>([]);
   const [overallStatus, setOverallStatus] = useState<string>("loading");
   const [isLoading, setIsLoading] = useState(false);
@@ -205,17 +207,34 @@ export function ApiStatusModal({ isOpen, onClose }: ApiStatusModalProps) {
         </div>
 
         <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center justify-between pt-3 border-t mt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={fetchDiagnostics}
-            disabled={isLoading}
-            className="w-full sm:w-auto gap-1.5 text-xs order-2 sm:order-1 cursor-pointer"
-          >
-            <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
-            <span>{isLoading ? "Memeriksa..." : "Uji Ulang Koneksi"}</span>
-          </Button>
+          <div className="flex items-center gap-2 order-2 sm:order-1 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={fetchDiagnostics}
+              disabled={isLoading}
+              className="gap-1.5 text-xs cursor-pointer flex-1 sm:flex-none"
+            >
+              <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
+              <span>{isLoading ? "Memeriksa..." : "Uji Ulang"}</span>
+            </Button>
+            {onOpenApiKeysModal && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onOpenApiKeysModal();
+                }}
+                className="gap-1.5 text-xs border-amber-500/40 hover:bg-amber-500/10 text-foreground font-medium cursor-pointer flex-1 sm:flex-none"
+              >
+                <KeyRound className="size-3.5 text-amber-500" aria-hidden="true" />
+                <span>Kelola Kunci API</span>
+              </Button>
+            )}
+          </div>
 
           <Button
             type="button"

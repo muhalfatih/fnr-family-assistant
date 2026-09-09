@@ -180,6 +180,18 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                     size="sm"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
+                      setIsApiKeysModalOpen(true);
+                    }}
+                    className="w-full justify-start text-xs gap-2 h-9 border-amber-500/40 text-foreground hover:bg-amber-500/10 font-semibold"
+                  >
+                    <KeyRound className="size-3.5 text-amber-500" aria-hidden="true" />
+                    <span>Kunci API & Kredensial</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
                       setIsApiModalOpen(true);
                     }}
                     className="w-full justify-start text-xs gap-2 h-9"
@@ -187,20 +199,6 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                     <Activity className="size-3.5 text-primary" aria-hidden="true" />
                     <span>Cek Status API & Bot</span>
                   </Button>
-                  {activeUser.role === "admin" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        setIsApiKeysModalOpen(true);
-                      }}
-                      className="w-full justify-start text-xs gap-2 h-9 border-amber-500/30 text-foreground hover:bg-amber-500/10"
-                    >
-                      <KeyRound className="size-3.5 text-amber-500" aria-hidden="true" />
-                      <span>Kunci API & Kredensial</span>
-                    </Button>
-                  )}
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar className="size-8">
@@ -265,15 +263,26 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
           </div>
 
           {/* Right: Status & Profile */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Direct Header Button for Kunci API */}
+            <Badge
+              variant="outline"
+              onClick={() => setIsApiKeysModalOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-foreground font-medium cursor-pointer bg-background hover:bg-amber-500/10 border-amber-500/40 hover:border-amber-500 transition-colors select-none shadow-xs px-2.5 py-1"
+              title="Kelola Kunci API & Kredensial Sistem (Terenkripsi)"
+            >
+              <KeyRound className="size-3.5 text-amber-500 shrink-0" aria-hidden="true" />
+              <span>Kunci API</span>
+            </Badge>
+
             <Badge
               variant="outline"
               onClick={() => setIsApiModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground font-normal cursor-pointer hover:bg-muted transition-colors select-none"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground font-normal cursor-pointer hover:bg-muted transition-colors select-none px-2.5 py-1"
               title="Klik untuk melihat diagnostik koneksi API"
             >
               <Bot className="size-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
-              <span>Status API & Bot</span>
+              <span>Status API</span>
             </Badge>
 
             <DropdownMenu>
@@ -294,19 +303,17 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setIsApiKeysModalOpen(true)}
+                  className="gap-2 cursor-pointer font-semibold text-foreground hover:bg-amber-500/10 focus:bg-amber-500/10"
+                >
+                  <KeyRound className="size-4 text-amber-500" aria-hidden="true" />
+                  <span>Kunci API & Kredensial</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsApiModalOpen(true)} className="gap-2 cursor-pointer">
                   <Activity className="size-4 text-primary" aria-hidden="true" />
                   <span>Cek Koneksi API & Layanan</span>
                 </DropdownMenuItem>
-                {activeUser.role === "admin" && (
-                  <DropdownMenuItem
-                    onClick={() => setIsApiKeysModalOpen(true)}
-                    className="gap-2 cursor-pointer font-medium text-foreground hover:bg-amber-500/10 focus:bg-amber-500/10"
-                  >
-                    <KeyRound className="size-4 text-amber-500" aria-hidden="true" />
-                    <span>Kunci API & Kredensial</span>
-                  </DropdownMenuItem>
-                )}
                 <Link href="/family">
                   <DropdownMenuItem className="cursor-pointer">Profil & Anggota Keluarga</DropdownMenuItem>
                 </Link>
@@ -334,6 +341,7 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
       <ApiStatusModal
         isOpen={isApiModalOpen}
         onClose={() => setIsApiModalOpen(false)}
+        onOpenApiKeysModal={() => setIsApiKeysModalOpen(true)}
       />
 
       {/* API Keys & Encrypted Secrets Management Modal */}
