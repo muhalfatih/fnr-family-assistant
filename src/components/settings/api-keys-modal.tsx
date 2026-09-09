@@ -581,248 +581,258 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
             )}
 
             {/* TAB 1: GEMINI AI */}
-            <TabsContent value="gemini" className="flex flex-col gap-3">
-              {renderKeyField(
-                "GEMINI_API_KEY",
-                "Google Gemini API Key",
-                "Diperlukan untuk membaca struk kasir via OCR, mencatat pengeluaran otomatis dari chat bot, dan asisten finansial keluarga.",
-                "AIzaSy..."
-              )}
+            <TabsContent value="gemini">
+              <div className="flex flex-col gap-3">
+                {renderKeyField(
+                  "GEMINI_API_KEY",
+                  "Google Gemini API Key",
+                  "Diperlukan untuk membaca struk kasir via OCR, mencatat pengeluaran otomatis dari chat bot, dan asisten finansial keluarga.",
+                  "AIzaSy..."
+                )}
 
-              <div className="flex items-center justify-between gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTestConnection("gemini", "GEMINI_API_KEY")}
-                  disabled={isTesting || (!keys.GEMINI_API_KEY?.isConfigured && !inputValues.GEMINI_API_KEY)}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-amber-500" data-icon="inline-start" />}
-                  <span>Uji Koneksi Gemini</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleSaveTab("gemini", ["GEMINI_API_KEY"])}
-                  disabled={isSaving || !inputValues.GEMINI_API_KEY?.trim()}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
-                  <span>Simpan Kunci</span>
-                </Button>
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestConnection("gemini", "GEMINI_API_KEY")}
+                    disabled={isTesting || (!keys.GEMINI_API_KEY?.isConfigured && !inputValues.GEMINI_API_KEY)}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-amber-500" data-icon="inline-start" />}
+                    <span>Uji Koneksi Gemini</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleSaveTab("gemini", ["GEMINI_API_KEY"])}
+                    disabled={isSaving || !inputValues.GEMINI_API_KEY?.trim()}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
+                    <span>Simpan Kunci</span>
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 
             {/* TAB 2: TELEGRAM BOT */}
-            <TabsContent value="telegram" className="flex flex-col gap-3">
-              {renderKeyField(
-                "TELEGRAM_BOT_TOKEN",
-                "Telegram Bot Token",
-                "Token otentikasi bot @fnr_assistant_bot yang diberikan oleh @BotFather.",
-                "1234567890:ABCdefGhI..."
-              )}
-              {renderKeyField(
-                "TELEGRAM_WEBHOOK_SECRET",
-                "Telegram Webhook Secret (Opsional)",
-                "Secret token pengaman untuk memvalidasi permintaan webhook masuk dari Telegram.",
-                "Secret acak...",
-                true
-              )}
+            <TabsContent value="telegram">
+              <div className="flex flex-col gap-3">
+                {renderKeyField(
+                  "TELEGRAM_BOT_TOKEN",
+                  "Telegram Bot Token",
+                  "Token otentikasi bot @fnr_assistant_bot yang diberikan oleh @BotFather.",
+                  "1234567890:ABCdefGhI..."
+                )}
+                {renderKeyField(
+                  "TELEGRAM_WEBHOOK_SECRET",
+                  "Telegram Webhook Secret (Opsional)",
+                  "Secret token pengaman untuk memvalidasi permintaan webhook masuk dari Telegram.",
+                  "Secret acak...",
+                  true
+                )}
 
-              <div className="flex items-center justify-between gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTestConnection("telegram", "TELEGRAM_BOT_TOKEN")}
-                  disabled={isTesting || (!keys.TELEGRAM_BOT_TOKEN?.isConfigured && !inputValues.TELEGRAM_BOT_TOKEN)}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-blue-500" data-icon="inline-start" />}
-                  <span>Uji Bot Telegram</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleSaveTab("telegram", ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"])}
-                  disabled={isSaving || (!inputValues.TELEGRAM_BOT_TOKEN?.trim() && !inputValues.TELEGRAM_WEBHOOK_SECRET?.trim())}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
-                  <span>Simpan Kunci</span>
-                </Button>
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestConnection("telegram", "TELEGRAM_BOT_TOKEN")}
+                    disabled={isTesting || (!keys.TELEGRAM_BOT_TOKEN?.isConfigured && !inputValues.TELEGRAM_BOT_TOKEN)}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-blue-500" data-icon="inline-start" />}
+                    <span>Uji Bot Telegram</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleSaveTab("telegram", ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"])}
+                    disabled={isSaving || (!inputValues.TELEGRAM_BOT_TOKEN?.trim() && !inputValues.TELEGRAM_WEBHOOK_SECRET?.trim())}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
+                    <span>Simpan Kunci</span>
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 
             {/* TAB 3: WHATSAPP CLOUD API */}
-            <TabsContent value="whatsapp" className="flex flex-col gap-3">
-              {renderKeyField(
-                "WHATSAPP_ACCESS_TOKEN",
-                "WhatsApp Access Token",
-                "Meta Graph API Permanent / System User Token untuk mengirim notifikasi dan menerima pesan WA.",
-                "EAAG..."
-              )}
-              {renderKeyField(
-                "WHATSAPP_PHONE_NUMBER_ID",
-                "WhatsApp Phone Number ID",
-                "ID nomor telepon Meta WhatsApp Cloud API.",
-                "105938472910293",
-                false
-              )}
-              {renderKeyField(
-                "WHATSAPP_VERIFY_TOKEN",
-                "WhatsApp Verify Token",
-                "Token verifikasi string untuk verifikasi webhook Meta Developer.",
-                "fnr_family_wa_secret",
-                true
-              )}
+            <TabsContent value="whatsapp">
+              <div className="flex flex-col gap-3">
+                {renderKeyField(
+                  "WHATSAPP_ACCESS_TOKEN",
+                  "WhatsApp Access Token",
+                  "Meta Graph API Permanent / System User Token untuk mengirim notifikasi dan menerima pesan WA.",
+                  "EAAG..."
+                )}
+                {renderKeyField(
+                  "WHATSAPP_PHONE_NUMBER_ID",
+                  "WhatsApp Phone Number ID",
+                  "ID nomor telepon Meta WhatsApp Cloud API.",
+                  "105938472910293",
+                  false
+                )}
+                {renderKeyField(
+                  "WHATSAPP_VERIFY_TOKEN",
+                  "WhatsApp Verify Token",
+                  "Token verifikasi string untuk verifikasi webhook Meta Developer.",
+                  "fnr_family_wa_secret",
+                  true
+                )}
 
-              <div className="flex items-center justify-between gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTestConnection("whatsapp", "WHATSAPP_ACCESS_TOKEN")}
-                  disabled={isTesting || (!keys.WHATSAPP_ACCESS_TOKEN?.isConfigured && !inputValues.WHATSAPP_ACCESS_TOKEN)}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-emerald-600" data-icon="inline-start" />}
-                  <span>Uji Koneksi WhatsApp</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleSaveTab("whatsapp", ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN"])}
-                  disabled={isSaving || (!inputValues.WHATSAPP_ACCESS_TOKEN?.trim() && !inputValues.WHATSAPP_PHONE_NUMBER_ID?.trim() && !inputValues.WHATSAPP_VERIFY_TOKEN?.trim())}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
-                  <span>Simpan Kunci</span>
-                </Button>
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestConnection("whatsapp", "WHATSAPP_ACCESS_TOKEN")}
+                    disabled={isTesting || (!keys.WHATSAPP_ACCESS_TOKEN?.isConfigured && !inputValues.WHATSAPP_ACCESS_TOKEN)}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-emerald-600" data-icon="inline-start" />}
+                    <span>Uji Koneksi WhatsApp</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleSaveTab("whatsapp", ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN"])}
+                    disabled={isSaving || (!inputValues.WHATSAPP_ACCESS_TOKEN?.trim() && !inputValues.WHATSAPP_PHONE_NUMBER_ID?.trim() && !inputValues.WHATSAPP_VERIFY_TOKEN?.trim())}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
+                    <span>Simpan Kunci</span>
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 
             {/* TAB 4: CLOUDFLARE R2 */}
-            <TabsContent value="r2" className="flex flex-col gap-3">
-              {renderKeyField(
-                "CLOUDFLARE_R2_ACCOUNT_ID",
-                "Cloudflare Account ID",
-                "ID akun Cloudflare untuk endpoint S3 R2.",
-                "a1b2c3d4e5f6...",
-                false
-              )}
-              {renderKeyField(
-                "CLOUDFLARE_R2_ACCESS_KEY_ID",
-                "R2 Access Key ID",
-                "Access Key ID S3 Cloudflare R2.",
-                "8f7e6d5c4b3a..."
-              )}
-              {renderKeyField(
-                "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
-                "R2 Secret Access Key",
-                "Secret Access Key S3 Cloudflare R2.",
-                "9a8b7c6d5e4f..."
-              )}
-              {renderKeyField(
-                "CLOUDFLARE_R2_BUCKET_NAME",
-                "R2 Bucket Name",
-                "Nama bucket tempat menyimpan gambar struk kasir dan dokumen brankas.",
-                "fnr-family-receipts",
-                false
-              )}
-              {renderKeyField(
-                "CLOUDFLARE_R2_PUBLIC_URL",
-                "R2 Public URL (Opsional)",
-                "Domain publik CDN jika bucket diatur publik.",
-                "https://media.keluarga.com",
-                false
-              )}
+            <TabsContent value="r2">
+              <div className="flex flex-col gap-3">
+                {renderKeyField(
+                  "CLOUDFLARE_R2_ACCOUNT_ID",
+                  "Cloudflare Account ID",
+                  "ID akun Cloudflare untuk endpoint S3 R2.",
+                  "a1b2c3d4e5f6...",
+                  false
+                )}
+                {renderKeyField(
+                  "CLOUDFLARE_R2_ACCESS_KEY_ID",
+                  "R2 Access Key ID",
+                  "Access Key ID S3 Cloudflare R2.",
+                  "8f7e6d5c4b3a..."
+                )}
+                {renderKeyField(
+                  "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+                  "R2 Secret Access Key",
+                  "Secret Access Key S3 Cloudflare R2.",
+                  "9a8b7c6d5e4f..."
+                )}
+                {renderKeyField(
+                  "CLOUDFLARE_R2_BUCKET_NAME",
+                  "R2 Bucket Name",
+                  "Nama bucket tempat menyimpan gambar struk kasir dan dokumen brankas.",
+                  "fnr-family-receipts",
+                  false
+                )}
+                {renderKeyField(
+                  "CLOUDFLARE_R2_PUBLIC_URL",
+                  "R2 Public URL (Opsional)",
+                  "Domain publik CDN jika bucket diatur publik.",
+                  "https://media.keluarga.com",
+                  false
+                )}
 
-              <div className="flex items-center justify-between gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTestConnection("r2")}
-                  disabled={isTesting}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-amber-500" data-icon="inline-start" />}
-                  <span>Validasi Konfigurasi R2</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() =>
-                    handleSaveTab("r2", [
-                      "CLOUDFLARE_R2_ACCOUNT_ID",
-                      "CLOUDFLARE_R2_ACCESS_KEY_ID",
-                      "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
-                      "CLOUDFLARE_R2_BUCKET_NAME",
-                      "CLOUDFLARE_R2_PUBLIC_URL",
-                    ])
-                  }
-                  disabled={isSaving}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
-                  <span>Simpan Kunci</span>
-                </Button>
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestConnection("r2")}
+                    disabled={isTesting}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-amber-500" data-icon="inline-start" />}
+                    <span>Validasi Konfigurasi R2</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                      handleSaveTab("r2", [
+                        "CLOUDFLARE_R2_ACCOUNT_ID",
+                        "CLOUDFLARE_R2_ACCESS_KEY_ID",
+                        "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+                        "CLOUDFLARE_R2_BUCKET_NAME",
+                        "CLOUDFLARE_R2_PUBLIC_URL",
+                      ])
+                    }
+                    disabled={isSaving}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
+                    <span>Simpan Kunci</span>
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 
             {/* TAB 5: GOOGLE SHEETS */}
-            <TabsContent value="sheets" className="flex flex-col gap-3">
-              {renderKeyField(
-                "GOOGLE_SERVICE_ACCOUNT_EMAIL",
-                "Service Account Email",
-                "Alamat email service account dari Google Cloud Console.",
-                "service-account@project.iam.gserviceaccount.com",
-                false
-              )}
-              {renderKeyField(
-                "GOOGLE_PRIVATE_KEY",
-                "Service Account Private Key",
-                "Private key RSA Service Account (format -----BEGIN PRIVATE KEY----- ...).",
-                "-----BEGIN PRIVATE KEY-----\n..."
-              )}
-              {renderKeyField(
-                "GOOGLE_SHEETS_SPREADSHEET_ID",
-                "Google Sheets Spreadsheet ID",
-                "ID spreadsheet untuk sinkronisasi mutasi transaksi realtime.",
-                "1BxiMVs0XRX5nZy1QkPA...",
-                false
-              )}
+            <TabsContent value="sheets">
+              <div className="flex flex-col gap-3">
+                {renderKeyField(
+                  "GOOGLE_SERVICE_ACCOUNT_EMAIL",
+                  "Service Account Email",
+                  "Alamat email service account dari Google Cloud Console.",
+                  "service-account@project.iam.gserviceaccount.com",
+                  false
+                )}
+                {renderKeyField(
+                  "GOOGLE_PRIVATE_KEY",
+                  "Service Account Private Key",
+                  "Private key RSA Service Account (format -----BEGIN PRIVATE KEY----- ...).",
+                  "-----BEGIN PRIVATE KEY-----\n..."
+                )}
+                {renderKeyField(
+                  "GOOGLE_SHEETS_SPREADSHEET_ID",
+                  "Google Sheets Spreadsheet ID",
+                  "ID spreadsheet untuk sinkronisasi mutasi transaksi realtime.",
+                  "1BxiMVs0XRX5nZy1QkPA...",
+                  false
+                )}
 
-              <div className="flex items-center justify-between gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTestConnection("sheets")}
-                  disabled={isTesting}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-emerald-600" data-icon="inline-start" />}
-                  <span>Validasi Kredensial Sheets</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() =>
-                    handleSaveTab("sheets", [
-                      "GOOGLE_SERVICE_ACCOUNT_EMAIL",
-                      "GOOGLE_PRIVATE_KEY",
-                      "GOOGLE_SHEETS_SPREADSHEET_ID",
-                    ])
-                  }
-                  disabled={isSaving}
-                  className="text-xs h-9 gap-1.5 cursor-pointer"
-                >
-                  {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
-                  <span>Simpan Kunci</span>
-                </Button>
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestConnection("sheets")}
+                    disabled={isTesting}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isTesting ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Zap className="size-3.5 text-emerald-600" data-icon="inline-start" />}
+                    <span>Validasi Kredensial Sheets</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                      handleSaveTab("sheets", [
+                        "GOOGLE_SERVICE_ACCOUNT_EMAIL",
+                        "GOOGLE_PRIVATE_KEY",
+                        "GOOGLE_SHEETS_SPREADSHEET_ID",
+                      ])
+                    }
+                    disabled={isSaving}
+                    className="text-xs h-9 gap-1.5 cursor-pointer"
+                  >
+                    {isSaving ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Save className="size-3.5" data-icon="inline-start" />}
+                    <span>Simpan Kunci</span>
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
