@@ -152,15 +152,37 @@ export async function POST(req: NextRequest) {
     }
 
     const challengeCookie = createSignedChallenge(record);
-    const maskedTarget = maskTarget(targetIdentifier, channel);
+    const maskedTarget =
+      channel === "whatsapp"
+        ? maskTarget(authUser.whatsappNumber || targetIdentifier, "whatsapp")
+        : maskTarget(
+            authUser.telegramUsername
+              ? `@${authUser.telegramUsername}`
+              : String(authUser.telegramChatId || targetIdentifier),
+            "telegram"
+          );
+
+    const isDev = process.env.NODE_ENV !== "production";
 
     const response = NextResponse.json({
       ok: true,
-      message: `Kode verifikasi 6-digit telah dikirim ke ${channel === "telegram" ? "Telegram" : "WhatsApp"} (${maskedTarget}).`,
+      message: `Kode verifikasi 6-digit telah dikirim ke ${
+        channel === "telegram" ? "Telegram" : "WhatsApp"
+      } (${maskedTarget}).`,
       channel,
       targetDisplay: maskedTarget,
       delivered: dispatchSuccess,
-      warning: !dispatchSuccess ? `Gagal mengirim otomatis: ${dispatchError || "Periksa konfigurasi bot"}. Dalam mode pengembangan, Anda dapat menggunakan kode OTP yang tercetak di konsol server.` : undefined,
+      devCode: isDev ? record.code : undefined,
+      simulation: !dispatchSuccess
+        ? {
+            active: true,
+            code: record.code,
+            note: "API Bot belum terhubung atau pengiriman live gagal. Gunakan kode simulasi pengujian ini untuk melanjutkan.",
+          }
+        : undefined,
+      warning: !dispatchSuccess
+        ? `Pengiriman live belum aktif (${dispatchError || "koneksi bot"}). Kode bantuan simulasi disediakan di layar.`
+        : undefined,
     });
 
     response.cookies.set("fnr_otp_challenge", challengeCookie, {

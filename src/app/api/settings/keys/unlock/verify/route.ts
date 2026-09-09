@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyOtpCode, verifySignedChallenge } from "@/lib/auth-otp";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
   createUnlockToken,
   UNLOCK_COOKIE_NAME,
@@ -97,13 +98,41 @@ export async function POST(req: NextRequest) {
       }
 
       if (!isAuthorized && !authError) {
-        // Fallback check directly
-        const chan = (channel === "whatsapp" ? "whatsapp" : "telegram") as "whatsapp" | "telegram";
-        const otpResult = verifyOtpCode(chan, "", cleanCode, challengeCookie);
-        if (otpResult.success) {
-          isAuthorized = true;
-        } else {
-          authError = otpResult.error || "Kode verifikasi tidak valid atau sesi permintaan kode telah berakhir.";
+        // Fallback check directly against memory store using member profile from database
+        try {
+          const chan = (channel === "whatsapp" ? "whatsapp" : "telegram") as "whatsapp" | "telegram";
+          let fallbackIdentifier = "";
+
+          const { data: dbMembers } = await supabaseAdmin
+            .from("family_members")
+            .select("id, full_name, role, whatsapp_number, telegram_chat_id");
+
+          if (dbMembers && dbMembers.length > 0) {
+            const matched =
+              dbMembers.find((m) => m.id === sessionUser.id) ||
+              dbMembers.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
+              dbMembers.find((m) => m.role === sessionUser.role);
+
+            if (matched) {
+              fallbackIdentifier =
+                chan === "whatsapp"
+                  ? String(matched.whatsapp_number || "")
+                  : String(matched.telegram_chat_id || "");
+            }
+          }
+
+          if (fallbackIdentifier) {
+            const otpResult = verifyOtpCode(chan, fallbackIdentifier, cleanCode);
+            if (otpResult.success) {
+              isAuthorized = true;
+            } else {
+              authError = otpResult.error || "Kode verifikasi salah atau telah kedaluwarsa.";
+            }
+          } else {
+            authError = "Kode verifikasi tidak valid atau sesi permintaan kode telah berakhir.";
+          }
+        } catch (fbErr) {
+          authError = "Kode verifikasi tidak valid atau sesi permintaan kode telah berakhir.";
         }
       }
     } else {

@@ -24,6 +24,7 @@ import {
   ArrowRight,
   ChevronLeft,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -63,14 +64,22 @@ export function UnlockKeysDialog({
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const [otpCode, setOtpCode] = useState("");
+  // 6-digit segmented OTP slots
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const digitRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Simulation hint for testing environments
+  const [simulationHint, setSimulationHint] = useState<{
+    code?: string;
+    note?: string;
+  } | null>(null);
+
+  // Password authentication
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [cooldown, setCooldown] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const otpInputRef = useRef<HTMLInputElement>(null);
 
   // Countdown timer for OTP resend cooldown
   useEffect(() => {
@@ -84,9 +93,10 @@ export function UnlockKeysDialog({
   // Fetch active channels whenever the dialog opens
   useEffect(() => {
     if (!isOpen) {
-      setOtpCode("");
+      setOtpDigits(["", "", "", "", "", ""]);
       setPassword("");
       setErrorMessage(null);
+      setSimulationHint(null);
       setCooldown(0);
       return;
     }
@@ -112,7 +122,6 @@ export function UnlockKeysDialog({
         }
       } catch (err: any) {
         if (isMounted) {
-          // Fallback to password view
           setView("input_password");
         }
       } finally {
@@ -129,12 +138,12 @@ export function UnlockKeysDialog({
     };
   }, [isOpen]);
 
-  // Focus OTP input when transitioning to input_otp
+  // Focus the first empty digit box when transitioning to input_otp
   useEffect(() => {
     if (view === "input_otp") {
       setTimeout(() => {
-        otpInputRef.current?.focus();
-      }, 100);
+        digitRefs.current[0]?.focus();
+      }, 150);
     }
   }, [view]);
 
@@ -142,6 +151,7 @@ export function UnlockKeysDialog({
   const handleSendOtp = async (channel: "telegram" | "whatsapp") => {
     setIsSendingOtp(true);
     setErrorMessage(null);
+    setSimulationHint(null);
     try {
       const res = await fetch("/api/settings/keys/unlock/request", {
         method: "POST",
@@ -157,7 +167,17 @@ export function UnlockKeysDialog({
       setActiveChannel(channel);
       setTargetDisplay(data.targetDisplay || (channel === "telegram" ? "Telegram" : "WhatsApp"));
       setCooldown(60);
+      setOtpDigits(["", "", "", "", "", ""]);
       setView("input_otp");
+
+      // Set simulation hint if live bot delivery failed or in dev mode
+      if (data.devCode || data.simulation) {
+        setSimulationHint({
+          code: data.devCode || data.simulation?.code,
+          note: data.simulation?.note,
+        });
+      }
+
       toast.success(data.message || `Kode verifikasi telah dikirim ke ${channel}.`);
     } catch (err: any) {
       setErrorMessage(err.message || "Gagal mengirim kode verifikasi.");
@@ -166,11 +186,10 @@ export function UnlockKeysDialog({
     }
   };
 
-  // Verify OTP
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim() || otpCode.trim().length < 4) {
-      setErrorMessage("Silakan masukkan kode 6-digit yang Anda terima.");
+  // Submit and verify OTP
+  const executeVerifyOtp = async (codeToVerify: string) => {
+    if (!codeToVerify || codeToVerify.length < 6) {
+      setErrorMessage("Silakan masukkan kode lengkap 6 digit.");
       return;
     }
 
@@ -183,7 +202,7 @@ export function UnlockKeysDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           method: "otp",
-          code: otpCode.trim(),
+          code: codeToVerify.trim(),
           channel: activeChannel,
         }),
       });
@@ -193,17 +212,100 @@ export function UnlockKeysDialog({
         throw new Error(data.error || "Kode verifikasi salah atau telah kedaluwarsa.");
       }
 
-      toast.success(data.message || "Verifikasi berhasil! Akses kunci terbuka.");
+      toast.success(data.message || "Verifikasi berhasil! Kunci API terbuka.");
       onSuccess(data.remainingSeconds || 300);
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || "Verifikasi gagal.");
+      // Select last slot for easy correction
+      digitRefs.current[5]?.select();
     } finally {
       setIsVerifying(false);
     }
   };
 
-  // Verify Password
+  // Digit slot typing handler with auto-advance and auto-submit
+  const handleDigitChange = (index: number, val: string) => {
+    const digits = val.replace(/\D/g, "");
+
+    if (!digits) {
+      const next = [...otpDigits];
+      next[index] = "";
+      setOtpDigits(next);
+      return;
+    }
+
+    if (digits.length > 1) {
+      // Pasted or multiple characters
+      const chars = digits.slice(0, 6).split("");
+      const next = [...otpDigits];
+      for (let i = 0; i < 6; i++) {
+        next[i] = chars[i] || "";
+      }
+      setOtpDigits(next);
+      const nextFocus = Math.min(chars.length, 5);
+      digitRefs.current[nextFocus]?.focus();
+      if (chars.length === 6) {
+        executeVerifyOtp(chars.join(""));
+      }
+      return;
+    }
+
+    const next = [...otpDigits];
+    next[index] = digits;
+    setOtpDigits(next);
+
+    if (index < 5) {
+      digitRefs.current[index + 1]?.focus();
+    }
+
+    const fullCode = next.join("");
+    if (fullCode.length === 6) {
+      executeVerifyOtp(fullCode);
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      if (!otpDigits[index] && index > 0) {
+        digitRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      digitRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      digitRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pasted) return;
+    const chars = pasted.split("");
+    const next = ["", "", "", "", "", ""];
+    for (let i = 0; i < chars.length; i++) {
+      next[i] = chars[i];
+    }
+    setOtpDigits(next);
+    const nextFocus = Math.min(chars.length, 5);
+    digitRefs.current[nextFocus]?.focus();
+    if (chars.length === 6) {
+      executeVerifyOtp(chars.join(""));
+    }
+  };
+
+  // One-click dev simulation autofill
+  const handleAutoFillSimulation = (code: string) => {
+    const chars = code.slice(0, 6).split("");
+    const next = ["", "", "", "", "", ""];
+    for (let i = 0; i < chars.length; i++) {
+      next[i] = chars[i];
+    }
+    setOtpDigits(next);
+    executeVerifyOtp(code);
+  };
+
+  // Verify Password Form Handler
   const handleVerifyPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password.trim()) {
@@ -240,58 +342,65 @@ export function UnlockKeysDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[420px] w-[95vw] p-5 sm:p-6 flex flex-col gap-4">
-        <DialogHeader className="gap-1.5 text-left">
-          <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
-              <ShieldAlert className="size-4" aria-hidden="true" />
+      <DialogContent className="sm:max-w-[440px] w-[95vw] p-5 sm:p-6 flex flex-col gap-4 text-left">
+        {/* Header Rata Kiri */}
+        <DialogHeader className="gap-1.5 text-left items-start">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
+              <ShieldAlert className="size-4.5" aria-hidden="true" />
             </div>
-            <div>
-              <DialogTitle className="text-base font-semibold text-foreground">
+            <div className="flex flex-col">
+              <DialogTitle className="text-base font-semibold tracking-tight text-foreground text-left">
                 {view === "input_otp"
                   ? "Masukkan Kode Verifikasi"
                   : view === "input_password"
                   ? "Verifikasi Kata Sandi"
-                  : "Verifikasi Keamanan"}
+                  : "Verifikasi Keamanan Kunci API"}
               </DialogTitle>
+              <span className="text-[11px] text-muted-foreground font-medium">
+                Proteksi Akses Data Sensitif
+              </span>
             </div>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+          <DialogDescription className="text-xs text-muted-foreground leading-relaxed text-left">
             {view === "input_otp"
-              ? `Kode verifikasi 6-digit telah dikirim ke ${activeChannel === "telegram" ? "Telegram" : "WhatsApp"} (${targetDisplay}). Berlaku 5 menit.`
+              ? `Kode verifikasi 6-digit telah dikirimkan ke ${
+                  activeChannel === "telegram" ? "Telegram" : "WhatsApp"
+                } (${targetDisplay}). Berlaku 5 menit.`
               : view === "input_password"
-              ? "Masukkan kata sandi akun Anda untuk membuka akses tampilan kunci API."
-              : "Pilih kanal terdaftar untuk menerima kode verifikasi sementara."}
+              ? "Masukkan kata sandi akun Anda untuk membuka akses dan melihat nilai asli Kunci API."
+              : "Pilih salah satu kanal terdaftar di bawah untuk menerima kode verifikasi instan."}
           </DialogDescription>
         </DialogHeader>
 
+        {/* Error Alert Box */}
         {errorMessage && (
-          <div className="p-2.5 rounded-md text-xs flex items-start gap-2 bg-destructive/10 text-destructive border border-destructive/20 animate-in fade-in">
+          <div className="p-3 rounded-lg text-xs flex items-start gap-2 bg-destructive/10 text-destructive border border-destructive/20 animate-in fade-in">
             <AlertCircle className="size-4 shrink-0 mt-0.5" aria-hidden="true" />
             <span className="leading-snug">{errorMessage}</span>
           </div>
         )}
 
-        {/* LOADING OPTIONS SKELETON */}
+        {/* Loading Channels Skeleton */}
         {isLoadingOptions ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2.5 text-muted-foreground">
             <Loader2 className="size-5 animate-spin text-primary" />
-            <span className="text-xs">Memeriksa autentikasi akun...</span>
+            <span className="text-xs font-medium">Memeriksa kanal otentikasi akun...</span>
           </div>
         ) : (
           <>
-            {/* VIEW 1: SELECT CHANNEL (1-CLICK CARDS) */}
+            {/* VIEW 1: PILIH KANAL VERIFIKASI (1-CLICK CARDS) */}
             {view === "select_channel" && (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2.5 pt-1">
                 {channels.telegram.available && (
                   <button
                     type="button"
                     onClick={() => handleSendOtp("telegram")}
                     disabled={isSendingOtp}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border/80 bg-card hover:bg-sky-500/10 hover:border-sky-500/40 text-left transition-all cursor-pointer group disabled:opacity-50"
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-border/80 bg-card hover:bg-sky-500/10 hover:border-sky-500/40 text-left transition-all cursor-pointer group disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex size-9 items-center justify-center rounded-md bg-sky-500/10 text-sky-500 group-hover:bg-sky-500 group-hover:text-white transition-colors shrink-0">
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-500 group-hover:bg-sky-500 group-hover:text-white transition-colors shrink-0">
                         <Send className="size-4" aria-hidden="true" />
                       </div>
                       <div className="min-w-0 truncate">
@@ -299,7 +408,7 @@ export function UnlockKeysDialog({
                           Kirim Kode ke Telegram
                         </p>
                         <p className="text-[11px] text-muted-foreground truncate">
-                          Akun: {channels.telegram.targetDisplay || "Telegram Bot"}
+                          Tujuan: {channels.telegram.targetDisplay || "Telegram Bot"}
                         </p>
                       </div>
                     </div>
@@ -316,10 +425,10 @@ export function UnlockKeysDialog({
                     type="button"
                     onClick={() => handleSendOtp("whatsapp")}
                     disabled={isSendingOtp}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border/80 bg-card hover:bg-emerald-500/10 hover:border-emerald-500/40 text-left transition-all cursor-pointer group disabled:opacity-50"
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-border/80 bg-card hover:bg-emerald-500/10 hover:border-emerald-500/40 text-left transition-all cursor-pointer group disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex size-9 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
                         <MessageSquare className="size-4" aria-hidden="true" />
                       </div>
                       <div className="min-w-0 truncate">
@@ -327,7 +436,7 @@ export function UnlockKeysDialog({
                           Kirim Kode ke WhatsApp
                         </p>
                         <p className="text-[11px] text-muted-foreground truncate">
-                          Nomor: {channels.whatsapp.targetDisplay || "Nomor Terdaftar"}
+                          Tujuan: {channels.whatsapp.targetDisplay || "Nomor Terdaftar"}
                         </p>
                       </div>
                     </div>
@@ -339,24 +448,26 @@ export function UnlockKeysDialog({
                   </button>
                 )}
 
-                {/* Password Fallback Link */}
-                <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs">
+                {/* Password Alternative & Mobile Full-Width Actions */}
+                <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
                   <button
                     type="button"
                     onClick={() => {
                       setErrorMessage(null);
                       setView("input_password");
                     }}
-                    className="text-[11px] text-muted-foreground hover:text-foreground hover:underline transition-colors cursor-pointer"
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors cursor-pointer text-left py-1 flex items-center gap-1.5"
                   >
-                    Atau gunakan kata sandi akun
+                    <KeyRound className="size-3.5" />
+                    <span>Gunakan kata sandi akun</span>
                   </button>
+
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={onClose}
-                    className="h-7 text-xs"
+                    className="w-full sm:w-auto h-9 sm:h-8 text-xs cursor-pointer"
                   >
                     Batal
                   </Button>
@@ -364,90 +475,132 @@ export function UnlockKeysDialog({
               </div>
             )}
 
-            {/* VIEW 2: INPUT OTP */}
+            {/* VIEW 2: SEGMENTED 6-SLOT OTP PIN INPUT */}
             {view === "input_otp" && (
-              <form onSubmit={handleVerifyOtp} className="flex flex-col gap-3">
-                <div className="space-y-1.5">
+              <div className="flex flex-col gap-4">
+                {/* Simulation Hint Banner for Dev / Testing */}
+                {simulationHint?.code && (
+                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Sparkles className="size-3.5 text-amber-500 shrink-0" />
+                      <span className="text-[11px] truncate">
+                        Kode Bantuan Dev: <b>{simulationHint.code}</b>
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleAutoFillSimulation(simulationHint.code!)}
+                      disabled={isVerifying}
+                      className="h-6 text-[10px] px-2 font-semibold shrink-0 cursor-pointer"
+                    >
+                      Isi Otomatis
+                    </Button>
+                  </div>
+                )}
+
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="unlock-otp-code" className="text-xs font-medium text-foreground">
+                    <Label className="text-xs font-semibold text-foreground">
                       Kode Verifikasi (6-Digit)
                     </Label>
                     <button
                       type="button"
                       onClick={() => handleSendOtp(activeChannel)}
                       disabled={isSendingOtp || cooldown > 0}
-                      className="text-[11px] text-primary hover:underline disabled:text-muted-foreground disabled:no-underline transition-colors cursor-pointer flex items-center gap-1"
+                      className="text-xs text-primary hover:underline disabled:text-muted-foreground disabled:no-underline transition-colors cursor-pointer flex items-center gap-1 font-medium"
                     >
-                      <RotateCcw className="size-3" />
+                      <RotateCcw className={cn("size-3", isSendingOtp && "animate-spin")} />
                       <span>{cooldown > 0 ? `Kirim Ulang (${cooldown}s)` : "Kirim Ulang"}</span>
                     </button>
                   </div>
-                  <Input
-                    ref={otpInputRef}
-                    id="unlock-otp-code"
-                    type="text"
-                    maxLength={6}
-                    placeholder="Contoh: 849201"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                    className="text-center font-mono tracking-widest text-base h-11 font-bold select-all"
-                  />
+
+                  {/* 6 Segmented PIN Slots */}
+                  <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                    {otpDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => {
+                          digitRefs.current[idx] = el;
+                        }}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleDigitChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(idx, e)}
+                        onPaste={handlePaste}
+                        disabled={isVerifying}
+                        className={cn(
+                          "w-11 sm:w-12 h-12 text-center text-lg font-bold font-mono rounded-xl border bg-background text-foreground transition-all select-all",
+                          "focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary",
+                          digit
+                            ? "border-primary/80 bg-primary/5 shadow-xs"
+                            : "border-border/80 hover:border-border"
+                        )}
+                        aria-label={`Digit ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground text-left">
+                    Ketik langsung atau tempelkan (*paste*) kode 6-digit. Sistem akan memverifikasi otomatis.
+                  </p>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
-                  {hasAnyChatChannel ? (
+                {/* Bottom Action Buttons: Full-Width Vertical on Mobile, Horizontal on Desktop */}
+                <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-border/60">
+                  <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center gap-2 w-full sm:w-auto">
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setErrorMessage(null);
-                        setOtpCode("");
-                        setView("select_channel");
-                      }}
-                      className="text-xs h-8 gap-1 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      <ChevronLeft className="size-3.5" />
-                      <span>Ganti Metode</span>
-                    </Button>
-                  ) : (
-                    <span />
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={onClose}
-                      disabled={isVerifying}
-                      className="text-xs h-8 cursor-pointer"
-                    >
-                      Batal
-                    </Button>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={isVerifying || otpCode.trim().length < 4}
-                      className="text-xs h-8 gap-1.5 cursor-pointer"
+                      onClick={() => executeVerifyOtp(otpDigits.join(""))}
+                      disabled={isVerifying || otpDigits.join("").length < 6}
+                      className="w-full sm:w-auto h-9 text-xs gap-1.5 cursor-pointer order-1 sm:order-2 font-semibold"
                     >
                       {isVerifying ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <Lock className="size-3.5" />
                       )}
-                      <span>Verifikasi</span>
+                      <span>Buka Kunci Akses</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onClose}
+                      disabled={isVerifying}
+                      className="w-full sm:w-auto h-9 text-xs cursor-pointer order-2 sm:order-1"
+                    >
+                      Batal
                     </Button>
                   </div>
+
+                  {hasAnyChatChannel && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setErrorMessage(null);
+                        setOtpDigits(["", "", "", "", "", ""]);
+                        setView("select_channel");
+                      }}
+                      className="w-full sm:w-auto h-9 text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer justify-center sm:justify-start"
+                    >
+                      <ChevronLeft className="size-3.5" />
+                      <span>Ganti Metode</span>
+                    </Button>
+                  )}
                 </div>
-              </form>
+              </div>
             )}
 
-            {/* VIEW 3: INPUT PASSWORD */}
+            {/* VIEW 3: INPUT KATA SANDI AKUN */}
             {view === "input_password" && (
-              <form onSubmit={handleVerifyPassword} className="flex flex-col gap-3">
+              <form onSubmit={handleVerifyPassword} className="flex flex-col gap-3.5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="unlock-password" className="text-xs font-medium text-foreground">
+                  <Label htmlFor="unlock-password" className="text-xs font-semibold text-foreground">
                     Kata Sandi Akun
                   </Label>
                   <div className="relative">
@@ -458,7 +611,7 @@ export function UnlockKeysDialog({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoFocus
-                      className="text-xs h-9 pr-8"
+                      className="text-xs h-9.5 pr-8 bg-background/60"
                     />
                     <Button
                       type="button"
@@ -471,53 +624,53 @@ export function UnlockKeysDialog({
                       {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                     </Button>
                   </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Gunakan kata sandi login Anda (misal: <code>keluarga123</code>).
+                  </p>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
-                  {hasAnyChatChannel ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setErrorMessage(null);
-                        setPassword("");
-                        setView("select_channel");
-                      }}
-                      className="text-xs h-8 gap-1 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      <ChevronLeft className="size-3.5" />
-                      <span>Kirim Kode OTP</span>
-                    </Button>
-                  ) : (
-                    <span />
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={onClose}
-                      disabled={isVerifying}
-                      className="text-xs h-8 cursor-pointer"
-                    >
-                      Batal
-                    </Button>
+                {/* Bottom Action Buttons: Full-Width Vertical on Mobile, Horizontal on Desktop */}
+                <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-border/60">
+                  <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center gap-2 w-full sm:w-auto">
                     <Button
                       type="submit"
-                      size="sm"
                       disabled={isVerifying || !password.trim()}
-                      className="text-xs h-8 gap-1.5 cursor-pointer"
+                      className="w-full sm:w-auto h-9 text-xs gap-1.5 cursor-pointer order-1 sm:order-2 font-semibold"
                     >
                       {isVerifying ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <Lock className="size-3.5" />
                       )}
-                      <span>Buka Kunci</span>
+                      <span>Verifikasi Sandi</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onClose}
+                      disabled={isVerifying}
+                      className="w-full sm:w-auto h-9 text-xs cursor-pointer order-2 sm:order-1"
+                    >
+                      Batal
                     </Button>
                   </div>
+
+                  {hasAnyChatChannel && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setErrorMessage(null);
+                        setPassword("");
+                        setView("select_channel");
+                      }}
+                      className="w-full sm:w-auto h-9 text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer justify-center sm:justify-start"
+                    >
+                      <ChevronLeft className="size-3.5" />
+                      <span>Kirim Kode OTP</span>
+                    </Button>
+                  )}
                 </div>
               </form>
             )}

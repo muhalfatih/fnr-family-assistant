@@ -582,47 +582,52 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
         }
       }}
     >
-      <DialogContent className="sm:max-w-[620px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 flex flex-col gap-4">
-        <DialogHeader className="gap-1 text-left">
+      <DialogContent className="sm:max-w-[620px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 flex flex-col gap-4 text-left">
+        <DialogHeader className="gap-1 text-left items-start">
           <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0">
               <KeyRound className="size-4" aria-hidden="true" />
             </div>
-            <DialogTitle className="text-base font-semibold">
+            <DialogTitle className="text-base font-semibold text-left">
               Kunci API & Kredensial Sistem
             </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-xs text-muted-foreground text-left leading-relaxed">
             Kelola kunci API pihak ketiga langsung ke database terenkripsi (AES-256-GCM). Sistem akan memprioritaskan database daripada berkas .env.
           </DialogDescription>
         </DialogHeader>
 
         {/* Security Status Banner */}
         {!isUnlocked ? (
-          <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400">
+          <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-left">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
                 <Lock className="size-3.5" aria-hidden="true" />
               </div>
-              <p className="text-xs text-foreground font-medium truncate">
-                Nilai kunci aktif disembunyikan untuk keamanan.
-              </p>
+              <div className="flex flex-col min-w-0">
+                <p className="text-xs text-foreground font-semibold">
+                  Nilai Kunci Terlindungi
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  Verifikasi keamanan akun diperlukan untuk melihat nilai asli.
+                </p>
+              </div>
             </div>
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setIsUnlockDialogOpen(true)}
-              className="h-7 text-xs border-amber-500/40 text-foreground hover:bg-amber-500/20 font-semibold gap-1.5 shrink-0 cursor-pointer"
+              className="w-full sm:w-auto h-8 text-xs border-amber-500/40 text-foreground hover:bg-amber-500/20 font-semibold gap-1.5 shrink-0 cursor-pointer shadow-xs"
             >
               <Lock className="size-3 text-amber-500" />
               <span>Buka Akses Kunci</span>
             </Button>
           </div>
         ) : (
-          <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between gap-2.5 animate-in fade-in">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+          <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 animate-in fade-in text-left">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                 <Unlock className="size-3.5" aria-hidden="true" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -643,7 +648,7 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
               variant="outline"
               size="sm"
               onClick={handleLockNow}
-              className="h-7 text-xs border-emerald-500/40 text-foreground hover:bg-emerald-500/20 font-semibold gap-1.5 shrink-0 cursor-pointer"
+              className="w-full sm:w-auto h-8 text-xs border-emerald-500/40 text-foreground hover:bg-emerald-500/20 font-semibold gap-1.5 shrink-0 cursor-pointer shadow-xs"
             >
               <Lock className="size-3 text-emerald-600 dark:text-emerald-400" />
               <span>Kunci Sekarang</span>
