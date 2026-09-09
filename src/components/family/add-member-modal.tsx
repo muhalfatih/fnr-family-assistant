@@ -52,8 +52,13 @@ export function AddMemberModal({
     message: string;
   } | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -77,8 +82,13 @@ export function AddMemberModal({
       setTelegramDisplayName("");
       setWhatsappNumber("");
     }
-    setPassword("");
-    setShowPassword(false);
+    setIsChangingPassword(false);
+    setCurrentPassword("");
+    setShowCurrentPassword(false);
+    setNewPassword("");
+    setShowNewPassword(false);
+    setConfirmPassword("");
+    setShowConfirmPassword(false);
     setTelegramCheckFeedback(null);
     setErrorMsg("");
   }, [memberToEdit, isOpen]);
@@ -86,11 +96,13 @@ export function AddMemberModal({
   const handleGeneratePassword = () => {
     const chars = "abcdefghjkmnpqrstuvwxyz23456789";
     let gen = "";
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       gen += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setPassword(gen);
-    setShowPassword(true);
+    setNewPassword(gen);
+    setConfirmPassword(gen);
+    setShowNewPassword(true);
+    setShowConfirmPassword(true);
     toast.info(`Kata sandi acak dibuat: ${gen}`);
   };
 
@@ -192,6 +204,27 @@ export function AddMemberModal({
       return;
     }
 
+    // Password validation if user is changing password or setting one on a new member
+    const isEditing = Boolean(memberToEdit);
+    const hasExistingPassword = Boolean(memberToEdit?.has_password);
+
+    if (isChangingPassword || (!isEditing && newPassword.trim())) {
+      if (newPassword.trim()) {
+        if (newPassword.trim().length < 6) {
+          setErrorMsg("Kata sandi baru minimal 6 karakter.");
+          return;
+        }
+        if (newPassword.trim() !== confirmPassword.trim()) {
+          setErrorMsg("Konfirmasi kata sandi tidak cocok dengan sandi baru.");
+          return;
+        }
+        if (isEditing && hasExistingPassword && !currentPassword.trim()) {
+          setErrorMsg("Kata sandi saat ini wajib diisi untuk mengubah kata sandi.");
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
     setErrorMsg("");
 
@@ -206,8 +239,11 @@ export function AddMemberModal({
         whatsapp_number: whatsappNumber.trim() || null,
       };
 
-      if (password.trim()) {
-        payload.password = password.trim();
+      if ((isChangingPassword || !isEditing) && newPassword.trim()) {
+        payload.password = newPassword.trim();
+        if (isEditing && hasExistingPassword) {
+          payload.current_password = currentPassword.trim();
+        }
       }
 
       const url = "/api/members";
@@ -223,6 +259,12 @@ export function AddMemberModal({
         const errData = await res.json();
         throw new Error(errData.error || "Gagal menyimpan data anggota");
       }
+
+      toast.success(
+        memberToEdit
+          ? (newPassword.trim() ? "Profil dan kata sandi berhasil diperbarui!" : "Profil anggota berhasil diperbarui!")
+          : "Anggota keluarga berhasil ditambahkan!"
+      );
 
       onSuccess();
       onClose();
@@ -435,12 +477,12 @@ export function AddMemberModal({
           </div>
 
           {/* 5. Keamanan Akun & Kata Sandi */}
-          <div className="space-y-2 pt-2 border-t border-border/60">
+          <div className="space-y-3 pt-3 border-t border-border/60">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="memberPassword" className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                   <Lock className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                  <span>Kata Sandi Akun</span>
+                  <span>Keamanan &amp; Kata Sandi</span>
                 </Label>
                 {memberToEdit?.has_password ? (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
@@ -453,49 +495,202 @@ export function AddMemberModal({
                   </Badge>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleGeneratePassword}
-                className="h-6 px-2 text-[11px] text-primary hover:text-primary/90 gap-1 cursor-pointer"
-                title="Buat kata sandi acak yang aman"
-              >
-                <KeyRound className="size-3" data-icon="inline-start" aria-hidden="true" />
-                <span>Acak Sandi</span>
-              </Button>
+
+              {/* Progressive Disclosure Toggle Button */}
+              {memberToEdit && !isChangingPassword && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsChangingPassword(true);
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setCurrentPassword("");
+                  }}
+                  className="h-7 text-xs px-2.5 gap-1.5 cursor-pointer"
+                >
+                  <KeyRound className="size-3" aria-hidden="true" />
+                  <span>{memberToEdit.has_password ? "Ubah Sandi" : "Setel Sandi"}</span>
+                </Button>
+              )}
             </div>
 
-            <div className="relative flex items-center">
-              <Input
-                id="memberPassword"
-                type={showPassword ? "text" : "password"}
-                placeholder={
-                  memberToEdit?.has_password
-                    ? "Ketik sandi baru (kosongkan jika tidak diubah)"
-                    : "Buat kata sandi akun (min. 6 karakter)"
-                }
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="text-xs h-9 pr-9 font-mono"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 size-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded-md transition-colors"
-                title={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
-                aria-label={showPassword ? "Sembunyikan sandi" : "Lihat sandi"}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </button>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              {memberToEdit?.has_password
-                ? "Kosongkan jika tidak ingin mengubah kata sandi. Sandi ini digunakan anggota untuk login via WhatsApp, Telegram, atau Nama."
-                : "Kata sandi pribadi untuk login ke aplikasi. Jika kosong, anggota tetap dapat masuk menggunakan kata sandi keluarga utama."}
-            </p>
+            {/* Description when collapsed */}
+            {memberToEdit && !isChangingPassword && (
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {memberToEdit.has_password
+                  ? "Anggota dapat login menggunakan kata sandi pribadi ini di tab Sandi."
+                  : "Belum memiliki kata sandi mandiri. Anggota saat ini masuk menggunakan kata sandi keluarga master."}
+              </p>
+            )}
+
+            {/* Expanded Password Form (When isChangingPassword is true, or when adding a new member) */}
+            {(isChangingPassword || !memberToEdit) && (
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
+                  <span className="text-xs font-semibold text-foreground">
+                    {memberToEdit
+                      ? (memberToEdit.has_password ? "Form Ubah Kata Sandi" : "Setel Kata Sandi Baru")
+                      : "Atur Kata Sandi Akun (Opsional)"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleGeneratePassword}
+                      className="h-6 px-2 text-[11px] text-primary hover:text-primary/90 gap-1 cursor-pointer"
+                      title="Buat kata sandi acak yang aman"
+                    >
+                      <KeyRound className="size-3" aria-hidden="true" />
+                      <span>Acak Sandi</span>
+                    </Button>
+                    {memberToEdit && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsChangingPassword(false);
+                          setCurrentPassword("");
+                          setNewPassword("");
+                          setConfirmPassword("");
+                          setErrorMsg("");
+                        }}
+                        className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Batal
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Field 1: Kata Sandi Saat Ini (Hanya muncul jika member sudah memiliki sandi) */}
+                {memberToEdit?.has_password && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="currentPasswordInput" className="text-xs font-medium text-foreground">
+                        Kata Sandi Saat Ini <span className="text-destructive">*</span>
+                      </Label>
+                      <span className="text-[10px] text-muted-foreground">
+                        Lupa? Gunakan sandi master
+                      </span>
+                    </div>
+                    <div className="relative flex items-center">
+                      <Input
+                        id="currentPasswordInput"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => {
+                          setCurrentPassword(e.target.value);
+                          if (errorMsg) setErrorMsg("");
+                        }}
+                        placeholder="Ketik sandi saat ini atau sandi keluarga"
+                        className="h-8 pr-8 text-xs font-mono bg-background"
+                        autoComplete="current-password"
+                        required={Boolean(isChangingPassword && memberToEdit?.has_password)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-2 size-5 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                        tabIndex={-1}
+                        aria-label={showCurrentPassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                      >
+                        {showCurrentPassword ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Field 2: Kata Sandi Baru */}
+                <div className="space-y-1">
+                  <Label htmlFor="newPasswordInput" className="text-xs font-medium text-foreground">
+                    Kata Sandi Baru <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative flex items-center">
+                    <Input
+                      id="newPasswordInput"
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => {
+                        setNewPassword(e.target.value);
+                        if (errorMsg) setErrorMsg("");
+                      }}
+                      placeholder="Min. 6 karakter"
+                      className="h-8 pr-8 text-xs font-mono bg-background"
+                      autoComplete="new-password"
+                      required={Boolean(isChangingPassword)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-2 size-5 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                      tabIndex={-1}
+                      aria-label={showNewPassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                    >
+                      {showNewPassword ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Field 3: Konfirmasi Kata Sandi Baru */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="confirmPasswordInput" className="text-xs font-medium text-foreground">
+                      Konfirmasi Sandi Baru <span className="text-destructive">*</span>
+                    </Label>
+                    {newPassword && confirmPassword && (
+                      <span
+                        className={cn(
+                          "text-[10.5px] font-medium flex items-center gap-1",
+                          newPassword === confirmPassword
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-destructive"
+                        )}
+                      >
+                        {newPassword === confirmPassword ? (
+                          <>
+                            <CheckCircle2 className="size-3" />
+                            <span>Cocok</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="size-3" />
+                            <span>Belum cocok</span>
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative flex items-center">
+                    <Input
+                      id="confirmPasswordInput"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (errorMsg) setErrorMsg("");
+                      }}
+                      placeholder="Ulangi kata sandi baru"
+                      className="h-8 pr-8 text-xs font-mono bg-background"
+                      autoComplete="new-password"
+                      required={Boolean(isChangingPassword)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-2 size-5 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                      tabIndex={-1}
+                      aria-label={showConfirmPassword ? "Sembunyikan sandi" : "Lihat sandi"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">

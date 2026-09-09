@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getMonthDateRange } from "@/lib/utils";
-import { hashPassword } from "@/lib/security/password";
+import { hashPassword, verifyPassword } from "@/lib/security/password";
 
 export async function GET(req: NextRequest) {
   try {
@@ -159,11 +159,23 @@ export async function PUT(req: NextRequest) {
       telegram_username,
       whatsapp_number,
       avatar_url,
+      current_password,
       password,
     } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Missing member id" }, { status: 400 });
+    }
+
+    // Fetch existing member to check existing password_hash
+    const { data: existingMember, error: fetchErr } = await supabaseAdmin
+      .from("family_members")
+      .select("id, password_hash")
+      .eq("id", id)
+      .single();
+
+    if (fetchErr || !existingMember) {
+      return NextResponse.json({ error: "Anggota keluarga tidak ditemukan." }, { status: 404 });
     }
 
     const updatePayload: Record<string, any> = {};
@@ -178,8 +190,41 @@ export async function PUT(req: NextRequest) {
     }
     if (whatsapp_number !== undefined) updatePayload.whatsapp_number = whatsapp_number?.trim() || null;
     if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url?.trim() || null;
+
     if (password !== undefined && typeof password === "string" && password.trim()) {
-      updatePayload.password_hash = hashPassword(password.trim());
+      const cleanNewPassword = password.trim();
+      if (cleanNewPassword.length < 6) {
+        return NextResponse.json(
+          { error: "Kata sandi baru minimal 6 karakter." },
+          { status: 400 }
+        );
+      }
+
+      // If member already has a password set, require current_password verification
+      if (existingMember.password_hash) {
+        if (!current_password || typeof current_password !== "string" || !current_password.trim()) {
+          return NextResponse.json(
+            { error: "Kata sandi saat ini wajib diisi untuk mengubah kata sandi." },
+            { status: 400 }
+          );
+        }
+
+        const cleanCurrent = current_password.trim();
+        const isValidCurrent = verifyPassword(cleanCurrent, existingMember.password_hash);
+
+        // Fallback / Recovery: Allow family master password as override
+        const familyMasterPassword = process.env.AUTH_PASSWORD || "keluarga123";
+        const isValidMaster = cleanCurrent === familyMasterPassword;
+
+        if (!isValidCurrent && !isValidMaster) {
+          return NextResponse.json(
+            { error: "Kata sandi saat ini salah. Anda dapat menggunakan kata sandi keluarga utama jika lupa." },
+            { status: 401 }
+          );
+        }
+      }
+
+      updatePayload.password_hash = hashPassword(cleanNewPassword);
     }
 
     const { data, error } = await supabaseAdmin
