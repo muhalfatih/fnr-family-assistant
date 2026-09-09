@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 interface UnlockKeysDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (remainingSeconds: number) => void;
+  onSuccess: (remainingSeconds: number, keys?: Record<string, string>) => void;
 }
 
 interface SecurityChannelInfo {
@@ -213,7 +213,7 @@ export function UnlockKeysDialog({
       }
 
       toast.success(data.message || "Verifikasi berhasil! Kunci API terbuka.");
-      onSuccess(data.remainingSeconds || 300);
+      onSuccess(data.remainingSeconds || 300, data.keys);
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || "Verifikasi gagal.");
@@ -329,7 +329,7 @@ export function UnlockKeysDialog({
       }
 
       toast.success(data.message || "Verifikasi berhasil! Akses kunci terbuka.");
-      onSuccess(data.remainingSeconds || 300);
+      onSuccess(data.remainingSeconds || 300, data.keys);
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || "Verifikasi gagal.");

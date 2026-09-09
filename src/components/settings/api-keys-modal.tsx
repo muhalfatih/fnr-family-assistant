@@ -90,7 +90,16 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
     return () => clearInterval(timer);
   }, [isUnlocked]);
 
-  const handleUnlockSuccess = async (seconds: number) => {
+  const handleUnlockSuccess = async (seconds: number, directKeys?: Record<string, string>) => {
+    // Direct handshake payload (instant 0ms lag)
+    if (directKeys && Object.keys(directKeys).length > 0) {
+      setUnlockedKeys(directKeys);
+      setIsUnlocked(true);
+      setRemainingSeconds(seconds || 300);
+      return;
+    }
+
+    // Fallback secondary reveal route if directKeys not provided
     try {
       const res = await fetch("/api/settings/keys/reveal");
       if (res.ok) {

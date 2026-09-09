@@ -424,14 +424,46 @@ export async function getAllSecretStatuses(): Promise<Record<string, SecretStatu
 /**
  * Returns full decrypted plain text values for all configured secrets.
  * Strictly gated by security verification (Password or OTP) on the server.
+ * Optimized with a single batch query across all secrets to eliminate multi-second sequential round-trips.
  */
 export async function getAllDecryptedSecrets(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
+  const dbRecords: Record<string, string> = {};
+
+  // Fetch all encrypted secrets from Supabase in a single batch query
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("system_api_keys")
+        .select("key_name, encrypted_value");
+
+      if (!error && data) {
+        for (const item of data) {
+          if (item.key_name && item.encrypted_value) {
+            dbRecords[item.key_name] = item.encrypted_value;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[SecretManager] Failed to batch fetch database secrets:", err);
+    }
+  }
 
   for (const def of KNOWN_SECRETS) {
-    const val = await getSecret(def.keyName);
-    if (val) {
-      result[def.keyName] = val;
+    const k = def.keyName;
+    const encVal = dbRecords[k];
+    if (encVal) {
+      const decrypted = decryptSecret(encVal);
+      if (decrypted) {
+        result[k] = decrypted;
+        continue;
+      }
+    }
+
+    // Fallback to process.env
+    const envVal = getEnvWithFallback(k);
+    if (envVal) {
+      result[k] = envVal;
     }
   }
 

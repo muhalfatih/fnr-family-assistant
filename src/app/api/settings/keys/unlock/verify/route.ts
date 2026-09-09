@@ -6,6 +6,7 @@ import {
   UNLOCK_COOKIE_NAME,
   UNLOCK_TTL_SECONDS,
 } from "@/lib/security/unlock-token";
+import { getAllDecryptedSecrets } from "@/lib/security/secret-manager";
 
 export async function POST(req: NextRequest) {
   try {
@@ -153,11 +154,15 @@ export async function POST(req: NextRequest) {
       UNLOCK_TTL_SECONDS
     );
 
+    // Fetch decrypted keys directly to return in handshake payload (0ms subsequent lag)
+    const keys = await getAllDecryptedSecrets();
+
     const response = NextResponse.json({
       ok: true,
       message: "Verifikasi berhasil! Seluruh kunci API terbuka selama 5 menit.",
       expiresAt,
       remainingSeconds: UNLOCK_TTL_SECONDS,
+      keys,
     });
 
     response.cookies.set(UNLOCK_COOKIE_NAME, token, {
