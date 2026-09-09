@@ -67,10 +67,11 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
   const [revealedActiveKeys, setRevealedActiveKeys] = useState<Record<string, boolean>>({});
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false);
+  const [hasLoadedInitially, setHasLoadedInitially] = useState(false);
 
-  // 5-minute countdown timer for active unlock session
+  // 5-minute countdown timer for active unlock session (stable, no 1-second interval recreation)
   useEffect(() => {
-    if (!isUnlocked || remainingSeconds <= 0) return;
+    if (!isUnlocked) return;
     const timer = setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
@@ -84,7 +85,7 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isUnlocked, remainingSeconds]);
+  }, [isUnlocked]);
 
   const handleUnlockSuccess = async (seconds: number) => {
     try {
@@ -124,14 +125,15 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
-  const fetchKeys = useCallback(async () => {
-    setIsLoading(true);
+  const fetchKeys = useCallback(async (showLoadingSpinner = false) => {
+    if (showLoadingSpinner) {
+      setIsLoading(true);
+    }
     try {
       const res = await fetch("/api/settings/keys");
       if (!res.ok) {
         if (res.status === 403) {
           toast.error("Hanya Pengelola Keluarga (Admin / Pasangan) yang dapat mengakses pengaturan ini.");
-          onClose();
           return;
         }
         throw new Error("Gagal memuat status kunci API.");
@@ -144,16 +146,23 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
       toast.error(err.message || "Gagal menghubungi server.");
     } finally {
       setIsLoading(false);
+      setHasLoadedInitially(true);
     }
-  }, [onClose]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      fetchKeys();
+      // Only show full loader if we haven't loaded keys yet
+      fetchKeys(!hasLoadedInitially);
       setTestFeedback(null);
+    } else {
+      // Reset sensitive view state only when modal actually closes
+      setIsUnlocked(false);
+      setUnlockedKeys({});
+      setRevealedActiveKeys({});
       setInputValues({});
     }
-  }, [isOpen, fetchKeys]);
+  }, [isOpen, fetchKeys, hasLoadedInitially]);
 
   const handleInputChange = (keyName: string, value: string) => {
     setInputValues((prev) => ({ ...prev, [keyName]: value }));
@@ -517,7 +526,7 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
           </div>
         )}
 
-        {isLoading ? (
+        {isLoading && !hasLoadedInitially ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
             <Loader2 className="size-6 animate-spin text-primary" />
             <span className="text-xs">Memuat kredensial terenkripsi...</span>

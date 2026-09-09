@@ -47,6 +47,10 @@ export function AppHeader() {
   const [isApiKeysModalOpen, setIsApiKeysModalOpen] = React.useState(false);
   const { user, roleLabel, isAdmin } = useCurrentUser();
 
+  const handleCloseApiKeysModal = React.useCallback(() => {
+    setIsApiKeysModalOpen(false);
+  }, []);
+
   const avatarInitials = React.useMemo(() => {
     const name = user?.name || "Ayah";
     if (
@@ -175,7 +179,7 @@ export function AppHeader() {
 
       <ApiKeysModal
         isOpen={isApiKeysModalOpen}
-        onClose={() => setIsApiKeysModalOpen(false)}
+        onClose={handleCloseApiKeysModal}
       />
     </>
   );
