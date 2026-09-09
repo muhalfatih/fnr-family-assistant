@@ -63,7 +63,7 @@ export function ApiKeysModal({ isOpen, onClose }: ApiKeysModalProps) {
       const res = await fetch("/api/settings/keys");
       if (!res.ok) {
         if (res.status === 403) {
-          toast.error("Hanya Kepala Keluarga (Admin) yang dapat mengakses pengaturan ini.");
+          toast.error("Hanya Pengelola Keluarga (Admin / Pasangan) yang dapat mengakses pengaturan ini.");
           onClose();
           return;
         }

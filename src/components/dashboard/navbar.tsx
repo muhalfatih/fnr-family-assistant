@@ -22,8 +22,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Bot,
-  Activity,
   Menu,
   WalletCards,
   Landmark,
@@ -35,7 +33,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ApiStatusModal } from "@/components/dashboard/api-status-modal";
 import { ApiKeysModal } from "@/components/settings/api-keys-modal";
 
 interface NavbarProps {
@@ -45,7 +42,6 @@ interface NavbarProps {
 export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [isApiKeysModalOpen, setIsApiKeysModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -187,18 +183,6 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                     <KeyRound className="size-3.5 text-amber-500" aria-hidden="true" />
                     <span>Kunci API & Kredensial</span>
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      setIsApiModalOpen(true);
-                    }}
-                    className="w-full justify-start text-xs gap-2 h-9"
-                  >
-                    <Activity className="size-3.5 text-primary" aria-hidden="true" />
-                    <span>Cek Status API & Bot</span>
-                  </Button>
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar className="size-8">
@@ -262,29 +246,8 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
             </nav>
           </div>
 
-          {/* Right: Status & Profile */}
+          {/* Right: Profile */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {/* Direct Header Button for Kunci API */}
-            <Badge
-              variant="outline"
-              onClick={() => setIsApiKeysModalOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs text-foreground font-medium cursor-pointer bg-background hover:bg-amber-500/10 border-amber-500/40 hover:border-amber-500 transition-colors select-none shadow-xs px-2.5 py-1"
-              title="Kelola Kunci API & Kredensial Sistem (Terenkripsi)"
-            >
-              <KeyRound className="size-3.5 text-amber-500 shrink-0" aria-hidden="true" />
-              <span>Kunci API</span>
-            </Badge>
-
-            <Badge
-              variant="outline"
-              onClick={() => setIsApiModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground font-normal cursor-pointer hover:bg-muted transition-colors select-none px-2.5 py-1"
-              title="Klik untuk melihat diagnostik koneksi API"
-            >
-              <Bot className="size-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
-              <span>Status API</span>
-            </Badge>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative size-8 rounded-full p-0 cursor-pointer">
@@ -310,10 +273,6 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
                   <KeyRound className="size-4 text-amber-500" aria-hidden="true" />
                   <span>Kunci API & Kredensial</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setIsApiModalOpen(true)} className="gap-2 cursor-pointer">
-                  <Activity className="size-4 text-primary" aria-hidden="true" />
-                  <span>Cek Koneksi API & Layanan</span>
-                </DropdownMenuItem>
                 <Link href="/family">
                   <DropdownMenuItem className="cursor-pointer">Profil & Anggota Keluarga</DropdownMenuItem>
                 </Link>
@@ -336,13 +295,6 @@ export function Navbar({ familyName = "Keluarga F&R" }: NavbarProps) {
           </div>
         </div>
       </header>
-
-      {/* API Diagnostics Modal */}
-      <ApiStatusModal
-        isOpen={isApiModalOpen}
-        onClose={() => setIsApiModalOpen(false)}
-        onOpenApiKeysModal={() => setIsApiKeysModalOpen(true)}
-      />
 
       {/* API Keys & Encrypted Secrets Management Modal */}
       <ApiKeysModal

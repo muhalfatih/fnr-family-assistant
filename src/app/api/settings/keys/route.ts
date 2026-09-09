@@ -17,8 +17,8 @@ function verifyAdminSession(req: NextRequest): { authorized: boolean; reason?: s
 
   try {
     const user = JSON.parse(decodeURIComponent(cookie.value));
-    if (user.role !== "admin") {
-      return { authorized: false, reason: "Hanya Kepala Keluarga (Admin) yang berhak mengelola Kunci API." };
+    if (user.role !== "admin" && user.role !== "spouse") {
+      return { authorized: false, reason: "Hanya Pengelola Keluarga (Admin / Pasangan) yang berhak mengelola Kunci API." };
     }
     return { authorized: true };
   } catch {
