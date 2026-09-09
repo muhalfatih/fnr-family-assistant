@@ -1,95 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getMonthDateRange } from "@/lib/utils";
-import { mockStore } from "@/lib/mock-data";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const monthYear = searchParams.get("period") || new Date().toISOString().substring(0, 7);
-
-    if (!isSupabaseConfigured()) {
-      const members = mockStore.getMembers();
-      const transactions = mockStore.getTransactions(monthYear).filter((t) => t.type === "expense");
-
-      let totalExpense = 0;
-      const memberMap: Record<
-        string,
-        {
-          id: string;
-          name: string;
-          role: string;
-          spent: number;
-          count: number;
-          categoryMap: Record<string, number>;
-        }
-      > = {};
-
-      members.forEach((m) => {
-        memberMap[m.id] = {
-          id: m.id,
-          name: m.full_name,
-          role: m.role,
-          spent: 0,
-          count: 0,
-          categoryMap: {},
-        };
-      });
-
-      let unassignedSpent = 0;
-      let unassignedCount = 0;
-
-      transactions.forEach((tx: any) => {
-        const amt = Number(tx.amount || 0);
-        totalExpense += amt;
-
-        if (tx.member_id && memberMap[tx.member_id]) {
-          memberMap[tx.member_id].spent += amt;
-          memberMap[tx.member_id].count += 1;
-
-          const catName = tx.category?.name || "Lain-lain";
-          memberMap[tx.member_id].categoryMap[catName] =
-            (memberMap[tx.member_id].categoryMap[catName] || 0) + amt;
-        } else {
-          unassignedSpent += amt;
-          unassignedCount += 1;
-        }
-      });
-
-      const contributions = Object.values(memberMap).map((m) => {
-        let topCategory = "-";
-        let topCategoryAmount = 0;
-        for (const [cat, amt] of Object.entries(m.categoryMap)) {
-          if (amt > topCategoryAmount) {
-            topCategoryAmount = amt;
-            topCategory = cat;
-          }
-        }
-
-        const percent = totalExpense > 0 ? Math.round((m.spent / totalExpense) * 100) : 0;
-
-        return {
-          memberId: m.id,
-          name: m.name,
-          role: m.role,
-          spent: m.spent,
-          percentage: percent,
-          transactionCount: m.count,
-          topCategory: m.spent > 0 ? topCategory : "Belum ada transaksi",
-        };
-      });
-
-      return NextResponse.json({
-        contributions,
-        totalExpense,
-        unassigned: {
-          spent: unassignedSpent,
-          count: unassignedCount,
-          percentage: totalExpense > 0 ? Math.round((unassignedSpent / totalExpense) * 100) : 0,
-        },
-        monthYear,
-      });
-    }
 
     const { startDate, endDate } = getMonthDateRange(monthYear);
 
@@ -97,23 +13,38 @@ export async function GET(req: NextRequest) {
     const familyId = families && families.length > 0 ? families[0].id : null;
 
     if (!familyId) {
-      return NextResponse.json({ contributions: [], totalExpense: 0, unassigned: { spent: 0, count: 0, percentage: 0 }, monthYear });
+      return NextResponse.json({
+        contributions: [],
+        totalExpense: 0,
+        unassigned: { spent: 0, count: 0, percentage: 0 },
+        monthYear,
+      });
     }
 
     // 1. Fetch all members
-    const { data: members } = await supabaseAdmin
+    const { data: members, error: memErr } = await supabaseAdmin
       .from("family_members")
       .select("id, full_name, role, avatar_url")
       .eq("family_id", familyId);
 
+    if (memErr) {
+      console.error("Supabase members query error:", memErr.message);
+      return NextResponse.json({ error: memErr.message }, { status: 500 });
+    }
+
     // 2. Fetch monthly transactions with category
-    const { data: transactions } = await supabaseAdmin
+    const { data: transactions, error: txErr } = await supabaseAdmin
       .from("transactions")
       .select("id, member_id, amount, type, category:categories(id, name)")
       .eq("family_id", familyId)
       .eq("type", "expense")
       .gte("transaction_date", startDate)
       .lte("transaction_date", endDate);
+
+    if (txErr) {
+      console.error("Supabase transactions query error:", txErr.message);
+      return NextResponse.json({ error: txErr.message }, { status: 500 });
+    }
 
     let totalExpense = 0;
     const memberMap: Record<
@@ -195,7 +126,7 @@ export async function GET(req: NextRequest) {
       monthYear,
     });
   } catch (err: any) {
-    console.warn("Error in GET contributions, fallback to mock:", err.message);
-    return NextResponse.json({ contributions: [], totalExpense: 0, unassigned: { spent: 0, count: 0, percentage: 0 }, monthYear: "2026-09" });
+    console.error("Error in GET contributions:", err);
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }

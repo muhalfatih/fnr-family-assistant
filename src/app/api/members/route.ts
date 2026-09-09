@@ -1,42 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getMonthDateRange } from "@/lib/utils";
-import { mockStore } from "@/lib/mock-data";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const monthYear = searchParams.get("period") || new Date().toISOString().substring(0, 7);
-
-    if (!isSupabaseConfigured()) {
-      const members = mockStore.getMembers();
-      const wallets = mockStore.getWallets();
-      const txs = mockStore.getTransactions(monthYear).filter((t) => t.type === "expense");
-
-      const spentByMember: Record<string, number> = {};
-      let unassignedSpent = 0;
-
-      txs.forEach((tx) => {
-        const amt = Number(tx.amount || 0);
-        if (tx.member_id) {
-          spentByMember[tx.member_id] = (spentByMember[tx.member_id] || 0) + amt;
-        } else {
-          unassignedSpent += amt;
-        }
-      });
-
-      const membersWithSpent = members.map((m) => ({
-        ...m,
-        default_wallet: wallets.find((w) => w.id === m.default_wallet_id) || null,
-        monthlySpent: spentByMember[m.id] || 0,
-      }));
-
-      return NextResponse.json({
-        members: membersWithSpent,
-        unassignedSpent,
-        monthYear,
-      });
-    }
 
     const { startDate, endDate } = getMonthDateRange(monthYear);
 
@@ -44,7 +13,7 @@ export async function GET(req: NextRequest) {
     const familyId = families && families.length > 0 ? families[0].id : null;
 
     if (!familyId) {
-      return NextResponse.json({ members: mockStore.getMembers(), unassignedSpent: 0, monthYear });
+      return NextResponse.json({ members: [], unassignedSpent: 0, monthYear });
     }
 
     // 1. Fetch all members with default wallet
@@ -55,8 +24,8 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: true });
 
     if (memErr) {
-      console.warn("Supabase members error, fallback to mock:", memErr.message);
-      return NextResponse.json({ members: mockStore.getMembers(), unassignedSpent: 0, monthYear });
+      console.error("Supabase members error:", memErr.message);
+      return NextResponse.json({ error: memErr.message }, { status: 500 });
     }
 
     // 2. Fetch monthly transactions to calculate spent per member
@@ -93,12 +62,8 @@ export async function GET(req: NextRequest) {
       monthYear,
     });
   } catch (err: any) {
-    console.warn("Error in GET members, fallback to mock:", err.message);
-    return NextResponse.json({
-      members: mockStore.getMembers(),
-      unassignedSpent: 0,
-      monthYear: "2026-09",
-    });
+    console.error("Error in GET members:", err);
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -121,31 +86,20 @@ export async function POST(req: NextRequest) {
 
     const validatedRole = role === "admin" ? "admin" : role === "spouse" ? "spouse" : "member";
 
-    if (!isSupabaseConfigured()) {
-      const newMem = mockStore.addMember({
-        full_name: full_name.trim(),
-        role: validatedRole,
-        default_wallet_id: default_wallet_id || null,
-        telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
-        telegram_username: telegram_username?.trim() || null,
-        whatsapp_number: whatsapp_number?.trim() || null,
-      });
-      return NextResponse.json({ success: true, member: newMem });
-    }
-
     const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
-    const familyId = families && families.length > 0 ? families[0].id : null;
+    let familyId = families && families.length > 0 ? families[0].id : null;
 
     if (!familyId) {
-      const newMem = mockStore.addMember({
-        full_name: full_name.trim(),
-        role: validatedRole,
-        default_wallet_id: default_wallet_id || null,
-        telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
-        telegram_username: telegram_username?.trim() || null,
-        whatsapp_number: whatsapp_number?.trim() || null,
-      });
-      return NextResponse.json({ success: true, member: newMem });
+      const { data: newFam } = await supabaseAdmin
+        .from("families")
+        .insert({ name: "Keluarga F&R", currency: "IDR" })
+        .select("id")
+        .single();
+      familyId = newFam?.id;
+    }
+
+    if (!familyId) {
+      return NextResponse.json({ error: "Keluarga tidak ditemukan." }, { status: 400 });
     }
 
     const payload: any = {
@@ -154,7 +108,7 @@ export async function POST(req: NextRequest) {
       role: validatedRole,
       default_wallet_id: default_wallet_id || null,
       telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
-      telegram_username: telegram_username?.trim() || null,
+      telegram_username: telegram_username ? telegram_username.replace(/^@/, "").trim() : null,
       whatsapp_number: whatsapp_number?.trim() || null,
       avatar_url: avatar_url?.trim() || null,
     };
@@ -166,16 +120,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.warn("Supabase insert member failed, fallback to mock:", error.message);
-      const newMem = mockStore.addMember({
-        full_name: full_name.trim(),
-        role: validatedRole,
-        default_wallet_id: default_wallet_id || null,
-        telegram_chat_id: telegram_chat_id ? Number(telegram_chat_id) : null,
-        telegram_username: telegram_username?.trim() || null,
-        whatsapp_number: whatsapp_number?.trim() || null,
-      });
-      return NextResponse.json({ success: true, member: newMem });
+      console.error("Supabase insert member failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, member: data });
@@ -215,11 +161,6 @@ export async function PUT(req: NextRequest) {
     if (whatsapp_number !== undefined) updatePayload.whatsapp_number = whatsapp_number?.trim() || null;
     if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url?.trim() || null;
 
-    if (!isSupabaseConfigured()) {
-      const updated = mockStore.updateMember(id, updatePayload);
-      return NextResponse.json({ success: true, member: updated });
-    }
-
     const { data, error } = await supabaseAdmin
       .from("family_members")
       .update(updatePayload)
@@ -228,8 +169,8 @@ export async function PUT(req: NextRequest) {
       .single();
 
     if (error) {
-      const updated = mockStore.updateMember(id, updatePayload);
-      return NextResponse.json({ success: true, member: updated });
+      console.error("Supabase update member failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, member: data });
@@ -247,16 +188,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing member id" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      mockStore.deleteMember(id);
-      return NextResponse.json({ success: true, id });
-    }
-
     const { error } = await supabaseAdmin.from("family_members").delete().eq("id", id);
 
     if (error) {
-      mockStore.deleteMember(id);
-      return NextResponse.json({ success: true, id });
+      console.error("Supabase delete member failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, id });

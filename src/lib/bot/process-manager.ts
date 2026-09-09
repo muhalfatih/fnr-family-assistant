@@ -1,6 +1,5 @@
 import { ActiveProcessInfo, ChatActivityLog, LogStatus } from "@/lib/types/database";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
 
 interface RegisteredProcess {
   info: ActiveProcessInfo;
@@ -355,14 +354,7 @@ export async function getChatActivityLogs(
     return { logs: realLogs.slice(0, limit), isMockMode: false };
   }
 
-  // Environment is NOT configured (Clean local or staging environment without env setup)
-  // If inMemoryLogs has live items created during this session, use them
-  if (inMemoryLogs.length > 0) {
-    return { logs: inMemoryLogs.slice(0, limit), isMockMode: true };
-  }
-
-  // Otherwise return mockStore logs for staging/demo presentation
-  return { logs: mockStore.getLogs().slice(0, limit), isMockMode: true };
+  return { logs: inMemoryLogs.slice(0, limit), isMockMode: false };
 }
 
 /**
@@ -375,10 +367,7 @@ export async function deleteChatActivityLog(id: string): Promise<boolean> {
     inMemoryLogs.splice(memIdx, 1);
   }
 
-  // 2. Remove from mockStore
-  mockStore.deleteLog(id);
-
-  // 3. Remove from Supabase if configured
+  // 2. Remove from Supabase if configured
   if (isSupabaseConfigured()) {
     try {
       await Promise.allSettled([
@@ -400,10 +389,7 @@ export async function clearAllChatActivityLogs(): Promise<boolean> {
   // 1. Clear inMemoryLogs
   inMemoryLogs.length = 0;
 
-  // 2. Clear mockStore
-  mockStore.clearLogs();
-
-  // 3. Clear from Supabase if configured
+  // 2. Clear from Supabase if configured
   if (isSupabaseConfigured()) {
     try {
       await Promise.allSettled([

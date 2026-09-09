@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPresignedReceiptViewUrl, getReceiptMediaStream } from "@/lib/storage/r2";
-import { mockStore } from "@/lib/mock-data";
 import { isSupabaseConfigured, supabaseAdmin } from "@/lib/supabase/admin";
 
 /**
@@ -120,12 +119,8 @@ export async function GET(req: NextRequest) {
             .single();
           if (data) txData = data;
         } catch {
-          // ignore error and fallback to mock
+          // ignore error
         }
-      }
-
-      if (!txData) {
-        txData = mockStore.getTransactions().find((t) => t.id === idParam) || null;
       }
 
       if (txData && !resolvedKey) {

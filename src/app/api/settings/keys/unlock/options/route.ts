@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { maskTarget } from "@/lib/auth-otp";
-import { mockStore } from "@/lib/mock-data";
-import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET(req: NextRequest) {
   try {
@@ -28,39 +27,24 @@ export async function GET(req: NextRequest) {
     }
 
     let memberProfile: any = null;
-    let isFromDatabase = false;
 
-    // 1. Jika Supabase terhubung, prioritaskan data asli dari database
-    if (isSupabaseConfigured()) {
-      try {
-        const { data: dbMembers, error } = await supabaseAdmin
-          .from("family_members")
-          .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
+    try {
+      const { data: dbMembers, error } = await supabaseAdmin
+        .from("family_members")
+        .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
 
-        if (!error && dbMembers && dbMembers.length > 0) {
-          const matched =
-            dbMembers.find((m) => m.id === sessionUser.id) ||
-            dbMembers.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
-            dbMembers.find((m) => m.role === sessionUser.role);
+      if (!error && dbMembers && dbMembers.length > 0) {
+        const matched =
+          dbMembers.find((m) => m.id === sessionUser.id) ||
+          dbMembers.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
+          dbMembers.find((m) => m.role === sessionUser.role);
 
-          if (matched) {
-            memberProfile = matched;
-            isFromDatabase = true;
-          }
+        if (matched) {
+          memberProfile = matched;
         }
-      } catch (err) {
-        console.warn("[UnlockOptions] Supabase error:", err);
       }
-    }
-
-    // 2. Mockup HANYA digunakan jika Supabase tidak terhubung sama sekali / database kosong
-    if (!isFromDatabase && !isSupabaseConfigured()) {
-      const allMock = mockStore.getMembers();
-      memberProfile =
-        allMock.find((m) => m.id === sessionUser.id) ||
-        allMock.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
-        allMock.find((m) => m.role === sessionUser.role) ||
-        null;
+    } catch (err) {
+      console.warn("[UnlockOptions] Supabase error:", err);
     }
 
     // Evaluasi kanal keamanan murni berdasarkan profil asli (tidak pernah menginjeksikan data tiruan)
@@ -99,9 +83,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("[UnlockOptions] Exception:", err);
-    return NextResponse.json(
-      { ok: false, error: err.message || "Gagal memuat opsi keamanan." },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: err.message || "Internal server error" }, { status: 500 });
   }
 }

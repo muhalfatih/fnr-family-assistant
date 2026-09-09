@@ -1,5 +1,4 @@
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
 import { encryptSecret, decryptSecret, maskSecret } from "./encryption";
 
 export interface SecretDefinition {
@@ -278,14 +277,7 @@ export async function getSecret(keyName: string): Promise<string | null> {
     }
   }
 
-  // 2. Check MockStore
-  const mockRec = mockStore.getApiKeyRecord(keyName);
-  if (mockRec?.encrypted_value) {
-    const decrypted = decryptSecret(mockRec.encrypted_value);
-    if (decrypted) return decrypted;
-  }
-
-  // 3. Fallback to process.env
+  // 2. Fallback to process.env
   const envVal = getEnvWithFallback(keyName);
   if (envVal) {
     return envVal;
@@ -295,7 +287,7 @@ export async function getSecret(keyName: string): Promise<string | null> {
 }
 
 /**
- * Saves or updates an encrypted secret to the database & mockStore
+ * Saves or updates an encrypted secret to the database
  */
 export async function saveSecret(
   keyName: string,
@@ -311,9 +303,6 @@ export async function saveSecret(
   const matchedDef = KNOWN_SECRETS.find((s) => s.keyName === keyName);
   const service = serviceName || matchedDef?.service || "system";
   const now = new Date().toISOString();
-
-  // Always update mockStore
-  mockStore.setApiKeyRecord(keyName, encrypted, service);
 
   // Update Supabase if configured
   if (isSupabaseConfigured()) {
@@ -341,8 +330,6 @@ export async function saveSecret(
  * Removes a custom secret from the database (reverting to env fallback if exists)
  */
 export async function deleteSecret(keyName: string): Promise<boolean> {
-  mockStore.deleteApiKeyRecord(keyName);
-
   if (isSupabaseConfigured()) {
     try {
       await supabaseAdmin.from("system_api_keys").delete().eq("key_name", keyName);
@@ -374,14 +361,6 @@ export async function getAllSecretStatuses(): Promise<Record<string, SecretStatu
       }
     } catch (err) {
       console.warn("[SecretManager] Failed to fetch database secrets:", err);
-    }
-  }
-
-  // Overlay with MockStore
-  const mockAll = mockStore.getAllApiKeyRecords();
-  for (const [k, v] of Object.entries(mockAll)) {
-    if (!dbRecords[k]) {
-      dbRecords[k] = v;
     }
   }
 

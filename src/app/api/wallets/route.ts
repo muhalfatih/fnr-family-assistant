@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json({ wallets: mockStore.getWallets() });
-    }
-
     const { data: wallets, error } = await supabaseAdmin
       .from("wallets")
       .select("*")
@@ -15,14 +10,14 @@ export async function GET() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.warn("Supabase wallets query error, falling back to mock:", error.message);
-      return NextResponse.json({ wallets: mockStore.getWallets() });
+      console.error("[Wallets API] Supabase query error:", error.message);
+      return NextResponse.json({ error: error.message, wallets: [] }, { status: 500 });
     }
 
     return NextResponse.json({ wallets: wallets || [] });
   } catch (err: any) {
-    console.warn("Error fetching wallets, falling back to mock:", err.message);
-    return NextResponse.json({ wallets: mockStore.getWallets() });
+    console.error("[Wallets API] Exception:", err.message);
+    return NextResponse.json({ error: err.message, wallets: [] }, { status: 500 });
   }
 }
 
@@ -35,11 +30,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nama dan tipe rekening wajib diisi" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      const newWallet = mockStore.addWallet({ name, type, current_balance, currency, family_id });
-      return NextResponse.json({ wallet: newWallet }, { status: 201 });
-    }
-
     let targetFamilyId = family_id;
     if (!targetFamilyId) {
       const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
@@ -47,21 +37,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (!targetFamilyId) {
-      const { data: newFam } = await supabaseAdmin
-        .from("families")
-        .insert({ name: "Keluarga F&R", currency: "IDR" })
-        .select("id")
-        .single();
-      targetFamilyId = newFam?.id;
+      return NextResponse.json({ error: "Keluarga belum terdaftar di Supabase" }, { status: 400 });
     }
 
     const { data: wallet, error } = await supabaseAdmin
       .from("wallets")
       .insert({
         family_id: targetFamilyId,
-        name,
+        name: name.trim(),
         type,
-        current_balance: current_balance || 0,
+        current_balance: Number(current_balance) || 0,
         currency,
         is_active: true,
       })
@@ -69,9 +54,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.warn("Supabase add wallet failed, saving to mock store:", error.message);
-      const newWallet = mockStore.addWallet({ name, type, current_balance, currency, family_id: targetFamilyId });
-      return NextResponse.json({ wallet: newWallet }, { status: 201 });
+      console.error("[Wallets API] Add wallet failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ wallet }, { status: 201 });
@@ -87,22 +71,6 @@ export async function PUT(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "ID rekening wajib disertakan" }, { status: 400 });
-    }
-
-    if (!isSupabaseConfigured()) {
-      const updated = mockStore.updateWallet(id, {
-        ...(name !== undefined && { name: name.trim() }),
-        ...(type !== undefined && { type }),
-        ...(current_balance !== undefined && { current_balance: Number(current_balance) }),
-        ...(account_number !== undefined && { account_number }),
-        ...(currency !== undefined && { currency }),
-        ...(is_active !== undefined && { is_active }),
-      });
-
-      if (!updated) {
-        return NextResponse.json({ error: "Rekening tidak ditemukan" }, { status: 404 });
-      }
-      return NextResponse.json({ wallet: updated, success: true });
     }
 
     const { data: wallet, error } = await supabaseAdmin
@@ -121,9 +89,8 @@ export async function PUT(req: NextRequest) {
       .single();
 
     if (error) {
-      console.warn("Supabase update wallet failed, updating mock store:", error.message);
-      const updated = mockStore.updateWallet(id, { name, type, current_balance, account_number, currency, is_active });
-      return NextResponse.json({ wallet: updated || { id, name, type, current_balance }, success: true });
+      console.error("[Wallets API] Update wallet failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ wallet, success: true });
@@ -148,17 +115,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "ID rekening wajib disertakan" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      mockStore.deleteWallet(id);
-      return NextResponse.json({ success: true, message: "Rekening berhasil dihapus" });
-    }
-
     const { error } = await supabaseAdmin.from("wallets").delete().eq("id", id);
 
     if (error) {
-      console.warn("Supabase delete wallet failed, deleting from mock store:", error.message);
-      mockStore.deleteWallet(id);
-      return NextResponse.json({ success: true, message: "Rekening dihapus dari mock store" });
+      console.error("[Wallets API] Delete wallet failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, message: "Rekening berhasil dihapus" });

@@ -1,5 +1,4 @@
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
 
 // Global map to store processed webhook IDs across hot-reloads and serverless execution
 const globalForIdempotency = globalThis as unknown as {
@@ -139,46 +138,6 @@ export async function checkRecentDuplicateTransaction(
     } catch (e) {
       console.error("[Idempotency] Exception in Supabase duplicate check:", e);
     }
-  }
-
-  // 2. Mock Store Check (Fallback)
-  try {
-    const mockTxs = mockStore.getTransactions() || [];
-    const now = Date.now();
-
-    for (const tx of mockTxs) {
-      if (
-        tx.family_id === familyId &&
-        tx.type === type &&
-        Math.round(tx.amount) === Math.round(amount)
-      ) {
-        const txTime = new Date(tx.created_at).getTime();
-        if (now - txTime < windowMs) {
-          const existingDesc = normalizeText(tx.description);
-          const existingMerchant = normalizeText(tx.parsed_metadata?.merchant);
-
-          let isMatch = false;
-          if (candidateMerchant && existingMerchant && candidateMerchant === existingMerchant) {
-            isMatch = true;
-          } else if (candidateDesc && existingDesc && candidateDesc === existingDesc) {
-            isMatch = true;
-          } else if (!candidateMerchant && !existingMerchant) {
-            isMatch = true;
-          }
-
-          if (isMatch) {
-            const minutesAgo = Math.max(1, Math.round((now - txTime) / (60 * 1000)));
-            return {
-              isDuplicate: true,
-              existingTx: tx,
-              minutesAgo,
-            };
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.error("[Idempotency] Exception in mockStore duplicate check:", e);
   }
 
   return { isDuplicate: false };

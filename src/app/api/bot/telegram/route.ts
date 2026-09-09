@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
 import {
   parseFinancialInputWithGemini,
   answerFinancialQuestionWithGemini,
@@ -102,50 +101,8 @@ export async function POST(req: NextRequest) {
 
   const currentMonth = new Date().toISOString().substring(0, 7);
 
-  // Helper to fetch live financial data for a family with instant mock fallback
+  // Helper to fetch live financial data for a family directly from Supabase
   const getFamilyFinancialData = async (familyId: string) => {
-    if (!isSupabaseConfigured()) {
-      const wallets = mockStore.getWallets();
-      const categories = mockStore.getCategories().filter((c: any) => c.type === "expense");
-      const budgets = mockStore.getBudgets();
-      const transactions = mockStore.getTransactions();
-
-      const spentMap: Record<string, number> = {};
-      let monthlyTotalExpense = 0;
-      let monthlyTotalIncome = 0;
-
-      transactions.forEach((tx: any) => {
-        const amt = Number(tx.amount || 0);
-        if (tx.type === "expense") {
-          monthlyTotalExpense += amt;
-          if (tx.category_id) {
-            spentMap[tx.category_id] = (spentMap[tx.category_id] || 0) + amt;
-          }
-        } else if (tx.type === "income") {
-          monthlyTotalIncome += amt;
-        }
-      });
-
-      const budgetItems = categories.map((cat: any) => {
-        const b = budgets?.find((item: any) => item.category_id === cat.id);
-        return {
-          id: b?.id || cat.id,
-          category_id: cat.id,
-          name: cat.name,
-          spent: spentMap[cat.id] || 0,
-          target: b ? Number(b.target_amount) : 0,
-        };
-      });
-
-      return {
-        wallets: wallets || [],
-        budgets: budgetItems,
-        recentTransactions: transactions || [],
-        monthlyTotalExpense,
-        monthlyTotalIncome,
-      };
-    }
-
     try {
       const [walletsRes, categoriesRes, budgetsRes, recentTxRes, monthlyTxRes] = await Promise.all([
         supabaseAdmin.from("wallets").select("*").eq("family_id", familyId).eq("is_active", true),
@@ -168,10 +125,10 @@ export async function POST(req: NextRequest) {
         })(),
       ]);
 
-      const wallets = walletsRes?.data || mockStore.getWallets();
-      const categories = categoriesRes?.data || mockStore.getCategories();
-      const budgets = budgetsRes?.data || mockStore.getBudgets();
-      const transactions = recentTxRes?.data || mockStore.getTransactions();
+      const wallets = walletsRes?.data || [];
+      const categories = categoriesRes?.data || [];
+      const budgets = budgetsRes?.data || [];
+      const transactions = recentTxRes?.data || [];
       const monthlyTx = monthlyTxRes?.data || [];
 
       const spentMap: Record<string, number> = {};
@@ -212,14 +169,10 @@ export async function POST(req: NextRequest) {
       };
     } catch (e) {
       console.warn("[Telegram] Error fetching live financial data from Supabase:", e);
-      const wallets = mockStore.getWallets();
-      const categories = mockStore.getCategories();
-      const budgets = mockStore.getBudgets();
-      const transactions = mockStore.getTransactions();
       return {
-        wallets,
-        budgets: categories.map((c: any) => ({ id: c.id, category_id: c.id, name: c.name, spent: 0, target: 1000000 })),
-        recentTransactions: transactions,
+        wallets: [],
+        budgets: [],
+        recentTransactions: [],
         monthlyTotalExpense: 0,
         monthlyTotalIncome: 0,
       };
@@ -228,11 +181,6 @@ export async function POST(req: NextRequest) {
 
   // Helper to strictly authorize registered family members
   const resolveRegisteredTelegramMember = async (targetChatId: number | string) => {
-    if (!isSupabaseConfigured()) {
-      const members = mockStore.getMembers();
-      return members.find((m: any) => String(m.telegram_chat_id) === String(targetChatId)) || null;
-    }
-
     try {
       const { data: memberData, error } = await supabaseAdmin
         .from("family_members")
@@ -254,14 +202,6 @@ export async function POST(req: NextRequest) {
   const findMemberByTelegramUsername = async (rawUsername: string) => {
     const cleanUsername = rawUsername.replace(/^@/, "").trim().toLowerCase();
     if (!cleanUsername) return null;
-
-    if (!isSupabaseConfigured()) {
-      const members = mockStore.getMembers();
-      return members.find((m: any) => {
-        const u = m.telegram_username ? String(m.telegram_username).replace(/^@/, "").trim().toLowerCase() : "";
-        return u === cleanUsername;
-      }) || null;
-    }
 
     try {
       const { data: members, error } = await supabaseAdmin
@@ -286,14 +226,6 @@ export async function POST(req: NextRequest) {
     const normalized = normalizePhoneNumber(phone);
     if (!normalized) return null;
 
-    if (!isSupabaseConfigured()) {
-      const members = mockStore.getMembers();
-      return members.find((m: any) => {
-        const mPhone = m.whatsapp_number ? normalizePhoneNumber(m.whatsapp_number) : "";
-        return mPhone === normalized;
-      }) || null;
-    }
-
     try {
       const { data: members, error } = await supabaseAdmin
         .from("family_members")
@@ -315,16 +247,13 @@ export async function POST(req: NextRequest) {
   // Helper to link member's telegram chat ID and username
   const linkMemberTelegram = async (memberId: string, targetChatId: number | string, username?: string | null) => {
     const cleanUsername = username ? username.replace(/^@/, "").trim() : null;
-    if (isSupabaseConfigured()) {
-      try {
-        const updatePayload: any = { telegram_chat_id: Number(targetChatId) };
-        if (cleanUsername) updatePayload.telegram_username = cleanUsername;
-        await supabaseAdmin.from("family_members").update(updatePayload).eq("id", memberId);
-      } catch (err) {
-        console.warn("[Telegram Auth] Supabase link update error:", err);
-      }
+    try {
+      const updatePayload: any = { telegram_chat_id: Number(targetChatId) };
+      if (cleanUsername) updatePayload.telegram_username = cleanUsername;
+      await supabaseAdmin.from("family_members").update(updatePayload).eq("id", memberId);
+    } catch (err) {
+      console.warn("[Telegram Auth] Supabase link update error:", err);
     }
-    mockStore.updateMemberTelegramInfo(memberId, Number(targetChatId), cleanUsername);
   };
 
   // Helper to auto-sync latest username if changed
@@ -333,12 +262,9 @@ export async function POST(req: NextRequest) {
     const cleanCurrent = currentUsername ? currentUsername.replace(/^@/, "").trim().toLowerCase() : "";
     const cleanNew = newUsername.replace(/^@/, "").trim().toLowerCase();
     if (cleanNew && cleanCurrent !== cleanNew) {
-      if (isSupabaseConfigured()) {
-        Promise.resolve(
-          supabaseAdmin.from("family_members").update({ telegram_username: cleanNew }).eq("id", memberId)
-        ).catch((err) => console.warn("[Telegram Auth] Auto-sync username error:", err));
-      }
-      mockStore.updateMemberTelegramInfo(memberId, undefined, cleanNew);
+      Promise.resolve(
+        supabaseAdmin.from("family_members").update({ telegram_username: cleanNew }).eq("id", memberId)
+      ).catch((err) => console.warn("[Telegram Auth] Auto-sync username error:", err));
     }
   };
 
@@ -396,11 +322,6 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (!targetTx) {
-        targetTx = mockStore.getTransactions().find((t: any) => t.id === transactionId) || null;
-      }
-      mockStore.deleteTransaction(transactionId);
-
       // 2. Clean up media storage (Cloudflare R2 / Local) to save space
       if (targetTx && (targetTx.drive_file_id || targetTx.drive_view_url || targetTx.media_url)) {
         deleteReceiptMedia({
@@ -425,18 +346,14 @@ export async function POST(req: NextRequest) {
     if (data.startsWith("prompt_wallet:")) {
       const transactionId = data.replace("prompt_wallet:", "");
       let wallets: any[] = [];
-      if (!isSupabaseConfigured()) {
-        wallets = mockStore.getWallets();
-      } else {
-        try {
-          const { data: wList } = await supabaseAdmin
-            .from("wallets")
-            .select("id, name")
-            .eq("is_active", true);
-          wallets = wList || mockStore.getWallets();
-        } catch {
-          wallets = mockStore.getWallets();
-        }
+      try {
+        const { data: wList } = await supabaseAdmin
+          .from("wallets")
+          .select("id, name")
+          .eq("is_active", true);
+        wallets = wList || [];
+      } catch {
+        wallets = [];
       }
 
       if (wallets && wallets.length > 0) {
@@ -463,18 +380,13 @@ export async function POST(req: NextRequest) {
 
     if (data.startsWith("switch_wallet:")) {
       const [, transactionId, walletId, walletName] = data.split(":");
-      if (isSupabaseConfigured()) {
-        try {
-          await supabaseAdmin
-            .from("transactions")
-            .update({ wallet_id: walletId })
-            .eq("id", transactionId);
-        } catch (err) {
-          console.warn("[Telegram] Error updating wallet in Supabase:", err);
-          mockStore.updateTransaction(transactionId, { wallet_id: walletId });
-        }
-      } else {
-        mockStore.updateTransaction(transactionId, { wallet_id: walletId });
+      try {
+        await supabaseAdmin
+          .from("transactions")
+          .update({ wallet_id: walletId })
+          .eq("id", transactionId);
+      } catch (err) {
+        console.warn("[Telegram] Error updating wallet in Supabase:", err);
       }
 
       await answerTelegramCallbackQuery(cq.id, `Dompet diubah ke ${walletName}!`);
@@ -1097,48 +1009,41 @@ export async function POST(req: NextRequest) {
 
     // 2e. Match Wallet
     let chosenWallet: any = null;
-    if (!isSupabaseConfigured()) {
-      const wallets = mockStore.getWallets();
-      chosenWallet = wallets.find((w: any) =>
+    try {
+      const { data: wallets } = await supabaseAdmin
+        .from("wallets")
+        .select("*")
+        .eq("family_id", familyId)
+        .eq("is_active", true);
+
+      chosenWallet = wallets?.find((w: any) =>
         parsed.wallet_hint && w.name.toLowerCase().includes(parsed.wallet_hint.toLowerCase())
-      ) || (defaultWalletId ? wallets.find((w: any) => w.id === defaultWalletId) : null) || wallets[0];
-    } else {
-      try {
-        const { data: wallets } = await supabaseAdmin
-          .from("wallets")
-          .select("*")
-          .eq("family_id", familyId)
-          .eq("is_active", true);
+      );
 
-        chosenWallet = wallets?.find((w: any) =>
-          parsed.wallet_hint && w.name.toLowerCase().includes(parsed.wallet_hint.toLowerCase())
-        );
-
-        if (!chosenWallet && defaultWalletId) {
-          chosenWallet = wallets?.find((w: any) => w.id === defaultWalletId);
-        }
-
-        if (!chosenWallet && wallets && wallets.length > 0) {
-          chosenWallet = wallets[0];
-        }
-
-        if (!chosenWallet) {
-          const { data: newWallet } = await supabaseAdmin
-            .from("wallets")
-            .insert({
-              family_id: familyId,
-              name: "Dompet Tunai",
-              type: "cash",
-              current_balance: 0,
-            })
-            .select()
-            .single();
-          chosenWallet = newWallet;
-        }
-      } catch (err) {
-        console.warn("[Telegram] Error fetching wallets from Supabase:", err);
-        chosenWallet = mockStore.getWallets()[0];
+      if (!chosenWallet && defaultWalletId) {
+        chosenWallet = wallets?.find((w: any) => w.id === defaultWalletId);
       }
+
+      if (!chosenWallet && wallets && wallets.length > 0) {
+        chosenWallet = wallets[0];
+      }
+
+      if (!chosenWallet) {
+        const { data: newWallet } = await supabaseAdmin
+          .from("wallets")
+          .insert({
+            family_id: familyId,
+            name: "Dompet Tunai",
+            type: "cash",
+            current_balance: 0,
+            is_active: true,
+          })
+          .select()
+          .single();
+        chosenWallet = newWallet;
+      }
+    } catch (err) {
+      console.warn("[Telegram] Error fetching wallets from Supabase:", err);
     }
 
     // 2f. Intelligently Match Category & Automatically Sync with Current Month Budget
@@ -1177,74 +1082,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 2g. Insert Transaction into Supabase or MockStore
+    // 2g. Insert Transaction into Supabase
     let transaction: any = null;
-    if (!isSupabaseConfigured()) {
-      transaction = mockStore.addTransaction({
-        family_id: familyId,
-        member_id: member?.id || "mock-member-id",
-        wallet_id: chosenWallet?.id || "wallet-1",
-        category_id: categoryId,
-        type: parsed.type,
-        amount: parsed.amount,
-        transaction_date: (() => {
-          if (parsed.transaction_date) {
-            const d = new Date(parsed.transaction_date);
-            if (!isNaN(d.getTime())) return d.toISOString();
-          }
-          return new Date().toISOString();
-        })(),
-        description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Transaksi Telegram"),
-      });
-    } else {
-      try {
-        const { data, error: txError } = await supabaseAdmin
-          .from("transactions")
-          .insert({
-            family_id: familyId,
-            member_id: member?.id || null,
-            wallet_id: chosenWallet?.id,
-            category_id: categoryId,
-            type: parsed.type,
-            amount: parsed.amount,
-            transaction_date: (() => {
-              if (parsed.transaction_date) {
-                const d = new Date(parsed.transaction_date);
-                if (!isNaN(d.getTime())) return d.toISOString();
-              }
-              return new Date().toISOString();
-            })(),
-            description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
-            raw_prompt: rawPrompt,
-            media_type: mediaType,
-            media_url: driveViewUrl || null,
-            drive_file_id: driveFileId,
-            drive_view_url: driveViewUrl,
-            parsed_metadata: {
-              merchant: parsed.merchant_name,
-              items: parsed.items,
-              confidence: parsed.confidence,
-              transcription: parsed.transcription,
-            },
-          })
-          .select()
-          .single();
-
-        if (txError) throw txError;
-        transaction = data;
-      } catch (e: any) {
-        console.error("[Telegram] Failed to insert transaction to Supabase, falling back to mockStore:", e);
-        transaction = mockStore.addTransaction({
+    try {
+      const { data, error: txError } = await supabaseAdmin
+        .from("transactions")
+        .insert({
           family_id: familyId,
-          member_id: member?.id || "mock-member-id",
-          wallet_id: chosenWallet?.id || "wallet-1",
+          member_id: member?.id || null,
+          wallet_id: chosenWallet?.id,
           category_id: categoryId,
           type: parsed.type,
           amount: parsed.amount,
-          transaction_date: new Date().toISOString(),
-          description: parsed.description || "Transaksi Telegram",
-        });
-      }
+          transaction_date: (() => {
+            if (parsed.transaction_date) {
+              const d = new Date(parsed.transaction_date);
+              if (!isNaN(d.getTime())) return d.toISOString();
+            }
+            return new Date().toISOString();
+          })(),
+          description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
+          raw_prompt: rawPrompt,
+          media_type: mediaType,
+          media_url: driveViewUrl || null,
+          drive_file_id: driveFileId,
+          drive_view_url: driveViewUrl,
+          parsed_metadata: {
+            merchant: parsed.merchant_name,
+            items: parsed.items,
+            confidence: parsed.confidence,
+            transcription: parsed.transcription,
+          },
+        })
+        .select()
+        .single();
+
+      if (txError) throw txError;
+      transaction = data;
+    } catch (e: any) {
+      console.error("[Telegram] Failed to insert transaction to Supabase:", e);
     }
 
     if (!transaction) {

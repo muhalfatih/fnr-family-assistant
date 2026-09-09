@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { issueOtp, createSignedChallenge, maskTarget } from "@/lib/auth-otp";
 import { sendTelegramMessage } from "@/lib/telegram/bot";
 import { sendWhatsAppTextMessage } from "@/lib/whatsapp/client";
-import { mockStore } from "@/lib/mock-data";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 export async function POST(req: NextRequest) {
@@ -40,40 +39,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Fetch full member profile to obtain real phone/chat ID (Prioritize Supabase)
     let memberProfile: any = null;
-    let isFromDatabase = false;
 
-    if (isSupabaseConfigured()) {
-      try {
-        const { data: dbMembers, error } = await supabaseAdmin
-          .from("family_members")
-          .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
+    try {
+      const { data: dbMembers, error } = await supabaseAdmin
+        .from("family_members")
+        .select("id, full_name, role, whatsapp_number, telegram_chat_id, telegram_username");
 
-        if (!error && dbMembers && dbMembers.length > 0) {
-          const matched =
-            dbMembers.find((m) => m.id === sessionUser.id) ||
-            dbMembers.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
-            dbMembers.find((m) => m.role === sessionUser.role);
+      if (!error && dbMembers && dbMembers.length > 0) {
+        const matched =
+          dbMembers.find((m) => m.id === sessionUser.id) ||
+          dbMembers.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
+          dbMembers.find((m) => m.role === sessionUser.role);
 
-          if (matched) {
-            memberProfile = matched;
-            isFromDatabase = true;
-          }
+        if (matched) {
+          memberProfile = matched;
         }
-      } catch (err) {
-        console.warn("[UnlockRequest] Supabase fetch error:", err);
       }
-    }
-
-    // Hanya gunakan mockStore jika Supabase tidak terhubung
-    if (!isFromDatabase && !isSupabaseConfigured()) {
-      const allMock = mockStore.getMembers();
-      memberProfile =
-        allMock.find((m) => m.id === sessionUser.id) ||
-        allMock.find((m) => m.full_name?.toLowerCase().includes(sessionUser.name?.toLowerCase() || "")) ||
-        allMock.find((m) => m.role === sessionUser.role) ||
-        null;
+    } catch (err) {
+      console.warn("[UnlockRequest] Supabase fetch error:", err);
     }
 
     if (!memberProfile) {

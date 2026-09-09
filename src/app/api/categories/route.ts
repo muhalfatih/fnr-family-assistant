@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json({ categories: mockStore.getCategories() });
-    }
-
     const { data: categories, error } = await supabaseAdmin
       .from("categories")
       .select("*")
       .order("name", { ascending: true });
 
     if (error) {
-      console.warn("Supabase categories query error, falling back to mock:", error.message);
-      return NextResponse.json({ categories: mockStore.getCategories() });
+      console.error("Supabase categories query error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     // Pastikan kategori default "Lainnya" selalu tersedia
@@ -95,8 +90,8 @@ export async function GET() {
 
     return NextResponse.json({ categories: Array.from(seen.values()) });
   } catch (err: any) {
-    console.warn("Error fetching categories, falling back to mock:", err.message);
-    return NextResponse.json({ categories: mockStore.getCategories() });
+    console.error("Error fetching categories:", err);
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -124,23 +119,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!isSupabaseConfigured()) {
-      try {
-        const newCategory = mockStore.addCategory({
-          name: trimmedName,
-          type,
-          color,
-          icon,
-          is_default: false,
-          initialTarget: Number(initialTarget || 0),
-          monthYear,
-        });
-        return NextResponse.json({ category: newCategory }, { status: 201 });
-      } catch (err: any) {
-        return NextResponse.json({ error: err.message || "Gagal menambahkan kategori" }, { status: 400 });
-      }
-    }
-
     // Resolve family ID
     const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
     let targetFamilyId = families && families.length > 0 ? families[0].id : null;
@@ -155,16 +133,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!targetFamilyId) {
-      const newCategory = mockStore.addCategory({
-        name: name.trim(),
-        type,
-        color,
-        icon,
-        is_default: false,
-        initialTarget: Number(initialTarget || 0),
-        monthYear,
-      });
-      return NextResponse.json({ category: newCategory }, { status: 201 });
+      return NextResponse.json({ error: "Keluarga tidak ditemukan." }, { status: 400 });
     }
 
     // Check duplicate in Supabase
@@ -197,21 +166,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (catErr) {
-      console.warn("Supabase insert category failed, falling back to mock:", catErr.message);
-      try {
-        const newCategory = mockStore.addCategory({
-          name: trimmedName,
-          type,
-          color,
-          icon,
-          is_default: false,
-          initialTarget: Number(initialTarget || 0),
-          monthYear,
-        });
-        return NextResponse.json({ category: newCategory }, { status: 201 });
-      } catch (e: any) {
-        return NextResponse.json({ error: e.message || "Gagal menambahkan kategori" }, { status: 400 });
-      }
+      console.error("Supabase insert category failed:", catErr.message);
+      return NextResponse.json({ error: catErr.message || "Gagal menambahkan kategori" }, { status: 400 });
     }
 
     // If initialTarget specified, insert into budgets
@@ -241,27 +197,6 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "ID kategori wajib disertakan" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      const existing = mockStore.getCategories().find((c) => c.id === id);
-      if (existing?.name.toLowerCase() === "lainnya" && existing?.is_default && name && name.trim().toLowerCase() !== "lainnya") {
-        return NextResponse.json({ error: "Nama kategori default 'Lainnya' tidak dapat diubah." }, { status: 400 });
-      }
-
-      try {
-        const updated = mockStore.updateCategory(id, {
-          ...(name !== undefined && { name: name.trim() }),
-          ...(color !== undefined && { color }),
-          ...(icon !== undefined && { icon }),
-        });
-        if (!updated) {
-          return NextResponse.json({ error: "Kategori tidak ditemukan" }, { status: 404 });
-        }
-        return NextResponse.json({ category: updated });
-      } catch (err: any) {
-        return NextResponse.json({ error: err.message || "Gagal memperbarui kategori" }, { status: 400 });
-      }
-    }
-
     // Periksa apakah kategori adalah default "Lainnya"
     const { data: existingCat } = await supabaseAdmin
       .from("categories")
@@ -285,13 +220,8 @@ export async function PUT(req: NextRequest) {
       .single();
 
     if (error) {
-      console.warn("Supabase update category failed, falling back to mock:", error.message);
-      const updated = mockStore.updateCategory(id, {
-        ...(name !== undefined && { name: name.trim() }),
-        ...(color !== undefined && { color }),
-        ...(icon !== undefined && { icon }),
-      });
-      return NextResponse.json({ category: updated });
+      console.error("Supabase update category failed:", error.message);
+      return NextResponse.json({ error: error.message || "Gagal memperbarui kategori" }, { status: 400 });
     }
 
     return NextResponse.json({ category });
@@ -309,21 +239,6 @@ export async function DELETE(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "ID kategori wajib disertakan" }, { status: 400 });
-    }
-
-    if (!isSupabaseConfigured()) {
-      const existing = mockStore.getCategories().find((c) => c.id === id);
-      if (existing?.name.toLowerCase() === "lainnya" || existing?.is_default) {
-        return NextResponse.json(
-          { error: "Kategori default 'Lainnya' tidak dapat dihapus." },
-          { status: 400 }
-        );
-      }
-      const success = mockStore.deleteCategory(id, fallbackIdParam || undefined);
-      if (!success) {
-        return NextResponse.json({ error: "Kategori tidak ditemukan" }, { status: 404 });
-      }
-      return NextResponse.json({ success: true });
     }
 
     // Check if category is default in Supabase
@@ -379,8 +294,8 @@ export async function DELETE(req: NextRequest) {
     // Delete category
     const { error: delErr } = await supabaseAdmin.from("categories").delete().eq("id", id);
     if (delErr) {
-      console.warn("Supabase delete category error, falling back to mock:", delErr.message);
-      mockStore.deleteCategory(id, fallbackId || undefined);
+      console.error("Supabase delete category error:", delErr.message);
+      return NextResponse.json({ error: delErr.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });

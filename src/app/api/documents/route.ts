@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export interface VaultDocument {
   id: string;
@@ -27,22 +26,11 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category");
     const status = searchParams.get("status");
 
-    if (!isSupabaseConfigured()) {
-      let docs = mockStore.getDocuments();
-      if (category && category !== "all") {
-        docs = docs.filter((d) => d.category === category);
-      }
-      if (status && status !== "all") {
-        docs = docs.filter((d) => d.status === status);
-      }
-      return NextResponse.json({ documents: docs });
-    }
-
     const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
     const familyId = families && families.length > 0 ? families[0].id : null;
 
     if (!familyId) {
-      return NextResponse.json({ documents: mockStore.getDocuments() });
+      return NextResponse.json({ documents: [] });
     }
 
     let query = supabaseAdmin
@@ -58,8 +46,8 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      console.warn("Supabase documents query error, falling back to mock:", error.message);
-      return NextResponse.json({ documents: mockStore.getDocuments() });
+      console.error("Supabase documents query error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     const today = new Date();
@@ -94,14 +82,14 @@ export async function GET(req: NextRequest) {
     });
 
     // Optional status filter
-    const filteredDocs = status && status !== "all"
-      ? documents.filter((d) => d.status === status)
-      : documents;
+    const filteredDocs =
+      status && status !== "all"
+        ? documents.filter((d) => d.status === status)
+        : documents;
 
     return NextResponse.json({ documents: filteredDocs });
   } catch (err: any) {
-    console.warn("Error in GET documents, falling back to mock:", err.message);
-    return NextResponse.json({ documents: mockStore.getDocuments() });
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -122,33 +110,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Judul dokumen wajib diisi" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      const newDoc = mockStore.addDocument({
-        title: title.trim(),
-        category,
-        document_number: document_number?.trim() || null,
-        expiry_date: expiry_date || null,
-        reminder_days_before: Number(reminder_days_before) || 30,
-        drive_view_url: drive_view_url?.trim() || null,
-        metadata: metadata || {},
-      });
-      return NextResponse.json({ success: true, document: newDoc });
-    }
-
     const { data: families } = await supabaseAdmin.from("families").select("id").limit(1);
-    const familyId = families && families.length > 0 ? families[0].id : null;
+    let familyId = families && families.length > 0 ? families[0].id : null;
 
     if (!familyId) {
-      const newDoc = mockStore.addDocument({
-        title: title.trim(),
-        category,
-        document_number: document_number?.trim() || null,
-        expiry_date: expiry_date || null,
-        reminder_days_before: Number(reminder_days_before) || 30,
-        drive_view_url: drive_view_url?.trim() || null,
-        metadata: metadata || {},
-      });
-      return NextResponse.json({ success: true, document: newDoc });
+      const { data: newFam } = await supabaseAdmin
+        .from("families")
+        .insert({ name: "Keluarga F&R", currency: "IDR" })
+        .select("id")
+        .single();
+      familyId = newFam?.id;
     }
 
     const { data, error } = await supabaseAdmin
@@ -167,17 +138,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.warn("Supabase insert document failed, fallback to mock:", error.message);
-      const newDoc = mockStore.addDocument({
-        title: title.trim(),
-        category,
-        document_number: document_number?.trim() || null,
-        expiry_date: expiry_date || null,
-        reminder_days_before: Number(reminder_days_before) || 30,
-        drive_view_url: drive_view_url?.trim() || null,
-        metadata: metadata || {},
-      });
-      return NextResponse.json({ success: true, document: newDoc });
+      console.error("Supabase insert document failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, document: data });
@@ -204,45 +166,24 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing document id" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      const updated = mockStore.updateDocument(id, {
-        title: title?.trim(),
-        category,
-        document_number: document_number?.trim() || null,
-        expiry_date: expiry_date || null,
-        reminder_days_before: Number(reminder_days_before) || 30,
-        drive_view_url: drive_view_url?.trim() || null,
-        metadata: metadata || {},
-      });
-      return NextResponse.json({ success: true, document: updated });
-    }
-
     const { data, error } = await supabaseAdmin
       .from("documents")
       .update({
-        title: title?.trim(),
-        category,
-        document_number: document_number?.trim() || null,
-        expiry_date: expiry_date || null,
-        reminder_days_before: Number(reminder_days_before) || 30,
-        drive_view_url: drive_view_url?.trim() || null,
-        metadata: metadata || {},
+        ...(title !== undefined && { title: title.trim() }),
+        ...(category !== undefined && { category }),
+        ...(document_number !== undefined && { document_number: document_number?.trim() || null }),
+        ...(expiry_date !== undefined && { expiry_date: expiry_date || null }),
+        ...(reminder_days_before !== undefined && { reminder_days_before: Number(reminder_days_before) || 30 }),
+        ...(drive_view_url !== undefined && { drive_view_url: drive_view_url?.trim() || null }),
+        ...(metadata !== undefined && { metadata: metadata || {} }),
       })
       .eq("id", id)
       .select()
       .single();
 
     if (error) {
-      const updated = mockStore.updateDocument(id, {
-        title: title?.trim(),
-        category,
-        document_number: document_number?.trim() || null,
-        expiry_date: expiry_date || null,
-        reminder_days_before: Number(reminder_days_before) || 30,
-        drive_view_url: drive_view_url?.trim() || null,
-        metadata: metadata || {},
-      });
-      return NextResponse.json({ success: true, document: updated });
+      console.error("Supabase update document failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, document: data });
@@ -260,16 +201,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Missing document id" }, { status: 400 });
     }
 
-    if (!isSupabaseConfigured()) {
-      mockStore.deleteDocument(id);
-      return NextResponse.json({ success: true, id });
-    }
-
     const { error } = await supabaseAdmin.from("documents").delete().eq("id", id);
-
     if (error) {
-      mockStore.deleteDocument(id);
-      return NextResponse.json({ success: true, id });
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, id });

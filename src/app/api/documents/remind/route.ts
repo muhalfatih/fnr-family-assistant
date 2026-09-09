@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendTelegramMessage } from "@/lib/telegram/bot";
 import {
   sendWhatsAppInteractiveButtons,
@@ -7,7 +7,6 @@ import {
   normalizeWhatsAppNumber,
 } from "@/lib/whatsapp/client";
 import { formatDateIndo } from "@/lib/utils";
-import { mockStore } from "@/lib/mock-data";
 
 function escapeHtml(str: string): string {
   return str
@@ -41,95 +40,67 @@ async function processReminders(targetChannel: "all" | "whatsapp" | "telegram" =
     let tgMembers: MemberItem[] = [];
     let waMembers: MemberItem[] = [];
 
-    if (!isSupabaseConfigured()) {
-      const mockDocs = mockStore.getDocuments();
-      const allMembers = mockStore.getMembers();
+    const { data: families } = await supabaseAdmin
+      .from("families")
+      .select("id")
+      .limit(1);
 
-      tgMembers = allMembers.filter((m: any) => Boolean(m.telegram_chat_id));
-      waMembers = allMembers.filter((m: any) => Boolean(m.whatsapp_number));
+    const familyId = families && families.length > 0 ? families[0].id : null;
 
-      mockDocs.forEach((doc: any) => {
-        if (doc.expiry_date) {
-          const exp = new Date(doc.expiry_date);
-          exp.setHours(0, 0, 0, 0);
-          const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          const threshold = doc.reminder_days_before || 30;
-
-          if (diffDays <= threshold) {
-            urgentDocs.push({
-              title: doc.title,
-              docNumber: doc.document_number || "-",
-              expiryDate: doc.expiry_date,
-              daysRemaining: diffDays,
-              isExpired: diffDays < 0,
-              driveLink: doc.drive_view_url,
-            });
-          }
-        }
-      });
-    } else {
-      const { data: families } = await supabaseAdmin
-        .from("families")
-        .select("id")
-        .limit(1);
-
-      const familyId = families && families.length > 0 ? families[0].id : null;
-
-      if (!familyId) {
-        return NextResponse.json({
-          success: true,
-          message: "Simulasi Pengingat Selesai (Mode Mock Dev).",
-          count: 0,
-          whatsappSent: false,
-          telegramSent: false,
-        });
-      }
-
-      // Find family members with Telegram chat IDs
-      const { data: dbTgMembers } = await supabaseAdmin
-        .from("family_members")
-        .select("full_name, telegram_chat_id, whatsapp_number")
-        .eq("family_id", familyId)
-        .not("telegram_chat_id", "is", null);
-
-      tgMembers = dbTgMembers || [];
-
-      // Find family members with WhatsApp numbers
-      const { data: dbWaMembers } = await supabaseAdmin
-        .from("family_members")
-        .select("full_name, telegram_chat_id, whatsapp_number")
-        .eq("family_id", familyId)
-        .not("whatsapp_number", "is", null);
-
-      waMembers = dbWaMembers || [];
-
-      // Fetch all documents with expiry date for this family
-      const { data: docs } = await supabaseAdmin
-        .from("documents")
-        .select("*")
-        .eq("family_id", familyId)
-        .not("expiry_date", "is", null);
-
-      (docs || []).forEach((doc: any) => {
-        if (doc.expiry_date) {
-          const exp = new Date(doc.expiry_date);
-          exp.setHours(0, 0, 0, 0);
-          const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          const threshold = doc.reminder_days_before || 30;
-
-          if (diffDays <= threshold) {
-            urgentDocs.push({
-              title: doc.title,
-              docNumber: doc.document_number || "-",
-              expiryDate: doc.expiry_date,
-              daysRemaining: diffDays,
-              isExpired: diffDays < 0,
-              driveLink: doc.drive_view_url,
-            });
-          }
-        }
+    if (!familyId) {
+      return NextResponse.json({
+        success: true,
+        message: "Tidak ada data keluarga yang ditemukan.",
+        count: 0,
+        whatsappSent: false,
+        telegramSent: false,
       });
     }
+
+    // Find family members with Telegram chat IDs
+    const { data: dbTgMembers } = await supabaseAdmin
+      .from("family_members")
+      .select("full_name, telegram_chat_id, whatsapp_number")
+      .eq("family_id", familyId)
+      .not("telegram_chat_id", "is", null);
+
+    tgMembers = dbTgMembers || [];
+
+    // Find family members with WhatsApp numbers
+    const { data: dbWaMembers } = await supabaseAdmin
+      .from("family_members")
+      .select("full_name, telegram_chat_id, whatsapp_number")
+      .eq("family_id", familyId)
+      .not("whatsapp_number", "is", null);
+
+    waMembers = dbWaMembers || [];
+
+    // Fetch all documents with expiry date for this family
+    const { data: docs } = await supabaseAdmin
+      .from("documents")
+      .select("*")
+      .eq("family_id", familyId)
+      .not("expiry_date", "is", null);
+
+    (docs || []).forEach((doc: any) => {
+      if (doc.expiry_date) {
+        const exp = new Date(doc.expiry_date);
+        exp.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const threshold = doc.reminder_days_before || 30;
+
+        if (diffDays <= threshold) {
+          urgentDocs.push({
+            title: doc.title,
+            docNumber: doc.document_number || "-",
+            expiryDate: doc.expiry_date,
+            daysRemaining: diffDays,
+            isExpired: diffDays < 0,
+            driveLink: doc.drive_view_url,
+          });
+        }
+      }
+    });
 
     if (urgentDocs.length === 0) {
       return NextResponse.json({

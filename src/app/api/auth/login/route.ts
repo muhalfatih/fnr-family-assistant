@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mockStore } from "@/lib/mock-data";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 const FAMILY_PRESETS: Record<
@@ -91,21 +90,6 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.warn("[Login] Supabase member lookup error:", err);
-      }
-    }
-
-    if (!user) {
-      const members = mockStore.getMembers();
-      const matched = members.find((m) =>
-        m.full_name.toLowerCase().includes(cleanEmail.replace(/@.*/, ""))
-      );
-      if (matched) {
-        user = {
-          id: matched.id,
-          name: matched.full_name,
-          email: cleanEmail,
-          role: matched.role || "member",
-        };
       }
     }
 

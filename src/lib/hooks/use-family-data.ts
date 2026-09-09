@@ -18,8 +18,8 @@ export const fetcher = async (url: string) => {
 // Global default configuration for family data
 const defaultConfig: SWRConfiguration = {
   revalidateOnFocus: true, // Revalidate when user returns to browser tab
-  dedupingInterval: 5000,   // Deduplicate requests within 5 seconds
-  refreshInterval: 15000,   // Auto-sync every 15s (background sync for Telegram transactions)
+  dedupingInterval: 8000,   // Deduplicate requests within 8 seconds
+  refreshInterval: 30000,   // Auto-sync every 30s (background sync for bot transactions)
   revalidateOnReconnect: true,
   keepPreviousData: true,   // ZERO-FLICKER: keep previous data in view while revalidating
 };

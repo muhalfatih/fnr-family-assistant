@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { mockStore } from "@/lib/mock-data";
 import {
   parseFinancialInputWithGemini,
   answerFinancialQuestionWithGemini,
@@ -54,34 +53,9 @@ export async function GET(req: NextRequest) {
 
 
 /**
- * Helper to fetch live financial data for a family with instant mock fallback
+ * Helper to fetch live financial data for a family directly from Supabase
  */
 async function getFamilyFinancialData(familyId: string) {
-  if (!isSupabaseConfigured()) {
-    const wallets = mockStore.getWallets();
-    const categories = mockStore.getCategories();
-    const budgets = mockStore.getBudgets();
-    const transactions = mockStore.getTransactions();
-
-    let monthlyTotalExpense = 0;
-    let monthlyTotalIncome = 0;
-
-    transactions.forEach((t) => {
-      if (t.type === "expense") monthlyTotalExpense += Number(t.amount);
-      if (t.type === "income") monthlyTotalIncome += Number(t.amount);
-    });
-
-    return {
-      wallets,
-      categories,
-      budgets,
-      monthTransactions: transactions,
-      recentTransactions: transactions.slice(0, 5),
-      monthlyTotalExpense,
-      monthlyTotalIncome,
-    };
-  }
-
   const currentMonth = new Date().toISOString().substring(0, 7);
   const { startDate, endDate } = getMonthDateRange(currentMonth);
 
@@ -94,9 +68,9 @@ async function getFamilyFinancialData(familyId: string) {
       supabaseAdmin.from("transactions").select("*, category:categories(name, color), wallet:wallets!transactions_wallet_id_fkey(name)").eq("family_id", familyId).order("transaction_date", { ascending: false }).limit(5),
     ]);
 
-    const wallets = walletsRes?.data || mockStore.getWallets();
-    const categories = categoriesRes?.data || mockStore.getCategories();
-    const budgets = budgetsRes?.data || mockStore.getBudgets();
+    const wallets = walletsRes?.data || [];
+    const categories = categoriesRes?.data || [];
+    const budgets = budgetsRes?.data || [];
     const monthTransactions = monthTxRes?.data || [];
     const recentTransactions = recentTxRes?.data || [];
 
@@ -119,9 +93,9 @@ async function getFamilyFinancialData(familyId: string) {
     };
   } catch (e) {
     return {
-      wallets: mockStore.getWallets(),
-      categories: mockStore.getCategories(),
-      budgets: mockStore.getBudgets(),
+      wallets: [],
+      categories: [],
+      budgets: [],
       monthTransactions: [],
       recentTransactions: [],
       monthlyTotalExpense: 0,
@@ -138,13 +112,6 @@ async function resolveWallet(
   walletHint?: string | null,
   defaultWalletId?: string | null
 ) {
-  if (!isSupabaseConfigured()) {
-    const wallets = mockStore.getWallets();
-    let chosen = wallets.find((w) => walletHint && w.name.toLowerCase().includes(walletHint.toLowerCase()));
-    if (!chosen && defaultWalletId) chosen = wallets.find((w) => w.id === defaultWalletId);
-    return chosen || wallets[0] || { id: "wal-cash", name: "Dompet Tunai" };
-  }
-
   try {
     const { data: wallets, error: fetchErr } = await supabaseAdmin
       .from("wallets")
@@ -262,21 +229,6 @@ export async function POST(req: NextRequest) {
 async function resolveRegisteredWhatsAppMember(normalizedPhone: string) {
   if (!normalizedPhone) return null;
   const cleanWithoutCountry = normalizedPhone.replace(/^62/, "");
-
-  if (!isSupabaseConfigured()) {
-    const members = mockStore.getMembers();
-    return (
-      members.find((m: any) => {
-        if (!m.whatsapp_number) return false;
-        const cleanM = m.whatsapp_number.replace(/\D/g, "");
-        return (
-          cleanM === normalizedPhone ||
-          cleanM === `62${cleanWithoutCountry}` ||
-          cleanM.endsWith(cleanWithoutCountry)
-        );
-      }) || null
-    );
-  }
 
   try {
     const { data: memberData, error: memberErr } = await supabaseAdmin
@@ -690,18 +642,6 @@ async function processWhatsAppMessage(
       }
     }
 
-    if (!targetTx && !targetTxId) {
-      const mockTxs = mockStore.getTransactions();
-      if (mockTxs.length > 0) {
-        targetTx = mockTxs[0];
-        targetTxId = targetTx.id;
-      }
-    }
-
-    if (targetTxId) {
-      mockStore.deleteTransaction(targetTxId);
-    }
-
     if (targetTx) {
       // Clean up media storage (R2 / Local)
       if (targetTx.drive_file_id || targetTx.drive_view_url || targetTx.media_url) {
@@ -862,21 +802,12 @@ async function processWhatsAppMessage(
       }
 
       if (!newTx) {
-        newTx = mockStore.addTransaction({
-          family_id: familyId,
-          member_id: member?.id || null,
-          wallet_id: chosenWallet.id,
-          category_id: categoryId,
-          type: parsed.type,
-          amount: parsed.amount,
-          description: parsed.description || (parsed.merchant_name ? `Struk: ${parsed.merchant_name}` : "Belanja Struk"),
-          raw_prompt: caption || "Struk Foto WhatsApp",
-          media_type: "image",
-        });
-        newTx.wallet = chosenWallet;
-        newTx.category = { name: parsed.category };
-        newTx.drive_view_url = r2ViewUrl;
-        newTx.drive_file_id = r2FileId;
+        completeBotProcess(taskId, "failed", "Gagal menyimpan transaksi ke database.");
+        await sendWhatsAppTextMessage(
+          senderPhone,
+          "❌ Maaf, terjadi kesalahan saat menyimpan transaksi ke database. Silakan coba kembali sesaat lagi."
+        );
+        return;
       }
 
       // Sync to Google Sheets
@@ -1205,19 +1136,12 @@ async function processWhatsAppMessage(
       }
 
       if (!newTx) {
-        newTx = mockStore.addTransaction({
-          family_id: familyId,
-          member_id: member?.id || null,
-          wallet_id: chosenWallet.id,
-          category_id: categoryId,
-          type: parsed.type,
-          amount: parsed.amount,
-          description: parsed.description,
-          raw_prompt: text,
-          media_type: "text",
-        });
-        newTx.wallet = chosenWallet;
-        newTx.category = { name: parsed.category };
+        completeBotProcess(taskId, "failed", "Gagal menyimpan transaksi ke database.");
+        await sendWhatsAppTextMessage(
+          senderPhone,
+          "❌ Maaf, transaksi tidak berhasil disimpan ke database. Silakan coba kembali sesaat lagi."
+        );
+        return;
       }
 
       appendTransactionToSheet(newTx).catch(() => {});
