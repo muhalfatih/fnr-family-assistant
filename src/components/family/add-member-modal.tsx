@@ -277,31 +277,32 @@ export function AddMemberModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="sm:max-w-[440px] w-[95vw] max-h-[90vh] overflow-y-auto p-5 sm:p-6">
         <DialogHeader>
           <DialogTitle>
             {memberToEdit ? "Edit Profil Anggota" : "Tambah Anggota Keluarga"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Kelola profil anggota keluarga, dompet pengeluaran default, dan tautan akun bot Telegram.
+            Atur profil anggota, peran, dompet default, dan keamanan akun.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {errorMsg && (
-            <div className="p-3 text-xs rounded-md bg-destructive/15 text-destructive border border-destructive/20">
-              {errorMsg}
+            <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs border border-destructive/20 animate-in fade-in">
+              <AlertCircle className="size-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
           {/* 1. Nama Lengkap */}
           <div className="space-y-1.5">
             <Label htmlFor="fullName" className="text-xs font-medium text-foreground">
-              Nama Lengkap <span className="text-destructive ml-0.5">*</span>
+              Nama Lengkap
             </Label>
             <Input
               id="fullName"
-              placeholder="Contoh: Ayah / Ibu / Sulung"
+              placeholder="Nama anggota keluarga"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="text-xs h-9"
@@ -313,7 +314,7 @@ export function AddMemberModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">
-                Peran (Role) <span className="text-destructive ml-0.5">*</span>
+                Peran (Role)
               </Label>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger className="h-9 text-xs w-full">
@@ -321,9 +322,9 @@ export function AddMemberModal({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="admin">Kepala Keluarga (Akses Penuh)</SelectItem>
-                    <SelectItem value="spouse">Pengelola (Keuangan, Aset, Brankas)</SelectItem>
-                    <SelectItem value="member">Anggota (Keuangan & Catat)</SelectItem>
+                    <SelectItem value="admin">Kepala Keluarga</SelectItem>
+                    <SelectItem value="spouse">Pengelola</SelectItem>
+                    <SelectItem value="member">Anggota</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -331,7 +332,7 @@ export function AddMemberModal({
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">
-                Dompet Default <span className="text-destructive ml-0.5">*</span>
+                Dompet Default
               </Label>
               <Select value={defaultWalletId} onValueChange={setDefaultWalletId}>
                 <SelectTrigger className="h-9 text-xs w-full">
@@ -350,25 +351,31 @@ export function AddMemberModal({
             </div>
           </div>
 
-          {/* 3. Tautan Telegram Chat ID & Cek Akun */}
+          {/* 3. Tautan Akun Telegram */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="tgId" className="text-xs font-medium text-foreground">
-                Telegram Chat ID (Opsional)
-              </Label>
-              <span
-                className="text-[11px] text-muted-foreground flex items-center gap-1"
-                title="Untuk mendapatkan Chat ID, kirim /start ke bot @fnr_assistant_bot"
-              >
-                <HelpCircle className="size-3" aria-hidden="true" />
-                <span>Otomatis terisi jika kirim /start</span>
-              </span>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="tgId" className="text-xs font-medium text-foreground">
+                  Telegram Chat ID
+                </Label>
+                {telegramUsername ? (
+                  <Badge variant="success" className="text-[10px] px-1.5 py-0 h-4 gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                    <Send className="size-2.5 text-sky-500" aria-hidden="true" />
+                    <span>@{telegramUsername}</span>
+                  </Badge>
+                ) : telegramChatId ? (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                    Terhubung
+                  </Badge>
+                ) : null}
+              </div>
+              <span className="text-[10.5px] text-muted-foreground">Opsional</span>
             </div>
             <div className="flex items-center gap-2">
               <Input
                 id="tgId"
                 type="number"
-                placeholder="Contoh: 123456789"
+                placeholder="ID chat numerik"
                 value={telegramChatId}
                 onChange={(e) => {
                   setTelegramChatId(e.target.value);
@@ -383,64 +390,21 @@ export function AddMemberModal({
                 onClick={handleCheckTelegram}
                 disabled={isCheckingTelegram || !telegramChatId.trim()}
                 className="h-9 text-xs px-3 shrink-0 gap-1.5 cursor-pointer"
-                title="Verifikasi Chat ID dan ambil data akun Telegram"
+                title="Cek akun Telegram"
               >
                 {isCheckingTelegram ? (
-                  <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" aria-hidden="true" />
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Search className="size-3.5 text-muted-foreground" data-icon="inline-start" aria-hidden="true" />
+                  <Search className="size-3.5 text-muted-foreground" aria-hidden="true" />
                 )}
                 <span>Cek Akun</span>
               </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              ID numerik Telegram. Klik <b>Cek Akun</b> untuk memverifikasi dan mengambil username secara otomatis.
-            </p>
-          </div>
-
-          {/* 4. Username Telegram (View Only) */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-foreground">
-              Username Telegram (Otomatis dari Akun)
-            </Label>
-            <div className="flex items-center justify-between min-h-9 px-3 py-1.5 rounded-md border border-input bg-muted/40 text-xs transition-colors">
-              <div className="flex items-center gap-2 truncate">
-                <Send className="size-3.5 text-sky-600 shrink-0" aria-hidden="true" />
-                {telegramUsername ? (
-                  <span className="font-semibold text-foreground tracking-tight">
-                    @{telegramUsername}
-                  </span>
-                ) : telegramDisplayName && telegramChatId ? (
-                  <span className="text-muted-foreground text-xs font-medium truncate">
-                    Terhubung (Tanpa @username) • Nama: {telegramDisplayName}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground/75 italic text-xs">
-                    Otomatis terdeteksi saat ID terdaftar / akun terhubung
-                  </span>
-                )}
-              </div>
-
-              {telegramUsername ? (
-                <Badge variant="success" className="text-[10px] px-2 py-0 h-5 shrink-0 gap-1">
-                  <CheckCircle2 className="size-2.5" aria-hidden="true" />
-                  <span>Terverifikasi</span>
-                </Badge>
-              ) : telegramChatId ? (
-                <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 shrink-0">
-                  ID Terdaftar
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] px-2 py-0 h-5 text-muted-foreground shrink-0">
-                  Belum Terhubung
-                </Badge>
-              )}
             </div>
 
             {telegramCheckFeedback ? (
               <p
                 className={cn(
-                  "text-[11px] flex items-center gap-1.5 mt-1",
+                  "text-[11px] flex items-center gap-1.5 mt-0.5",
                   telegramCheckFeedback.type === "success"
                     ? "text-emerald-600 dark:text-emerald-400 font-medium"
                     : telegramCheckFeedback.type === "info"
@@ -457,19 +421,25 @@ export function AddMemberModal({
               </p>
             ) : (
               <p className="text-[11px] text-muted-foreground">
-                Username disinkronkan otomatis dari Telegram ketika akun terhubung. Tidak perlu diinput manual.
+                {telegramUsername
+                  ? `Terhubung ke @${telegramUsername}.`
+                  : "Dapat diperoleh otomatis dengan mengirim /start ke bot Telegram."}
               </p>
             )}
           </div>
 
           {/* 4. Nomor WhatsApp */}
           <div className="space-y-1.5">
-            <Label htmlFor="wa" className="text-xs font-medium text-foreground">
-              Nomor WhatsApp (Opsional)
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="wa" className="text-xs font-medium text-foreground">
+                Nomor WhatsApp
+              </Label>
+              <span className="text-[10.5px] text-muted-foreground">Opsional</span>
+            </div>
             <Input
               id="wa"
-              placeholder="Contoh: +6281234567890"
+              type="tel"
+              placeholder="0812-3456-7890"
               value={whatsappNumber}
               onChange={(e) => setWhatsappNumber(e.target.value)}
               className="text-xs tabular-nums h-9"
@@ -497,7 +467,7 @@ export function AddMemberModal({
               </div>
 
               {/* Progressive Disclosure Toggle Button */}
-              {memberToEdit && !isChangingPassword && (
+              {!isChangingPassword && (
                 <Button
                   type="button"
                   variant="outline"
@@ -511,28 +481,26 @@ export function AddMemberModal({
                   className="h-7 text-xs px-2.5 gap-1.5 cursor-pointer"
                 >
                   <KeyRound className="size-3" aria-hidden="true" />
-                  <span>{memberToEdit.has_password ? "Ubah Sandi" : "Setel Sandi"}</span>
+                  <span>{memberToEdit?.has_password ? "Ubah Sandi" : "Setel Sandi"}</span>
                 </Button>
               )}
             </div>
 
             {/* Description when collapsed */}
-            {memberToEdit && !isChangingPassword && (
+            {!isChangingPassword && (
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {memberToEdit.has_password
+                {memberToEdit?.has_password
                   ? "Anggota dapat login menggunakan kata sandi pribadi ini di tab Sandi."
-                  : "Belum memiliki kata sandi mandiri. Anggota saat ini masuk menggunakan kata sandi keluarga master."}
+                  : "Opsional. Anggota dapat masuk menggunakan kata sandi keluarga master jika belum disetel."}
               </p>
             )}
 
-            {/* Expanded Password Form (When isChangingPassword is true, or when adding a new member) */}
-            {(isChangingPassword || !memberToEdit) && (
+            {/* Expanded Password Form */}
+            {isChangingPassword && (
               <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 space-y-3 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
                   <span className="text-xs font-semibold text-foreground">
-                    {memberToEdit
-                      ? (memberToEdit.has_password ? "Form Ubah Kata Sandi" : "Setel Kata Sandi Baru")
-                      : "Atur Kata Sandi Akun (Opsional)"}
+                    {memberToEdit?.has_password ? "Ubah Kata Sandi" : "Atur Kata Sandi Baru"}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <Button
@@ -546,23 +514,21 @@ export function AddMemberModal({
                       <KeyRound className="size-3" aria-hidden="true" />
                       <span>Acak Sandi</span>
                     </Button>
-                    {memberToEdit && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setIsChangingPassword(false);
-                          setCurrentPassword("");
-                          setNewPassword("");
-                          setConfirmPassword("");
-                          setErrorMsg("");
-                        }}
-                        className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-                      >
-                        Batal
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsChangingPassword(false);
+                        setCurrentPassword("");
+                        setNewPassword("");
+                        setConfirmPassword("");
+                        setErrorMsg("");
+                      }}
+                      className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Batal
+                    </Button>
                   </div>
                 </div>
 
