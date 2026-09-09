@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS public.family_members (
     family_id UUID NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
     auth_user_id UUID, -- Supabase Auth User UID
     full_name VARCHAR(150) NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    role VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'spouse', 'member')),
     default_wallet_id UUID REFERENCES public.wallets(id) ON DELETE SET NULL,
     telegram_chat_id BIGINT UNIQUE,
     whatsapp_number VARCHAR(50),

@@ -58,7 +58,7 @@ erDiagram
         uuid id PK
         uuid family_id FK
         string full_name
-        string role "admin | member"
+        string role "admin | spouse | member"
         uuid default_wallet_id FK
         bigint telegram_chat_id
         string whatsapp_number

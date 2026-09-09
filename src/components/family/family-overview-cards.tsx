@@ -14,6 +14,7 @@ export function FamilyOverviewCards({ members, totalExpense }: FamilyOverviewCar
   const totalMembers = members.length;
   const connectedTelegram = members.filter((m) => Boolean(m.telegram_chat_id)).length;
   const admins = members.filter((m) => m.role === "admin").length;
+  const managers = members.filter((m) => m.role === "spouse").length;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -63,13 +64,15 @@ export function FamilyOverviewCards({ members, totalExpense }: FamilyOverviewCar
         </CardContent>
       </Card>
 
-      {/* 4. Pengelola (Admin) */}
+      {/* 4. Pengelola (Admin & Spouse) */}
       <Card>
         <CardContent className="p-5 flex items-center justify-between">
           <div className="space-y-1 min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">Hak Akses Admin</p>
-            <p className="text-2xl font-bold tracking-tight tabular-nums truncate">{admins}</p>
-            <p className="text-xs text-muted-foreground truncate">Pengelola Pagu & Aset</p>
+            <p className="text-xs font-medium text-muted-foreground">Kepala & Pengelola</p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums truncate">
+              {admins + managers} <span className="text-xs font-normal text-muted-foreground">({admins} Admin, {managers} Pengelola)</span>
+            </p>
+            <p className="text-xs text-muted-foreground truncate">Otoritas Pagu & Portofolio</p>
           </div>
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
             <ShieldCheck className="size-5" aria-hidden="true" />

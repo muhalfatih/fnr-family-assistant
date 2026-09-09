@@ -15,13 +15,13 @@ const FAMILY_PRESETS: Record<
     id: "mem-002",
     name: "Ibu (Rania)",
     email: "ibu@keluarga.hub",
-    role: "admin",
+    role: "spouse",
   },
   "bunda@keluarga.hub": {
     id: "mem-002",
     name: "Ibu (Rania)",
     email: "ibu@keluarga.hub",
-    role: "admin",
+    role: "spouse",
   },
   "kakak@keluarga.hub": {
     id: "mem-003",

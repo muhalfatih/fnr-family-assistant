@@ -655,7 +655,7 @@ export async function POST(req: NextRequest) {
       lowerCommand.startsWith("start id")
     ) {
       const linkedInfo = member
-        ? `✅ *Status Akun:* Terhubung dengan *${member.full_name}* (${member.role === "admin" ? "Admin" : "Anggota"})`
+        ? `✅ *Status Akun:* Terhubung dengan *${member.full_name}* (${member.role === "admin" ? "Kepala Keluarga" : member.role === "spouse" ? "Pengelola" : "Anggota"})`
         : `⚠️ *Status Akun:* Belum ditautkan ke anggota keluarga. Minta Admin menautkan ID ini di menu *Keluarga* pada Web Dashboard.`;
 
       await sendTelegramMessage(

@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Wallet, Category } from "@/lib/types/database";
 import { formatRupiah } from "@/lib/utils";
-import { Loader2, SlidersHorizontal } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -32,7 +32,6 @@ interface AddTransactionModalProps {
   wallets: Wallet[];
   categories: Category[];
   onSuccess: () => void;
-  onOpenManageCategories?: () => void;
 }
 
 export function AddTransactionModal({
@@ -41,7 +40,6 @@ export function AddTransactionModal({
   wallets,
   categories,
   onSuccess,
-  onOpenManageCategories,
 }: AddTransactionModalProps) {
   const [type, setType] = useState<"expense" | "income">("expense");
   const [displayAmount, setDisplayAmount] = useState<string>("");
@@ -268,21 +266,9 @@ export function AddTransactionModal({
 
               {/* Category Select */}
               <div className="grid gap-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="category" className="text-xs font-medium text-foreground">
-                    Kategori {type === "expense" ? "Pengeluaran" : "Pemasukan"}
-                  </Label>
-                  {onOpenManageCategories && (
-                    <button
-                      type="button"
-                      onClick={onOpenManageCategories}
-                      className="text-[11px] text-primary hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <SlidersHorizontal className="size-3" />
-                      <span>Kelola Kategori</span>
-                    </button>
-                  )}
-                </div>
+                <Label htmlFor="category" className="text-xs font-medium text-foreground">
+                  Kategori {type === "expense" ? "Pengeluaran" : "Pemasukan"}
+                </Label>
                 <Select
                   value={categoryId}
                   onValueChange={setCategoryId}
